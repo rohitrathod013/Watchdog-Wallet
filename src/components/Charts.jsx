@@ -16,15 +16,15 @@ export function EarningBars({ values, selected, onSelect, max = 100 }) {
   return (
     <div className="eb">
       <div className="eb-axis">
-        {ticks.map((t, i) => (
-          <span key={t} className="rv" style={{ bottom: `${(t / max) * 100}%`, '--i': 2 + i * 0.3 }}>
-            {t}k
+        {ticks.map((tick, i) => (
+          <span key={tick} className="rv" style={{ bottom: `${(tick / max) * 100}%`, '--i': 2 + i * 0.3 }}>
+            {tick}k
           </span>
         ))}
       </div>
       <div className="eb-plot" onMouseLeave={() => setHover(null)}>
-        {ticks.map((t, i) => (
-          <i key={t} className="eb-grid" style={{ bottom: `${(t / max) * 100}%`, '--i': i }} />
+        {ticks.map((tick, i) => (
+          <i key={tick} className="eb-grid" style={{ bottom: `${(tick / max) * 100}%`, '--i': i }} />
         ))}
         {values.map((v, i) => (
           <button

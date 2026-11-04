@@ -377,16 +377,16 @@ export function Empty({ icon = 'search', title, body }) {
 export function Toasts({ items, onDismiss }) {
   return (
     <div className="toasts" aria-live="polite">
-      {items.map((t) => (
-        <div key={t.id} className="toast">
+      {items.map((item) => (
+        <div key={item.id} className="toast">
           <span className="toast-icon">
-            <Icon name={t.icon ?? 'check'} size={16} stroke={2.2} />
+            <Icon name={item.icon ?? 'check'} size={16} stroke={2.2} />
           </span>
           <div>
-            <strong>{t.title}</strong>
-            {t.body ? <p>{t.body}</p> : null}
+            <strong>{item.title}</strong>
+            {item.body ? <p>{item.body}</p> : null}
           </div>
-          <button type="button" onClick={() => onDismiss(t.id)} aria-label={t('Dismiss')}>
+          <button type="button" onClick={() => onDismiss(item.id)} aria-label={t('Dismiss')}>
             <Icon name="close" size={14} />
           </button>
         </div>
