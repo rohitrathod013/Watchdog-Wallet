@@ -3,6 +3,7 @@ import { QuickTransferCard, TxCard } from '../components/Cards'
 import { CountUp, PageHead, Stage } from '../components/ui'
 import { useApp, useLead } from '../lib/store'
 import { whole } from '../lib/format'
+import { t } from '../lib/i18n'
 
 function LimitsCard({ d }) {
   const { sentToday } = useApp()
@@ -16,8 +17,8 @@ function LimitsCard({ d }) {
     <section className="card health-card" style={{ '--d': `${d}ms` }}>
       <div className="c-head rv" style={{ '--i': 0 }}>
         <div>
-          <h2 className="card-h">Transfer Limits</h2>
-          <p className="card-sub">Resets at midnight and on the 1st</p>
+          <h2 className="card-h">{t('Transfer Limits')}</h2>
+          <p className="card-sub">{t('Resets at midnight and on the 1st')}</p>
         </div>
         <span className="ic-ring">
           <Icon name="shield" size={19} />
@@ -29,7 +30,7 @@ function LimitsCard({ d }) {
           return (
             <div key={l.name} className="rv" style={{ '--i': 1 + r * 0.6 }}>
               <div className="meter-top">
-                <span>{l.name}</span>
+                <span>{t(l.name)}</span>
                 <b>
                   <CountUp value={l.used} format={(n) => whole(n)} delay={lead + 300 + r * 90} /> <em>/ {whole(l.cap)}</em>
                 </b>
@@ -49,10 +50,10 @@ export default function Transfer() {
   const { openModal } = useApp()
   return (
     <Stage>
-      <PageHead title="Transfer" sub="Move money between people and accounts in seconds">
+      <PageHead title={t('Transfer')} sub={t('Move money between people and accounts in seconds')}>
         <button type="button" className="btn solid lg" onClick={() => openModal('request')}>
           <Icon name="request" size={19} />
-          Request money
+          {t('Request money')}
         </button>
       </PageHead>
       <div className="grid-2" style={{ marginTop: 0 }}>

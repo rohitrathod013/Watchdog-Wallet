@@ -951,3 +951,47 @@ html.ai-open .toasts {
   border: 1px solid var(--line-2);
   color: var(--muted);
 }
+
+/* ============================================================
+   Right-to-left (Arabic). The layout mirrors on its own; charts,
+   change pills and "a / b" number pairs keep reading left to right.
+   ============================================================ */
+[dir='rtl'] .eb,
+[dir='rtl'] .line-chart,
+[dir='rtl'] .hm,
+[dir='rtl'] .stacked,
+[dir='rtl'] .split {
+  direction: ltr;
+}
+[dir='rtl'] .chg b,
+[dir='rtl'] .goal-amt,
+[dir='rtl'] .meter-top b,
+[dir='rtl'] .bills-sum small,
+[dir='rtl'] .bc-num,
+[dir='rtl'] .tx-amt,
+[dir='rtl'] .ai-bar-top b {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+[dir='rtl'] .goal-amt {
+  text-align: left;
+}
+[dir='rtl'] .pixels {
+  right: auto;
+  left: 22px;
+  transform: scaleX(-1);
+}
+
+/* Longer languages (French, German, Spanish…): let wide labels wrap instead of being cut off */
+.brand-name {
+  white-space: nowrap;
+}
+html:not([lang='en']) .bal-actions .btn.xl {
+  height: auto;
+  min-height: 56px;
+  padding: 8px 14px;
+  font-size: 15px;
+  line-height: 1.15;
+  white-space: normal;
+  text-align: center;
+}

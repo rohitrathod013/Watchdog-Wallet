@@ -3,6 +3,7 @@ import { useAnimate } from 'framer-motion'
 import BuddyArt from './BuddyArt'
 import { useApp } from '../lib/store'
 import { ASSISTANT, BRAND } from '../config'
+import { t } from '../lib/i18n'
 
 const W = 220
 const H = 250
@@ -210,7 +211,7 @@ export default function Buddy({ hidden, onOpen }) {
         className={`buddy ${phase} ${waving ? 'waving' : ''} ${hidden ? 'away' : ''}`}
         role={phase === 'idle' ? 'button' : undefined}
         tabIndex={phase === 'idle' && !hidden ? 0 : -1}
-        aria-label={`Chat with ${ASSISTANT.name}, your ${BRAND.name} assistant`}
+        aria-label={t('Chat with {name}, your {brand} assistant', { name: ASSISTANT.name, brand: BRAND.name })}
         aria-hidden={phase !== 'idle'}
         onClick={open}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open())}
@@ -227,7 +228,7 @@ export default function Buddy({ hidden, onOpen }) {
         <>
           <div className="buddy-stage" style={{ left: stage.x, top: stage.y }}>
             <div className={`buddy-hi ${stage.out ? 'out' : ''}`}>
-              Hi {user.first}! 👋 I’m {ASSISTANT.name}
+              {t('Hi {name}! 👋 I’m {assistant}', { name: user.first, assistant: ASSISTANT.name })}
             </div>
           </div>
           <div className="buddy-stage" style={{ left: stage.x, top: stage.by }} aria-hidden="true">
@@ -253,7 +254,7 @@ export default function Buddy({ hidden, onOpen }) {
 
       {note && !hidden ? (
         <div className={`buddy-note ${note === 'out' ? 'out' : ''}`} onClick={open} role="presentation">
-          <b>Need a hand, {user.first}?</b> Ask me anything about your money 💬
+          <b>{t('Need a hand, {name}?', { name: user.first })}</b> {t('Ask me anything about your money 💬')}
         </div>
       ) : null}
     </>

@@ -6,6 +6,7 @@ import { useApp } from '../lib/store'
 import { LANGUAGES } from '../data/seed'
 import { PAGES } from '../lib/routes'
 import { BRAND } from '../config'
+import { setLocale, t } from '../lib/i18n'
 
 const ACCENTS = [
   { id: 'orange', color: '#ef6c2f' },
@@ -52,12 +53,12 @@ export default function TopBar() {
 
   return (
     <header className="topbar">
-      <button type="button" className="brand" onClick={() => go('dashboard')} aria-label={`${BRAND.name} home`}>
+      <button type="button" className="brand" onClick={() => go('dashboard')} aria-label={t('{name} home', { name: BRAND.name })}>
         <Logo />
         <span className="brand-name">{BRAND.name}</span>
       </button>
 
-      <nav className="nav" ref={nav} aria-label="Primary">
+      <nav className="nav" ref={nav} aria-label={t('Primary')}>
         <span className="nav-ind" ref={ind} />
         {PAGES.map((p, i) => (
           <button
@@ -73,7 +74,7 @@ export default function TopBar() {
               <span className="nav-ic">
                 <Icon name={p.icon} size={20} stroke={1.8} />
               </span>
-              {p.label}
+              {t(p.label)}
             </span>
           </button>
         ))}
@@ -87,21 +88,21 @@ export default function TopBar() {
             className={`tool ${open === 'bell' ? 'on' : ''}`}
             style={{ '--i': 0 }}
             onClick={() => toggle('bell')}
-            aria-label="Notifications"
+            aria-label={t('Notifications')}
           >
             <Icon name="bell" size={22} />
             {unread ? <i className="bell-dot" /> : null}
           </button>
           <Popover open={open === 'bell'} onClose={close} className="notif-pop">
             <div className="pop-head">
-              <strong>Notifications</strong>
+              <strong>{t('Notifications')}</strong>
               <button
                 type="button"
                 className="link"
                 disabled={!unread}
                 onClick={() => setNotifications((n) => n.map((x) => ({ ...x, unread: false })))}
               >
-                Mark all as read
+                {t('Mark all as read')}
               </button>
             </div>
             {notifications.slice(0, 6).map((n, i) => (
@@ -116,10 +117,10 @@ export default function TopBar() {
                   <Icon name={n.icon} size={16} stroke={2} />
                 </span>
                 <span className="notif-txt">
-                  <strong>{n.title}</strong>
-                  <small>{n.body}</small>
+                  <strong>{t(n.title, n.vars)}</strong>
+                  <small>{t(n.body, n.vars)}</small>
                 </span>
-                <em>{n.time}</em>
+                <em>{t(n.time)}</em>
               </button>
             ))}
             <button
@@ -130,7 +131,7 @@ export default function TopBar() {
                 go('dashboard', { tab: 'transactions' })
               }}
             >
-              View all activity <Icon name="arrowRight" size={15} />
+              {t('View all activity')} <Icon name="arrowRight" size={15} />
             </button>
           </Popover>
         </div>
@@ -143,22 +144,22 @@ export default function TopBar() {
             className={`tool gear ${open === 'gear' ? 'on' : ''}`}
             style={{ '--i': 1 }}
             onClick={() => toggle('gear')}
-            aria-label="Settings"
+            aria-label={t('Settings')}
           >
             <Icon name="gear" size={22} />
           </button>
           <Popover open={open === 'gear'} onClose={close} className="set-pop">
-            <h6>Appearance</h6>
+            <h6>{t('Appearance')}</h6>
             <Segmented
               items={[
-                { key: 'light', label: 'Light' },
-                { key: 'dark', label: 'Dark' },
+                { key: 'light', label: t('Light') },
+                { key: 'dark', label: t('Dark') },
               ]}
               value={app.theme}
               onChange={themeFromGear}
             />
             <div className="set-gap" />
-            <h6>Accent</h6>
+            <h6>{t('Accent')}</h6>
             <div className="swatches">
               {ACCENTS.map((a) => (
                 <button
@@ -167,19 +168,19 @@ export default function TopBar() {
                   className={`swatch ${app.accent === a.id ? 'on' : ''}`}
                   style={{ background: a.color }}
                   onClick={() => app.setAccent(a.id)}
-                  aria-label={`${a.id} accent`}
+                  aria-label={t('{color} accent', { color: t(a.id) })}
                   aria-pressed={app.accent === a.id}
                 />
               ))}
             </div>
-            <h6>Motion</h6>
+            <h6>{t('Motion')}</h6>
             <div className="set-row">
-              <span>Live updates</span>
-              <Toggle on={app.live} onChange={app.setLive} label="Live updates" />
+              <span>{t('Live updates')}</span>
+              <Toggle on={app.live} onChange={app.setLive} label={t('Live updates')} />
             </div>
             <div className="set-row">
-              <span>Reduce motion</span>
-              <Toggle on={app.reduceMotion} onChange={app.setReduceMotion} label="Reduce motion" />
+              <span>{t('Reduce motion')}</span>
+              <Toggle on={app.reduceMotion} onChange={app.setReduceMotion} label={t('Reduce motion')} />
             </div>
             <hr />
             <MenuItem
@@ -189,7 +190,7 @@ export default function TopBar() {
                 app.replayIntro()
               }}
             >
-              Replay intro animation
+              {t('Replay intro animation')}
             </MenuItem>
           </Popover>
         </div>
@@ -201,7 +202,7 @@ export default function TopBar() {
             className={`tool lang ${open === 'lang' ? 'on' : ''}`}
             style={{ '--i': 2 }}
             onClick={() => toggle('lang')}
-            aria-label="Language"
+            aria-label={t('Language')}
           >
             {app.lang}
           </button>
@@ -212,10 +213,13 @@ export default function TopBar() {
                 i={i}
                 on={app.lang === l.code}
                 onClick={() => {
-                  app.setLang(l.code)
                   close()
-                  if (l.code !== app.lang)
-                    app.toast(`Language set to ${l.name}`, `${BRAND.name} will use this for statements and emails.`, { icon: 'globe' })
+                  if (l.code === app.lang) return
+                  setLocale(l.code)
+                  app.setLang(l.code)
+                  app.toast(t('Language set to {name}', { name: l.name }), t('{brand} now shows in {name}.', { brand: BRAND.name, name: l.name }), {
+                    icon: 'globe',
+                  })
                 }}
               >
                 {l.name}
@@ -226,7 +230,7 @@ export default function TopBar() {
 
         {/* account */}
         <div className="anchor">
-          <button type="button" className={`avatar-btn ${open === 'user' ? 'on' : ''}`} onClick={() => toggle('user')} aria-label="Account menu">
+          <button type="button" className={`avatar-btn ${open === 'user' ? 'on' : ''}`} onClick={() => toggle('user')} aria-label={t('Account menu')}>
             <Avatar />
           </button>
           <Popover open={open === 'user'} onClose={close} className="user-pop">
@@ -238,17 +242,17 @@ export default function TopBar() {
               </div>
             </div>
             <MenuItem icon="wallet" i={0} onClick={() => (close(), go('wallet'))}>
-              My wallet
+              {t('My wallet')}
             </MenuItem>
             <MenuItem icon="chart" i={1} onClick={() => (close(), go('analytics'))}>
-              Analytics
+              {t('Analytics')}
             </MenuItem>
             <MenuItem icon="replay" i={2} onClick={() => (close(), app.replayIntro())}>
-              Replay intro animation
+              {t('Replay intro animation')}
             </MenuItem>
             <hr />
             <MenuItem icon="logout" tone="danger" i={3} onClick={() => (close(), app.signOut())}>
-              Log out
+              {t('Log out')}
             </MenuItem>
           </Popover>
         </div>

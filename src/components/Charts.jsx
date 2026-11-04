@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
 import { MONTHS, money } from '../lib/format'
+import { t } from '../lib/i18n'
 
 const parseDay = (s) => {
   const [y, m, d] = s.split('-').map(Number)
@@ -35,7 +36,7 @@ export function EarningBars({ values, selected, onSelect, max = 100 }) {
             onFocus={() => setHover(i)}
             onBlur={() => setHover(null)}
             onClick={() => onSelect(i)}
-            aria-label={`${MONTHS[i]}: $${v}k`}
+            aria-label={`${t(MONTHS[i])}: $${v}k`}
             aria-pressed={selected === i}
           >
             <span className="eb-bar" />
@@ -46,7 +47,7 @@ export function EarningBars({ values, selected, onSelect, max = 100 }) {
       <div className="eb-months">
         {MONTHS.map((m, i) => (
           <span key={m} className={`rv ${hot === i ? 'hot' : ''}`} style={{ '--i': 3 + i * 0.25 }}>
-            {m}
+            {t(m)}
           </span>
         ))}
       </div>
@@ -235,7 +236,7 @@ export function Heatmap({ weeks }) {
   const months = []
   weeks.forEach((w, c) => {
     const m = parseDay(w[0].date).getMonth()
-    if (c === 0 || m !== parseDay(weeks[c - 1][0].date).getMonth()) months.push({ label: MONTHS[m], col: c })
+    if (c === 0 || m !== parseDay(weeks[c - 1][0].date).getMonth()) months.push({ label: t(MONTHS[m]), col: c })
   })
   const labels = months.filter((m, i) => !months[i + 1] || months[i + 1].col - m.col >= 3)
 
@@ -251,7 +252,7 @@ export function Heatmap({ weeks }) {
         </div>
         <div className="hm-days">
           {['Mon', '', 'Wed', '', 'Fri', '', 'Sun'].map((d, i) => (
-            <span key={i}>{d}</span>
+            <span key={i}>{d && t(d)}</span>
           ))}
         </div>
         <div className="hm-grid" style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))` }} onMouseLeave={() => setTip(null)}>
@@ -268,9 +269,9 @@ export function Heatmap({ weeks }) {
           {tip ? (
             <div className="chart-tip hm-tip" style={{ left: `${((tip.c + 0.5) / weeks.length) * 100}%`, top: `${(tip.r / 7) * 100}%` }}>
               <b>
-                {MONTHS[parseDay(tip.d.date).getMonth()]} {parseDay(tip.d.date).getDate()}, {parseDay(tip.d.date).getFullYear()}
+                {t(MONTHS[parseDay(tip.d.date).getMonth()])} {parseDay(tip.d.date).getDate()}, {parseDay(tip.d.date).getFullYear()}
               </b>
-              <span>{tip.d.amt ? `${money(tip.d.amt)} spent` : 'No-spend day 🎉'}</span>
+              <span>{tip.d.amt ? t('{amount} spent', { amount: money(tip.d.amt) }) : t('No-spend day 🎉')}</span>
             </div>
           ) : null}
         </div>

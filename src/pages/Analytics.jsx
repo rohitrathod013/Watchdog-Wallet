@@ -6,6 +6,7 @@ import { useApp, useLead } from '../lib/store'
 import { money } from '../lib/format'
 import { CASHFLOW, PERIODS } from '../data/seed'
 import { PERIOD_OPTIONS } from '../lib/routes'
+import { t } from '../lib/i18n'
 
 function SparkKpi({ icon, label, value, format = (n) => money(n), delta, note, values, color, d, i }) {
   const lead = useLead()
@@ -13,12 +14,12 @@ function SparkKpi({ icon, label, value, format = (n) => money(n), delta, note, v
     <section className="card spark-kpi" style={{ '--d': `${d}ms` }}>
       <div className="kpi-head rv" style={{ '--i': 0 }}>
         <Icon name={icon} size={24} />
-        <h2 className="card-h">{label}</h2>
+        <h2 className="card-h">{t(label)}</h2>
       </div>
       <strong className="kpi-val rv" style={{ '--i': 1 }}>
         <CountUp value={value} format={format} delay={lead + 120 + i * 90} />
       </strong>
-      <Chg className="rv" style={{ '--i': 2 }} value={delta} note={note} size="sm" />
+      <Chg className="rv" style={{ '--i': 2 }} value={delta} note={t(note)} size="sm" />
       <Sparkline values={values} color={color} />
     </section>
   )
@@ -31,8 +32,14 @@ export default function Analytics() {
 
   return (
     <Stage>
-      <PageHead title="Analytics" sub="Understand where your money comes from and where it goes">
-        <Dropdown icon="calendar" label="Reporting period" value={period} onChange={setPeriod} options={PERIOD_OPTIONS} />
+      <PageHead title={t('Analytics')} sub={t('Understand where your money comes from and where it goes')}>
+        <Dropdown
+          icon="calendar"
+          label={t('Reporting period')}
+          value={period}
+          onChange={setPeriod}
+          options={PERIOD_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))}
+        />
       </PageHead>
 
       <div className="grid-4" style={{ marginTop: 0 }}>

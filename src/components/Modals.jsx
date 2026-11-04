@@ -5,6 +5,7 @@ import { Modal, Success } from './ui'
 import { useApp } from '../lib/store'
 import { money } from '../lib/format'
 import { BRAND } from '../config'
+import { t } from '../lib/i18n'
 
 const QUICK = [50, 100, 250, 500]
 
@@ -25,7 +26,7 @@ function People({ value, onChange }) {
 function AmountField({ value, onChange, bad, hint }) {
   return (
     <label className="field">
-      <span>Amount</span>
+      <span>{t('Amount')}</span>
       <div className={`amount-input ${bad ? 'bad' : ''}`}>
         <b>$</b>
         <input inputMode="decimal" placeholder="0.00" value={value} onChange={(e) => onChange(e.target.value.replace(/[^\d.]/g, ''))} autoFocus />
@@ -47,7 +48,7 @@ function SendBody({ payload, onClose }) {
   const over = n > balance
   const person = contacts.find((c) => c.id === to)
 
-  if (done) return <Success title="Money sent" body={`${money(done.amount)} is on its way to ${done.name}.`} />
+  if (done) return <Success title={t('Money sent')} body={t('{amount} is on its way to {name}.', { amount: money(done.amount), name: done.name })} />
 
   const submit = (e) => {
     e.preventDefault()
@@ -64,7 +65,13 @@ function SendBody({ payload, onClose }) {
         value={amount}
         onChange={setAmount}
         bad={over}
-        hint={over ? <small className="err">That is more than your balance of {money(balance)}.</small> : <small>Available: {money(balance)}</small>}
+        hint={
+          over ? (
+            <small className="err">{t('That is more than your balance of {amount}.', { amount: money(balance) })}</small>
+          ) : (
+            <small>{t('Available: {amount}', { amount: money(balance) })}</small>
+          )
+        }
       />
       <div className="chips">
         {QUICK.map((q) => (
@@ -74,12 +81,12 @@ function SendBody({ payload, onClose }) {
         ))}
       </div>
       <label className="field">
-        <span>Note (optional)</span>
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Dinner, rent, birthday…" />
+        <span>{t('Note (optional)')}</span>
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('Dinner, rent, birthday…')} />
       </label>
       <button type="submit" className="btn solid lg block" disabled={!n || over}>
         <Icon name="send" size={18} />
-        {n ? `Send ${money(n)} to ${person.name.split(' ')[0]}` : 'Enter an amount'}
+        {n ? t('Send {amount} to {name}', { amount: money(n), name: person.name.split(' ')[0] }) : t('Enter an amount')}
       </button>
     </form>
   )
@@ -87,7 +94,7 @@ function SendBody({ payload, onClose }) {
 
 export function SendModal({ open, payload, onClose }) {
   return (
-    <Modal open={open} onClose={onClose} title="Send Money" sub={`Instant transfer to anyone on ${BRAND.name}`}>
+    <Modal open={open} onClose={onClose} title={t('Send Money')} sub={t('Instant transfer to anyone on {brand}', { brand: BRAND.name })}>
       {open ? <SendBody payload={payload} onClose={onClose} /> : null}
     </Modal>
   )
@@ -121,27 +128,27 @@ function ReceiveBody({ onClose }) {
   const acct = 'ST 4821 0093 7710'
   const copy = (text, what) => {
     navigator.clipboard?.writeText(text).catch(() => {})
-    toast(`${what} copied`, text, { icon: 'copy' })
+    toast(t('{what} copied', { what: t(what) }), text, { icon: 'copy' })
   }
   return (
     <div className="form">
       <div className="acct-box">
-        <div className="qr" aria-label="Payment QR code" role="img">
+        <div className="qr" aria-label={t('Payment QR code')} role="img">
           {QR.map((on, i) => (
             <i key={i} className={on ? 'on' : ''} style={{ '--i': i }} />
           ))}
         </div>
         <div className="acct-lines">
           <div>
-            <small>Account holder</small>
+            <small>{t('Account holder')}</small>
             <b>{user.name}</b>
           </div>
           <div>
-            <small>Account number</small>
+            <small>{t('Account number')}</small>
             <b>{acct}</b>
           </div>
           <div>
-            <small>Routing</small>
+            <small>{t('Routing')}</small>
             <b>026 009 593</b>
           </div>
         </div>
@@ -149,11 +156,11 @@ function ReceiveBody({ onClose }) {
       <div className="field-row">
         <button type="button" className="btn lg" onClick={() => copy(acct, 'Account number')}>
           <Icon name="copy" size={17} />
-          Copy details
+          {t('Copy details')}
         </button>
         <button type="button" className="btn lg" onClick={() => copy(`https://${BRAND.domain}/pay/${user.first.toLowerCase()}`, 'Payment link')}>
           <Icon name="external" size={17} />
-          Share link
+          {t('Share link')}
         </button>
       </div>
       <button
@@ -165,7 +172,7 @@ function ReceiveBody({ onClose }) {
         }}
       >
         <Icon name="receive" size={19} />
-        Simulate an incoming payment
+        {t('Simulate an incoming payment')}
       </button>
     </div>
   )
@@ -173,7 +180,7 @@ function ReceiveBody({ onClose }) {
 
 export function ReceiveModal({ open, onClose }) {
   return (
-    <Modal open={open} onClose={onClose} title="Receive Money" sub="Share your details or scan to pay" width={480}>
+    <Modal open={open} onClose={onClose} title={t('Receive Money')} sub={t('Share your details or scan to pay')} width={480}>
       {open ? <ReceiveBody onClose={onClose} /> : null}
     </Modal>
   )
@@ -189,7 +196,8 @@ function RequestBody({ onClose }) {
   const n = Number(amount)
   const person = contacts.find((c) => c.id === from)
 
-  if (done) return <Success title="Request sent" body={`${done.name} will get a request for ${money(done.amount)}.`} />
+  if (done)
+    return <Success title={t('Request sent')} body={t('{name} will get a request for {amount}.', { name: done.name, amount: money(done.amount) })} />
 
   const submit = (e) => {
     e.preventDefault()
@@ -204,12 +212,12 @@ function RequestBody({ onClose }) {
       <People value={from} onChange={setFrom} />
       <AmountField value={amount} onChange={setAmount} />
       <label className="field">
-        <span>What is it for?</span>
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Concert tickets" />
+        <span>{t('What is it for?')}</span>
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('Concert tickets')} />
       </label>
       <button type="submit" className="btn solid lg block" disabled={!n}>
         <Icon name="request" size={18} />
-        {n ? `Request ${money(n)} from ${person.name.split(' ')[0]}` : 'Enter an amount'}
+        {n ? t('Request {amount} from {name}', { amount: money(n), name: person.name.split(' ')[0] }) : t('Enter an amount')}
       </button>
     </form>
   )
@@ -217,7 +225,7 @@ function RequestBody({ onClose }) {
 
 export function RequestModal({ open, onClose }) {
   return (
-    <Modal open={open} onClose={onClose} title="Payment Request" sub="Ask a contact to pay you back">
+    <Modal open={open} onClose={onClose} title={t('Payment Request')} sub={t('Ask a contact to pay you back')}>
       {open ? <RequestBody onClose={onClose} /> : null}
     </Modal>
   )
@@ -244,21 +252,21 @@ function GoalBody({ onClose }) {
   return (
     <form className="form" onSubmit={submit}>
       <label className="field">
-        <span>Goal name</span>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New home deposit" autoFocus />
+        <span>{t('Goal name')}</span>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('New home deposit')} autoFocus />
       </label>
       <div className="field-row">
         <label className="field">
-          <span>Target</span>
+          <span>{t('Target')}</span>
           <input inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value.replace(/[^\d.]/g, ''))} placeholder="$25,000" />
         </label>
         <label className="field">
-          <span>Already saved</span>
+          <span>{t('Already saved')}</span>
           <input inputMode="decimal" value={saved} onChange={(e) => setSaved(e.target.value.replace(/[^\d.]/g, ''))} placeholder="$0" />
         </label>
       </div>
       <div className="field">
-        <span>Icon</span>
+        <span>{t('Icon')}</span>
         <div className="icon-pick">
           {GOAL_ICONS.map((ic) => (
             <button key={ic} type="button" className={icon === ic ? 'on' : ''} onClick={() => setIcon(ic)} aria-label={ic} aria-pressed={icon === ic}>
@@ -269,7 +277,7 @@ function GoalBody({ onClose }) {
       </div>
       <button type="submit" className="btn solid lg block" disabled={!ok}>
         <Icon name="plus" size={18} stroke={2} />
-        Create goal
+        {t('Create goal')}
       </button>
     </form>
   )
@@ -277,7 +285,12 @@ function GoalBody({ onClose }) {
 
 export function GoalModal({ open, onClose }) {
   return (
-    <Modal open={open} onClose={onClose} title="New Savings Goal" sub={`Set a target and ${BRAND.name} will track it for you`}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t('New Savings Goal')}
+      sub={t('Set a target and {brand} will track it for you', { brand: BRAND.name })}
+    >
       {open ? <GoalBody onClose={onClose} /> : null}
     </Modal>
   )

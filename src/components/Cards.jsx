@@ -5,6 +5,7 @@ import { Donut, EarningBars, Heatmap, LineChart } from './Charts'
 import { Chg, CountUp, Dropdown, Popover, Ring, Segmented, Status, Toggle } from './ui'
 import { useApp, useLead } from '../lib/store'
 import { money, signed, stamp, whole } from '../lib/format'
+import { t, tMonths, tName } from '../lib/i18n'
 import { CASHFLOW, CAT_COLORS, CATEGORIES, CURRENCIES, EARNINGS, HEAT, INCOME_SOURCES, PERIODS } from '../data/seed'
 
 const sum = (list, f = (x) => x) => list.reduce((s, x) => s + f(x), 0)
@@ -52,9 +53,9 @@ export function BalanceCard({ attached = false, d = 0 }) {
         <span className="ic-ring">
           <Icon name="wallet" size={20} />
         </span>
-        <h2 className="card-h">Total Balance</h2>
+        <h2 className="card-h">{t('Total Balance')}</h2>
         <div className="anchor">
-          <button type="button" className={`cur-btn ${curOpen ? 'on' : ''}`} onClick={() => setCurOpen((o) => !o)} aria-label="Change currency">
+          <button type="button" className={`cur-btn ${curOpen ? 'on' : ''}`} onClick={() => setCurOpen((o) => !o)} aria-label={t('Change currency')}>
             <Flag code={cur.flag} size={22} />
             {cur.code}
             <Icon name="chevDown" size={14} stroke={2} className="chev" />
@@ -74,7 +75,7 @@ export function BalanceCard({ attached = false, d = 0 }) {
                 <Flag code={c.flag} size={22} />
                 <span>
                   <b>{c.code}</b>
-                  <small>{c.name}</small>
+                  <small>{t(c.name)}</small>
                 </span>
                 {c.code === currency ? <Icon name="check" size={16} stroke={2.2} /> : null}
               </button>
@@ -91,13 +92,13 @@ export function BalanceCard({ attached = false, d = 0 }) {
           type="button"
           className="eye-btn"
           onClick={() => setHidden((h) => !h)}
-          aria-label={hidden ? 'Show balance' : 'Hide balance'}
+          aria-label={hidden ? t('Show balance') : t('Hide balance')}
           aria-pressed={hidden}
         >
           <Icon key={hidden ? 'off' : 'on'} name={hidden ? 'eyeOff' : 'eye'} size={19} />
         </button>
       </div>
-      <Chg className="bal-delta rv" style={{ '--i': 2 }} value={12.4} note="vs Last Week" />
+      <Chg className="bal-delta rv" style={{ '--i': 2 }} value={12.4} note={t('vs Last Week')} />
 
       <div className={`pixels ${live ? 'live' : ''}`} aria-hidden="true">
         {PIX.map((col, c) =>
@@ -108,15 +109,15 @@ export function BalanceCard({ attached = false, d = 0 }) {
       <div className="bal-actions rv" style={{ '--i': 3 }}>
         <button type="button" className="btn solid xl" onClick={() => openModal('receive')}>
           <Icon name="receive" size={22} />
-          Receive Money
+          {t('Receive Money')}
         </button>
         <button type="button" className="btn soft xl" onClick={() => openModal('send')}>
           <Icon name="send" size={20} />
-          Send Money
+          {t('Send Money')}
         </button>
         <button type="button" className="btn soft xl" onClick={() => openModal('request')}>
           <Icon name="request" size={21} />
-          Payment Request
+          {t('Payment Request')}
         </button>
       </div>
     </section>
@@ -131,15 +132,15 @@ export function EarningCard({ d = 0, className = '' }) {
   return (
     <section className={`card earn-card ${className}`} style={slot(d)}>
       <div className="ec-head rv" style={{ '--i': 0 }}>
-        <h2 className="card-h">Earning Overview</h2>
+        <h2 className="card-h">{t('Earning Overview')}</h2>
         <Dropdown
           small
-          label="Earning period"
+          label={t('Earning period')}
           value={year}
           onChange={setYear}
           options={[
-            { value: '2026', label: 'This Year' },
-            { value: '2025', label: 'Last Year' },
+            { value: '2026', label: t('This Year') },
+            { value: '2025', label: t('Last Year') },
           ]}
         />
       </div>
@@ -147,7 +148,7 @@ export function EarningCard({ d = 0, className = '' }) {
         <strong>
           <CountUp value={e.total} format={(n) => money(n)} delay={lead + 120} duration={1600} />
         </strong>
-        <Chg value={e.delta} note={e.vs} size="sm" />
+        <Chg value={e.delta} note={t(e.vs)} size="sm" />
       </div>
       <EarningBars values={e.values} selected={sel} onSelect={setSel} />
     </section>
@@ -160,12 +161,12 @@ export function KpiCard({ icon, label, value, delta, note, d = 0, i = 0, format 
     <section className="card kpi" style={slot(d)}>
       <div className="kpi-head rv" style={{ '--i': 0 }}>
         <Icon name={icon} size={24} />
-        <h2 className="card-h">{label}</h2>
+        <h2 className="card-h">{t(label)}</h2>
       </div>
       <strong className="kpi-val rv" style={{ '--i': 1 }}>
         <CountUp value={value} format={format} delay={lead + 120 + i * 90} />
       </strong>
-      <Chg className="rv" style={{ '--i': 2 }} value={delta} note={note} size="sm" />
+      <Chg className="rv" style={{ '--i': 2 }} value={delta} note={t(note)} size="sm" />
       {children}
     </section>
   )
@@ -190,13 +191,13 @@ function Split({ p }) {
           onMouseEnter={() => setHover(i)}
           onFocus={() => setHover(i)}
           onBlur={() => setHover(null)}
-          aria-label={`${s.name}: ${s.pct}%, ${whole(s.value)}`}
+          aria-label={`${t(s.name)}: ${s.pct}%, ${whole(s.value)}`}
         >
           <span className="sp-label">{on === i ? <em className={s.dark ? 'dark' : ''}>{whole(s.value)}</em> : `${s.pct}%`}</span>
           <i className="sp-bar" />
           <span className="sp-legend">
             <i />
-            {s.name}
+            {t(s.name)}
           </span>
         </button>
       ))}
@@ -230,7 +231,7 @@ export function ReportCard({ d = 0 }) {
       style={slot(d)}
       role="button"
       tabIndex={0}
-      aria-label="Open financial reports"
+      aria-label={t('Open financial reports')}
       onClick={open}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open())}
     >
@@ -242,8 +243,8 @@ export function ReportCard({ d = 0 }) {
                 {p.q}
                 <i />
               </div>
-              <small>{p.title}</small>
-              <small>{p.date}</small>
+              <small>{t(p.title)}</small>
+              <small>{tMonths(p.date)}</small>
               <b style={{ width: '88%' }} />
               <b style={{ width: '62%' }} />
               <b style={{ width: '76%' }} />
@@ -255,18 +256,18 @@ export function ReportCard({ d = 0 }) {
         <Icon name="arrowUpRight" size={16} stroke={2} />
       </span>
       <h3 className="rp-title rv" style={{ '--i': 1 }}>
-        Financial
+        {t('Financial')}
         <br />
-        Report
+        {t('Report')}
       </h3>
       <div className="rp-foot">
         <strong className="rv" style={{ '--i': 2 }}>
-          Total Income Overview
+          {t('Total Income Overview')}
         </strong>
         <div className="rp-cols">
           {INCOME_SOURCES.map((s, i) => (
             <div key={s.id} className="rv" style={{ '--i': 3 + i * 0.6 }}>
-              <small>{s.name}</small>
+              <small>{t(s.name)}</small>
               <b>
                 <CountUp value={s.value} format={(n) => whole(n)} delay={lead + 400 + i * 110} />
               </b>
@@ -288,12 +289,12 @@ export function SavingsCard({ d = 0 }) {
         <span className="sv-ic">
           <Icon name="safe" size={21} />
         </span>
-        <h2 className="card-h">My Savings Goals</h2>
+        <h2 className="card-h">{t('My Savings Goals')}</h2>
         <button type="button" className="add-goal" onClick={() => openModal('goal')}>
           <i>
             <Icon name="plus" size={16} stroke={2.2} />
           </i>
-          Add Goal
+          {t('Add Goal')}
         </button>
       </div>
       <div className="goals">
@@ -313,7 +314,7 @@ export function SavingsCard({ d = 0 }) {
               >
                 <span className="goal-name">
                   <Icon name={g.icon} size={21} />
-                  <span>{g.name}</span>
+                  <span>{t(g.name)}</span>
                 </span>
                 <span className="goal-pct">
                   <CountUp value={pct} format={(n) => `${Math.round(n)}%`} delay={lead + 400 + r * 110} />
@@ -332,16 +333,16 @@ export function SavingsCard({ d = 0 }) {
                 <div>
                   <div className="goal-detail">
                     <dl>
-                      <dt>Monthly</dt>
+                      <dt>{t('Monthly')}</dt>
                       <dd>{whole(g.monthly)}</dd>
                     </dl>
                     <dl>
-                      <dt>Remaining</dt>
+                      <dt>{t('Remaining')}</dt>
                       <dd>{whole(Math.max(0, g.target - g.saved))}</dd>
                     </dl>
                     <dl>
-                      <dt>Target date</dt>
-                      <dd>{g.due}</dd>
+                      <dt>{t('Target date')}</dt>
+                      <dd>{tMonths(g.due)}</dd>
                     </dl>
                     <div className="goal-add">
                       {[100, 500, 1000].map((a) => (
@@ -350,7 +351,7 @@ export function SavingsCard({ d = 0 }) {
                         </button>
                       ))}
                       <button type="button" className="del" tabIndex={isOpen ? 0 : -1} onClick={() => removeGoal(g.id)}>
-                        Remove
+                        {t('Remove')}
                       </button>
                     </div>
                   </div>
@@ -387,24 +388,24 @@ export function CashFlowCard({ d = 0, className = '' }) {
     <section className={`card cash-card ${className}`} style={slot(d)}>
       <div className="c-head rv" style={{ '--i': 0 }}>
         <div>
-          <h2 className="card-h">Cash Flow</h2>
-          <p className="card-sub">Income vs expenses over the last {n} months</p>
+          <h2 className="card-h">{t('Cash Flow')}</h2>
+          <p className="card-sub">{t('Income vs expenses over the last {n} months', { n })}</p>
         </div>
         <div className="c-tools">
           <div className="legend">
             <button type="button" className={show.income ? '' : 'off'} onClick={() => flip('income')}>
               <i className="sw" style={{ background: 'var(--accent)' }} />
-              Income
+              {t('Income')}
             </button>
             <button type="button" className={show.expenses ? '' : 'off'} onClick={() => flip('expenses')}>
               <i className="sw" style={{ background: 'var(--solid)' }} />
-              Expenses
+              {t('Expenses')}
             </button>
           </div>
           <Segmented
             items={[
-              { key: '6', label: '6M' },
-              { key: '12', label: '12M' },
+              { key: '6', label: t('6M') },
+              { key: '12', label: t('12M') },
             ]}
             value={range}
             onChange={setRange}
@@ -413,19 +414,19 @@ export function CashFlowCard({ d = 0, className = '' }) {
       </div>
       <div className="cash-sum rv" style={{ '--i': 1 }}>
         <div>
-          <small>Money in</small>
+          <small>{t('Money in')}</small>
           <b>
             <CountUp value={totalIn} format={(v) => whole(v)} delay={lead + 200} />
           </b>
         </div>
         <div>
-          <small>Money out</small>
+          <small>{t('Money out')}</small>
           <b>
             <CountUp value={totalOut} format={(v) => whole(v)} delay={lead + 260} />
           </b>
         </div>
         <div>
-          <small>Net saved</small>
+          <small>{t('Net saved')}</small>
           <b style={{ color: 'var(--green)' }}>
             <CountUp value={totalIn - totalOut} format={(v) => whole(v)} delay={lead + 320} />
           </b>
@@ -433,11 +434,11 @@ export function CashFlowCard({ d = 0, className = '' }) {
       </div>
       <LineChart
         key={range}
-        labels={CASHFLOW.labels.slice(-n)}
+        labels={CASHFLOW.labels.slice(-n).map((m) => t(m))}
         height={250}
         series={[
-          { name: 'Income', color: 'var(--accent)', values: inc, fill: true, hidden: !show.income },
-          { name: 'Expenses', color: 'var(--solid)', values: exp, hidden: !show.expenses },
+          { name: t('Income'), color: 'var(--accent)', values: inc, fill: true, hidden: !show.income },
+          { name: t('Expenses'), color: 'var(--solid)', values: exp, hidden: !show.expenses },
         ]}
       />
     </section>
@@ -454,25 +455,25 @@ export function SpendingCard({ d = 0, className = '' }) {
     <section className={`card spend-card ${className}`} style={slot(d)}>
       <div className="c-head rv" style={{ '--i': 0 }}>
         <div>
-          <h2 className="card-h">Spending</h2>
-          <p className="card-sub">By category · October</p>
+          <h2 className="card-h">{t('Spending')}</h2>
+          <p className="card-sub">{t('By category · October')}</p>
         </div>
       </div>
       <div className="donut-wrap rv" style={{ '--i': 1 }}>
         <Donut data={CATEGORIES} colors={CAT_COLORS} size={190} stroke={24} active={active} onActive={setActive}>
           {a ? (
             <span key={a.id}>
-              <small>{a.name}</small>
+              <small>{t(a.name)}</small>
               <strong>{whole(a.v)}</strong>
-              <small>{pct(a.v)}% of spend</small>
+              <small>{t('{pct}% of spend', { pct: pct(a.v) })}</small>
             </span>
           ) : (
             <span key="all">
-              <small>Total spent</small>
+              <small>{t('Total spent')}</small>
               <strong>
                 <CountUp value={total} format={(v) => whole(v)} delay={lead + 300} />
               </strong>
-              <small>of $5,500 budget</small>
+              <small>{t('of {amount} budget', { amount: '$5,500' })}</small>
             </span>
           )}
         </Donut>
@@ -482,7 +483,7 @@ export function SpendingCard({ d = 0, className = '' }) {
           {CATEGORIES.map((c, i) => (
             <div key={c.id} className={`cat ${active === i ? 'on' : ''}`} onMouseEnter={() => setActive(i)}>
               <i className="sw" style={{ background: CAT_COLORS[i], borderRadius: '50%' }} />
-              <span>{c.name}</span>
+              <span>{t(c.name)}</span>
               <em>{pct(c.v)}%</em>
               <b>{whole(c.v)}</b>
             </div>
@@ -516,8 +517,8 @@ export function QuickTransferCard({ d = 0, big = false, className = '' }) {
     <section className={`card qt-card ${big ? 'big' : ''} ${className}`} style={slot(d)}>
       <div className="c-head rv" style={{ '--i': 0 }}>
         <div>
-          <h2 className="card-h">Quick Transfer</h2>
-          <p className="card-sub">Send to your favourites</p>
+          <h2 className="card-h">{t('Quick Transfer')}</h2>
+          <p className="card-sub">{t('Send to your favourites')}</p>
         </div>
         <span className="pill-tag">
           <Icon name="card" size={14} />
@@ -536,13 +537,13 @@ export function QuickTransferCard({ d = 0, big = false, className = '' }) {
             <span className="persona" style={{ width: 54, height: 54 }}>
               <Icon name="plus" size={20} />
             </span>
-            New
+            {t('New')}
           </button>
         ) : null}
       </div>
       <label className={`amount-input rv ${over ? 'bad' : ''}`} style={{ '--i': 2 }}>
         <b>$</b>
-        <input inputMode="decimal" aria-label="Amount" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ''))} />
+        <input inputMode="decimal" aria-label={t('Amount')} value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ''))} />
         <em>USD</em>
       </label>
       <div className="chips rv" style={{ '--i': 3 }}>
@@ -556,37 +557,37 @@ export function QuickTransferCard({ d = 0, big = false, className = '' }) {
         <div>
           <span>
             <Icon name="bolt" size={16} />
-            Arrives
+            {t('Arrives')}
           </span>
-          <b>Instantly · Free</b>
+          <b>{t('Instantly · Free')}</b>
         </div>
         <div>
           <span>
             <Icon name="refresh" size={16} />
-            Repeat monthly
+            {t('Repeat monthly')}
           </span>
-          <Toggle on={repeat} onChange={setRepeat} label="Repeat monthly" />
+          <Toggle on={repeat} onChange={setRepeat} label={t('Repeat monthly')} />
         </div>
       </div>
       <button type="button" className="btn solid lg block rv" style={{ '--i': 5 }} disabled={!n || over} onClick={send}>
         {sent ? (
           <>
             <Icon name="check" size={18} stroke={2.2} />
-            Sent to {person.name.split(' ')[0]}!
+            {t('Sent to {name}!', { name: person.name.split(' ')[0] })}
           </>
         ) : (
           <>
             <Icon name="send" size={18} />
-            {n ? `Send ${money(n)} to ${person.name.split(' ')[0]}` : 'Enter an amount'}
+            {n ? t('Send {amount} to {name}', { amount: money(n), name: person.name.split(' ')[0] }) : t('Enter an amount')}
           </>
         )}
       </button>
       <p className="qt-foot rv" style={{ '--i': 6 }}>
         {over ? (
-          'Not enough balance for this transfer'
+          t('Not enough balance for this transfer')
         ) : (
           <>
-            Balance after transfer: <b>{money(balance - (n || 0))}</b>
+            {t('Balance after transfer:')} <b>{money(balance - (n || 0))}</b>
           </>
         )}
       </p>
@@ -594,18 +595,18 @@ export function QuickTransferCard({ d = 0, big = false, className = '' }) {
   )
 }
 
-export function TxRow({ t, r, full = false }) {
+export function TxRow({ t: tx, r, full = false }) {
   return (
     <div className="tx-row" style={{ '--r': r }}>
-      <MerchantLogo kind={t.kind} />
+      <MerchantLogo kind={tx.kind} />
       <div className="tx-main">
-        <b>{t.name}</b>
-        <small>{full ? t.category : `${t.category} · ${t.method}`}</small>
+        <b>{tName(tx.name)}</b>
+        <small>{full ? t(tx.category) : `${t(tx.category)} · ${t(tx.method)}`}</small>
       </div>
-      {full ? <span className="tx-date tx-hide">{t.method}</span> : null}
-      <span className="tx-date">{stamp(t.date)}</span>
-      <Status value={t.status} />
-      <strong className={`tx-amt ${t.amount > 0 ? 'in' : ''}`}>{signed(t.amount)}</strong>
+      {full ? <span className="tx-date tx-hide">{t(tx.method)}</span> : null}
+      <span className="tx-date">{stamp(tx.date)}</span>
+      <Status value={tx.status} />
+      <strong className={`tx-amt ${tx.amount > 0 ? 'in' : ''}`}>{signed(tx.amount)}</strong>
     </div>
   )
 }
@@ -618,16 +619,16 @@ export function TxCard({ d = 0, className = '', title = 'Recent Transactions', s
     <section className={`card tx-card ${className}`} style={slot(d)}>
       <div className="c-head rv" style={{ '--i': 0 }}>
         <div>
-          <h2 className="card-h">{title}</h2>
-          <p className="card-sub">{sub}</p>
+          <h2 className="card-h">{t(title)}</h2>
+          <p className="card-sub">{t(sub)}</p>
         </div>
         <button type="button" className="link" onClick={() => go('dashboard', { tab: 'transactions' })}>
-          View all <Icon name="arrowRight" size={15} />
+          {t('View all')} <Icon name="arrowRight" size={15} />
         </button>
       </div>
       <div className="tx-list">
-        {rows.map((t, r) => (
-          <TxRow key={t.id} t={t} r={r} />
+        {rows.map((row, r) => (
+          <TxRow key={row.id} t={row} r={r} />
         ))}
       </div>
     </section>
@@ -641,8 +642,8 @@ export function BillsCard({ d = 0, className = '' }) {
     <section className={`card bills-card ${className}`} style={slot(d)}>
       <div className="c-head rv" style={{ '--i': 0 }}>
         <div>
-          <h2 className="card-h">Upcoming Bills</h2>
-          <p className="card-sub">Due in the next 3 weeks</p>
+          <h2 className="card-h">{t('Upcoming Bills')}</h2>
+          <p className="card-sub">{t('Due in the next 3 weeks')}</p>
         </div>
         <div className="bills-sum">
           <Ring value={paid / bills.length} size={46} stroke={5} color="var(--green)">
@@ -657,8 +658,10 @@ export function BillsCard({ d = 0, className = '' }) {
           <div key={b.id} className={`bill ${b.paid ? 'paid' : ''}`} style={{ '--r': r }}>
             <MerchantLogo kind={b.kind} size={40} />
             <div className="bill-main">
-              <b>{b.name}</b>
-              <small className={!b.paid && b.days <= 5 ? 'soon' : ''}>{b.paid ? `Paid · ${b.due}` : `${b.due} · in ${b.days} days`}</small>
+              <b>{t(b.name)}</b>
+              <small className={!b.paid && b.days <= 5 ? 'soon' : ''}>
+                {b.paid ? t('Paid · {date}', { date: tMonths(b.due) }) : t('{date} · in {n} days', { date: tMonths(b.due), n: b.days })}
+              </small>
             </div>
             <strong>{money(b.amount)}</strong>
             <button
@@ -666,7 +669,7 @@ export function BillsCard({ d = 0, className = '' }) {
               className={`pay-btn ${b.paid ? 'done' : ''}`}
               disabled={b.paid}
               onClick={() => payBill(b.id)}
-              aria-label={b.paid ? `${b.name} paid` : `Pay ${b.name}`}
+              aria-label={b.paid ? t('{name} paid', { name: t(b.name) }) : t('Pay {name}', { name: t(b.name) })}
             >
               {b.paid ? (
                 <svg
@@ -683,7 +686,7 @@ export function BillsCard({ d = 0, className = '' }) {
                   <path d="m5.5 12.5 4.3 4.3 8.7-9.6" />
                 </svg>
               ) : (
-                'Pay'
+                t('Pay')
               )}
             </button>
           </div>
@@ -703,22 +706,20 @@ export function HealthCard({ d = 0, className = '' }) {
     <section className={`card health-card ${className}`} style={slot(d)}>
       <div className="c-head rv" style={{ '--i': 0 }}>
         <div>
-          <h2 className="card-h">Budget Health</h2>
-          <p className="card-sub">October spending vs plan</p>
+          <h2 className="card-h">{t('Budget Health')}</h2>
+          <p className="card-sub">{t('October spending vs plan')}</p>
         </div>
         <button type="button" className="link" onClick={() => go('budget')}>
-          Manage <Icon name="arrowRight" size={15} />
+          {t('Manage')} <Icon name="arrowRight" size={15} />
         </button>
       </div>
       <div className="health-ring rv" style={{ '--i': 1 }}>
         <Ring value={spent / limit} size={168} stroke={14}>
-          <small>Used</small>
+          <small>{t('Used')}</small>
           <strong>
             <CountUp value={(spent / limit) * 100} format={(v) => `${Math.round(v)}%`} delay={lead + 300} />
           </strong>
-          <small>
-            {whole(spent)} of {whole(limit)}
-          </small>
+          <small>{t('{a} of {b}', { a: whole(spent), b: whole(limit) })}</small>
         </Ring>
       </div>
       <div className="meters">
@@ -727,7 +728,7 @@ export function HealthCard({ d = 0, className = '' }) {
           return (
             <div key={b.id} className="rv" style={{ '--i': 2 + r * 0.6 }}>
               <div className="meter-top">
-                <span>{b.name}</span>
+                <span>{t(b.name)}</span>
                 <b>
                   {whole(b.spent)} <em>/ {whole(b.limit)}</em>
                 </b>
@@ -753,24 +754,24 @@ export function HeatmapCard({ d = 0, className = '' }) {
     <section className={`card heat-card ${className}`} style={slot(d)}>
       <div className="c-head rv" style={{ '--i': 0 }}>
         <div>
-          <h2 className="card-h">Spending Activity</h2>
-          <p className="card-sub">Every day of the last 52 weeks</p>
+          <h2 className="card-h">{t('Spending Activity')}</h2>
+          <p className="card-sub">{t('Every day of the last 52 weeks')}</p>
         </div>
         <div className="hm-stats">
           <div>
-            <small>Daily average</small>
+            <small>{t('Daily average')}</small>
             <b>
               <CountUp value={total / days.length} format={(v) => money(v)} delay={lead + 300} />
             </b>
           </div>
           <div>
-            <small>Biggest day</small>
+            <small>{t('Biggest day')}</small>
             <b>
               <CountUp value={peak} format={(v) => whole(v)} delay={lead + 360} />
             </b>
           </div>
           <div>
-            <small>No-spend days</small>
+            <small>{t('No-spend days')}</small>
             <b>
               <CountUp value={quiet} delay={lead + 420} />
             </b>
@@ -780,14 +781,14 @@ export function HeatmapCard({ d = 0, className = '' }) {
       <Heatmap weeks={HEAT} />
       <div className="hm-foot rv" style={{ '--i': 2 }}>
         <span className="muted" style={{ fontSize: 12.5 }}>
-          Hover any day to see what you spent
+          {t('Hover any day to see what you spent')}
         </span>
         <div className="hm-scale">
-          <span>Less</span>
+          <span>{t('Less')}</span>
           {['l0', 'l1', 'l2', 'l3', 'l4'].map((l) => (
             <i key={l} className={`hm-cell ${l}`} />
           ))}
-          <span>More</span>
+          <span>{t('More')}</span>
         </div>
       </div>
     </section>

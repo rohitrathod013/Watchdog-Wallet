@@ -1,6 +1,11 @@
+import { t } from './i18n'
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 export { MONTHS }
+
+/** Short month name in the current language. */
+export const month = (i) => t(MONTHS[i])
 
 export const money = (n, symbol = '$', dp = 2) => {
   const sign = n < 0 ? '-' : ''
@@ -28,14 +33,14 @@ export const localIso = (d = new Date()) => `${isoDay(d)}T${two(d.getHours())}:$
 /** Oct 27, 2026 */
 export const shortDate = (iso) => {
   const d = new Date(iso)
-  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+  return `${month(d.getMonth())} ${d.getDate()}, ${d.getFullYear()}`
 }
 
 /** Oct 27 · 09:41 AM */
 export const stamp = (iso) => {
   const d = new Date(iso)
   const h = d.getHours() % 12 || 12
-  return `${MONTHS[d.getMonth()]} ${d.getDate()} · ${two(h)}:${two(d.getMinutes())} ${d.getHours() < 12 ? 'AM' : 'PM'}`
+  return `${month(d.getMonth())} ${d.getDate()} · ${two(h)}:${two(d.getMinutes())} ${t(d.getHours() < 12 ? 'AM' : 'PM')}`
 }
 
 export const uid = () => Math.random().toString(36).slice(2, 9)

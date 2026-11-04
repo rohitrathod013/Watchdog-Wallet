@@ -1,6 +1,7 @@
 import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Icon from './Icon'
 import { RevealContext, StageContext, useApp, useStageBase } from '../lib/store'
+import { t } from '../lib/i18n'
 
 /* ---------------- Stage ----------------
    One entrance choreography. Captures the intro offset when it mounts and
@@ -126,7 +127,7 @@ export function Status({ value }) {
   return (
     <span className={`status ${STATUS_TONE[value] ?? ''}`}>
       <i />
-      {value}
+      {t(value)}
     </span>
   )
 }
@@ -280,7 +281,7 @@ export function Modal({ open, onClose, title, sub, width = 460, children, footer
             <h3>{title}</h3>
             {sub ? <p>{sub}</p> : null}
           </div>
-          <button type="button" className="icon-btn soft" onClick={onClose} aria-label="Close">
+          <button type="button" className="icon-btn soft" onClick={onClose} aria-label={t('Close')}>
             <Icon name="close" size={18} />
           </button>
         </header>
@@ -385,7 +386,7 @@ export function Toasts({ items, onDismiss }) {
             <strong>{t.title}</strong>
             {t.body ? <p>{t.body}</p> : null}
           </div>
-          <button type="button" onClick={() => onDismiss(t.id)} aria-label="Dismiss">
+          <button type="button" onClick={() => onDismiss(t.id)} aria-label={t('Dismiss')}>
             <Icon name="close" size={14} />
           </button>
         </div>

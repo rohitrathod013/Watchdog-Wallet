@@ -25,8 +25,7 @@ const EAR_R = 'M162 66C170 44 172 20 165 4C150 12 132 28 123 46Z'
 const EAR_IN_L = 'M65 55C60 40 59 26 61 15C72 23 82 33 88 44Z'
 const EAR_IN_R = 'M155 55C160 40 161 26 159 15C148 23 138 33 132 44Z'
 /* the black cap and the stripe running down between the eyes */
-const MASK =
-  'M110 34C133 34 150 42 160 56C150 64 136 68 124 74C119 84 116 96 110 96C104 96 101 84 96 74C84 68 70 64 60 56C70 42 87 34 110 34Z'
+const MASK = 'M110 34C133 34 150 42 160 56C150 64 136 68 124 74C119 84 116 96 110 96C104 96 101 84 96 74C84 68 70 64 60 56C70 42 87 34 110 34Z'
 const ARM = 'M30 7C40 7 45.5 22 46.5 46C47.5 72 47 103 30 103C13 103 12.5 72 13.5 46C14.5 22 20 7 30 7Z'
 
 function FurFilter({ id, seed = 4 }) {
@@ -189,7 +188,15 @@ export default function BuddyArt({ size = 220, mood = 'idle', className = '', ri
 
             {/* collar in the theme accent, with a little tag */}
             <path d="M64 126Q110 150 156 126" fill="none" stroke="var(--accent, #e8692c)" strokeWidth="8" strokeLinecap="round" />
-            <path d="M64 126Q110 150 156 126" fill="none" stroke="#000" strokeOpacity=".18" strokeWidth="2" strokeLinecap="round" transform="translate(0 3)" />
+            <path
+              d="M64 126Q110 150 156 126"
+              fill="none"
+              stroke="#000"
+              strokeOpacity=".18"
+              strokeWidth="2"
+              strokeLinecap="round"
+              transform="translate(0 3)"
+            />
             <circle cx="110" cy="146" r="6.5" fill="#f2c14e" stroke="#b8860b" strokeWidth="1.2" />
             <circle cx="108" cy="144" r="1.8" fill="#fff" opacity=".7" />
           </svg>
@@ -236,7 +243,14 @@ export default function BuddyArt({ size = 220, mood = 'idle', className = '', ri
             <ellipse cx="106" cy="98.4" rx="3" ry="1.4" fill="#fff" opacity=".4" />
             <path d="M110 107.5v4.5" stroke="#22150f" strokeWidth="2" strokeLinecap="round" />
             {/* closed "w" smile */}
-            <path className="b-smile" d="M101 112Q105.5 117 110 112Q114.5 117 119 112" fill="none" stroke="#22150f" strokeWidth="2.2" strokeLinecap="round" />
+            <path
+              className="b-smile"
+              d="M101 112Q105.5 117 110 112Q114.5 117 119 112"
+              fill="none"
+              stroke="#22150f"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            />
             {/* open mouth with a tongue */}
             <g className="b-mouth">
               <path d="M100 111.5Q110 114 120 111.5Q119 125 110 125T100 111.5Z" fill="#3a1d18" />

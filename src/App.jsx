@@ -12,6 +12,7 @@ import { AppContext } from './lib/store'
 import { PAGES, TABS } from './lib/routes'
 import { liquidSwitch } from './lib/themeTransition'
 import { localIso, money, uid } from './lib/format'
+import { LOCALES, setLocale, t, tMonths } from './lib/i18n'
 import * as seed from './data/seed'
 import { ASSISTANT, BRAND, FEATURES, THEME } from './config'
 
@@ -63,7 +64,19 @@ export default function App() {
   const [theme, setTheme] = useState(() => stored('codexr-theme', THEME.defaultTheme))
   const [accent, setAccent] = useState(() => stored('codexr-accent', THEME.defaultAccent))
   const [reduceMotion, setReduceMotion] = useState(() => stored('codexr-motion', 'full') === 'reduced')
-  const [lang, setLang] = useState('EN')
+  const [lang, setLang] = useState(() => {
+    const saved = stored('codexr-lang', 'EN')
+    return LOCALES[saved] ? saved : 'EN'
+  })
+  // set before any child renders so every t() call in this pass uses it
+  setLocale(lang)
+
+  useLayoutEffect(() => {
+    const loc = LOCALES[lang]
+    document.documentElement.lang = loc.tag
+    document.documentElement.dir = loc.dir
+    store('codexr-lang', lang)
+  }, [lang])
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -192,8 +205,8 @@ export default function App() {
       setBalance((b) => b - amount)
       setSentToday((s) => s + amount)
       addTx({ name: `Transfer to ${to}`, category: 'Transfer', kind: 'transfer', method: `${BRAND.name} Pay`, amount: -amount, note })
-      notify({ icon: 'arrowUpRight', tone: 'accent', title: `You sent ${money(amount)}`, body: `To ${to}` })
-      toast('Transfer sent', `${money(amount)} is on its way to ${to}.`, { icon: 'send' })
+      notify({ icon: 'arrowUpRight', tone: 'accent', title: 'You sent {amount}', body: 'To {name}', vars: { amount: money(amount), name: to } })
+      toast(t('Transfer sent'), t('{amount} is on its way to {name}.', { amount: money(amount), name: to }), { icon: 'send' })
     },
     [addTx, notify, toast],
   )
@@ -201,7 +214,7 @@ export default function App() {
   const requestMoney = useCallback(
     ({ from, amount, note }) => {
       addTx({ name: `Request from ${from}`, category: 'Transfer', kind: 'request', method: `${BRAND.name} Pay`, amount, status: 'Pending', note })
-      toast('Request sent', `${from} will get a request for ${money(amount)}.`, { icon: 'request' })
+      toast(t('Request sent'), t('{name} will get a request for {amount}.', { name: from, amount: money(amount) }), { icon: 'request' })
     },
     [addTx, toast],
   )
@@ -211,8 +224,8 @@ export default function App() {
     const amount = Math.round((120 + Math.random() * 780) * 100) / 100
     setBalance((b) => b + amount)
     addTx({ name: `Payment from ${who.name}`, category: 'Transfer', kind: 'request', method: `${BRAND.name} Pay`, amount })
-    notify({ icon: 'arrowDown', tone: 'green', title: `You received ${money(amount)}`, body: `From ${who.name}` })
-    toast('Money received', `${who.name} sent you ${money(amount)}.`, { icon: 'receive' })
+    notify({ icon: 'arrowDown', tone: 'green', title: 'You received {amount}', body: 'From {name}', vars: { amount: money(amount), name: who.name } })
+    toast(t('Money received'), t('{name} sent you {amount}.', { name: who.name, amount: money(amount) }), { icon: 'receive' })
   }, [addTx, notify, toast])
 
   const payBill = useCallback(
@@ -222,7 +235,9 @@ export default function App() {
       setBills((list) => list.map((b) => (b.id === id ? { ...b, paid: true } : b)))
       setBalance((b) => b - bill.amount)
       addTx({ name: bill.name, category: 'Bills', kind: bill.kind, method: 'Autopay', amount: -bill.amount })
-      toast(`${bill.name} paid`, `${money(bill.amount)} paid ahead of ${bill.due}.`, { icon: 'check' })
+      toast(t('{name} paid', { name: t(bill.name) }), t('{amount} paid ahead of {date}.', { amount: money(bill.amount), date: tMonths(bill.due) }), {
+        icon: 'check',
+      })
     },
     [bills, addTx, toast],
   )
@@ -230,7 +245,7 @@ export default function App() {
   const addGoal = useCallback(
     ({ name, target, saved, icon }) => {
       setGoals((g) => [...g, { id: uid(), name, target, saved, icon, monthly: Math.max(50, Math.round(target / 24 / 10) * 10), due: 'Oct 2028' }])
-      toast('Goal created', `${name} — ${money(target, '$', 0)} target. You’ve got this!`, { icon: 'target' })
+      toast(t('Goal created'), t('{name}: {amount} target. You’ve got this!', { name, amount: money(target, '$', 0) }), { icon: 'target' })
     },
     [toast],
   )
@@ -243,8 +258,15 @@ export default function App() {
       if (add <= 0) return
       setGoals((list) => list.map((x) => (x.id === id ? { ...x, saved: x.saved + add } : x)))
       setBalance((b) => b - add)
-      if (g.saved + add >= g.target) toast('Goal reached! 🎉', `${g.name} is fully funded.`, { icon: 'trophy' })
-      else toast(`Added ${money(add, '$', 0)}`, `${g.name} is now at ${Math.round(((g.saved + add) / g.target) * 100)}%.`, { icon: 'sack' })
+      if (g.saved + add >= g.target) toast(t('Goal reached! 🎉'), t('{name} is fully funded.', { name: t(g.name) }), { icon: 'trophy' })
+      else
+        toast(
+          t('Added {amount}', { amount: money(add, '$', 0) }),
+          t('{name} is now at {pct}%.', { name: t(g.name), pct: Math.round(((g.saved + add) / g.target) * 100) }),
+          {
+            icon: 'sack',
+          },
+        )
     },
     [goals, toast],
   )
@@ -253,7 +275,7 @@ export default function App() {
     (id) => {
       const g = goals.find((x) => x.id === id)
       setGoals((list) => list.filter((x) => x.id !== id))
-      if (g) toast('Goal removed', `${g.name} was archived.`, { icon: 'trash' })
+      if (g) toast(t('Goal removed'), t('{name} was archived.', { name: t(g.name) }), { icon: 'trash' })
     },
     [goals, toast],
   )
@@ -361,10 +383,10 @@ export default function App() {
       <div className="signed-out">
         <div className="so-card">
           <Logo size={60} />
-          <h2>You’re signed out</h2>
-          <p>Thanks for stopping by, {seed.USER.first}. Your session ended safely and your data stays encrypted.</p>
+          <h2>{t('You’re signed out')}</h2>
+          <p>{t('Thanks for stopping by, {name}. Your session ended safely and your data stays encrypted.', { name: seed.USER.first })}</p>
           <button type="button" className="btn solid lg" onClick={signIn}>
-            Sign back in
+            {t('Sign back in')}
           </button>
         </div>
       </div>

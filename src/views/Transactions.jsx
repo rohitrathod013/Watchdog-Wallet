@@ -5,6 +5,7 @@ import { CountUp, Empty, Segmented } from '../components/ui'
 import { useApp, useLead } from '../lib/store'
 import { money, saveFile, stamp } from '../lib/format'
 import { BRAND } from '../config'
+import { t, tName } from '../lib/i18n'
 
 const FILTERS = {
   all: () => true,
@@ -22,7 +23,9 @@ export default function TransactionsView({ attached = true }) {
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase()
-    const list = transactions.filter(FILTERS[filter]).filter((t) => !needle || `${t.name} ${t.category} ${t.method}`.toLowerCase().includes(needle))
+    const list = transactions
+      .filter(FILTERS[filter])
+      .filter((x) => !needle || `${x.name} ${x.category} ${x.method} ${tName(x.name)} ${t(x.category)}`.toLowerCase().includes(needle))
     const k = sort.key
     const by =
       k === 'amount' ? (a, b) => a.amount - b.amount : k === 'name' ? (a, b) => a.name.localeCompare(b.name) : (a, b) => a.date.localeCompare(b.date)
@@ -49,27 +52,29 @@ export default function TransactionsView({ attached = true }) {
   )
 
   const exportCsv = () => {
-    const lines = ['Date,Transaction,Category,Method,Status,Amount']
-    rows.forEach((t) => lines.push([`"${stamp(t.date)}"`, `"${t.name}"`, t.category, `"${t.method}"`, t.status, t.amount.toFixed(2)].join(',')))
+    const lines = [[t('Date'), t('Transaction'), t('Category'), t('Method'), t('Status'), t('Amount')].join(',')]
+    rows.forEach((x) =>
+      lines.push([`"${stamp(x.date)}"`, `"${tName(x.name)}"`, `"${t(x.category)}"`, `"${t(x.method)}"`, t(x.status), x.amount.toFixed(2)].join(',')),
+    )
     saveFile(`${BRAND.name.toLowerCase().replace(/\s+/g, '-')}-transactions.csv`, lines.join('\n'), 'text/csv')
-    toast('Export ready', `${rows.length} transactions saved as CSV.`, { icon: 'download' })
+    toast(t('Export ready'), t('{n} transactions saved as CSV.', { n: rows.length }), { icon: 'download' })
   }
 
   return (
     <section className={`card tx-card tx-table ${attached ? 'attached' : ''}`} style={{ '--d': '0ms' }}>
       <div className="c-head rv" style={{ '--i': 0 }}>
         <div>
-          <h2 className="card-h">All Transactions</h2>
-          <p className="card-sub">{transactions.length} movements in October 2026</p>
+          <h2 className="card-h">{t('All Transactions')}</h2>
+          <p className="card-sub">{t('{n} movements in October 2026', { n: transactions.length })}</p>
         </div>
         <div className="c-tools">
           <button type="button" className="btn" onClick={() => openModal('send')}>
             <Icon name="send" size={17} />
-            Send
+            {t('Send')}
           </button>
           <button type="button" className="btn solid" onClick={exportCsv}>
             <Icon name="download" size={18} />
-            Export CSV
+            {t('Export CSV')}
           </button>
         </div>
       </div>
@@ -80,7 +85,7 @@ export default function TransactionsView({ attached = true }) {
             <Icon name="arrowDown" size={18} stroke={2} />
           </span>
           <div>
-            <small>Money in</small>
+            <small>{t('Money in')}</small>
             <b>
               <CountUp value={moneyIn} format={(n) => money(n)} delay={lead + 200} />
             </b>
@@ -91,7 +96,7 @@ export default function TransactionsView({ attached = true }) {
             <Icon name="arrowUpRight" size={18} stroke={2} />
           </span>
           <div>
-            <small>Money out</small>
+            <small>{t('Money out')}</small>
             <b>
               <CountUp value={moneyOut} format={(n) => money(n)} delay={lead + 260} />
             </b>
@@ -102,7 +107,7 @@ export default function TransactionsView({ attached = true }) {
             <Icon name="clock" size={18} stroke={2} />
           </span>
           <div>
-            <small>Pending</small>
+            <small>{t('Pending')}</small>
             <b>
               <CountUp value={pending} format={(n) => money(n)} delay={lead + 320} />
             </b>
@@ -113,9 +118,9 @@ export default function TransactionsView({ attached = true }) {
       <div className="tx-tools rv" style={{ '--i': 2 }}>
         <label className="search-box">
           <Icon name="search" size={18} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search transactions" aria-label="Search transactions" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Search transactions')} aria-label={t('Search transactions')} />
           {q ? (
-            <button type="button" onClick={() => setQ('')} aria-label="Clear search">
+            <button type="button" onClick={() => setQ('')} aria-label={t('Clear search')}>
               <Icon name="close" size={12} stroke={2.2} />
             </button>
           ) : null}
@@ -125,10 +130,10 @@ export default function TransactionsView({ attached = true }) {
           value={filter}
           onChange={setFilter}
           items={[
-            { key: 'all', label: 'All', count: count('all') },
-            { key: 'in', label: 'Income', count: count('in') },
-            { key: 'out', label: 'Expenses', count: count('out') },
-            { key: 'pending', label: 'Pending', count: count('pending') },
+            { key: 'all', label: t('All'), count: count('all') },
+            { key: 'in', label: t('Income'), count: count('in') },
+            { key: 'out', label: t('Expenses'), count: count('out') },
+            { key: 'pending', label: t('Pending'), count: count('pending') },
           ]}
         />
       </div>
@@ -136,16 +141,16 @@ export default function TransactionsView({ attached = true }) {
       <div className="tx-list">
         <div className="tx-row th">
           <span />
-          {head('name', 'Transaction')}
-          <span className="tx-hide">Method</span>
-          <span className="tx-date">{head('date', 'Date')}</span>
-          <span className="status">Status</span>
-          {head('amount', 'Amount')}
+          {head('name', t('Transaction'))}
+          <span className="tx-hide">{t('Method')}</span>
+          <span className="tx-date">{head('date', t('Date'))}</span>
+          <span className="status">{t('Status')}</span>
+          {head('amount', t('Amount'))}
         </div>
         {rows.length ? (
-          rows.map((t, r) => <TxRow key={t.id} t={t} r={r} full />)
+          rows.map((x, r) => <TxRow key={x.id} t={x} r={r} full />)
         ) : (
-          <Empty title="No transactions found" body="Try another search or filter." />
+          <Empty title={t('No transactions found')} body={t('Try another search or filter.')} />
         )}
       </div>
     </section>

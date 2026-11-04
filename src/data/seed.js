@@ -311,7 +311,7 @@ export const BILLS = [
 
 export const NOTIFICATIONS = [
   { id: 'n1', icon: 'arrowDown', tone: 'green', title: 'Salary received', body: '$4,500.00 from Northwind Ltd', time: '2h', unread: true },
-  { id: 'n2', icon: 'target', tone: 'accent', title: 'Emergency Fund hit 72%', body: 'Only $2,800 to go — keep it up!', time: '5h', unread: true },
+  { id: 'n2', icon: 'target', tone: 'accent', title: 'Emergency Fund hit 72%', body: 'Only $2,800 to go. Keep it up!', time: '5h', unread: true },
   { id: 'n3', icon: 'alert', tone: 'red', title: 'Shopping is over budget', body: 'You spent $780 of $600 this month', time: '1d', unread: true },
   { id: 'n4', icon: 'receipt', tone: '', title: 'Rent is due in 4 days', body: '$1,850.00 to Oakwood Apts', time: '1d', unread: false },
   { id: 'n5', icon: 'shield', tone: '', title: 'New sign-in on MacBook Pro', body: 'Lisbon, Portugal', time: '3d', unread: false },

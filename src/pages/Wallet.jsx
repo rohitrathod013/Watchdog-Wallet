@@ -7,6 +7,7 @@ import { useApp, useLead } from '../lib/store'
 import { money, whole } from '../lib/format'
 import { CARDS, CURRENCIES, WALLETS } from '../data/seed'
 import { BRAND } from '../config'
+import { t } from '../lib/i18n'
 
 const PIXELS = [1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1]
 
@@ -17,7 +18,7 @@ function BankCard({ card, flipped, onFlip, style }) {
       style={style}
       role="button"
       tabIndex={0}
-      aria-label={`${card.label} ending ${card.number.slice(-4)}. ${flipped ? 'Showing back' : 'Tap to see CVV'}`}
+      aria-label={`${t('{name} ending {digits}', { name: t(card.label), digits: card.number.slice(-4) })}. ${flipped ? t('Showing back') : t('Tap to see CVV')}`}
       onClick={onFlip}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onFlip())}
     >
@@ -25,8 +26,8 @@ function BankCard({ card, flipped, onFlip, style }) {
         <div className="bc-face bc-front">
           <div className="bc-top">
             <Logo size={26} />
-            <b>{card.label}</b>
-            <span className="bc-pill">Active</span>
+            <b>{t(card.label)}</b>
+            <span className="bc-pill">{t('Active')}</span>
           </div>
           <div className="bc-pixels" aria-hidden="true">
             {PIXELS.map((on, i) => (
@@ -39,11 +40,11 @@ function BankCard({ card, flipped, onFlip, style }) {
           </div>
           <div className="bc-bottom">
             <div>
-              <small>Card holder</small>
+              <small>{t('Card holder')}</small>
               <strong>{card.holder}</strong>
             </div>
             <div>
-              <small>Expires</small>
+              <small>{t('Expires')}</small>
               <strong>{card.exp}</strong>
             </div>
             <Mastercard />
@@ -56,7 +57,9 @@ function BankCard({ card, flipped, onFlip, style }) {
             <b>{card.cvv}</b>
           </div>
           <p>
-            This card is issued by {BRAND.name} Financial. Never share your CVV. If found, please return to any {BRAND.name} partner branch.
+            {t('This card is issued by {brand} Financial. Never share your CVV. If found, please return to any {brand} partner branch.', {
+              brand: BRAND.name,
+            })}
           </p>
         </div>
       </div>
@@ -71,12 +74,12 @@ function CardsCard({ d }) {
     <section className="card cards-card" style={{ '--d': `${d}ms` }}>
       <div className="c-head rv" style={{ '--i': 0 }}>
         <div>
-          <h2 className="card-h">My Cards</h2>
-          <p className="card-sub">Tap a card to flip it</p>
+          <h2 className="card-h">{t('My Cards')}</h2>
+          <p className="card-sub">{t('Tap a card to flip it')}</p>
         </div>
         <button type="button" className="btn" onClick={() => openModal('send')}>
           <Icon name="send" size={17} />
-          Pay with card
+          {t('Pay with card')}
         </button>
       </div>
       <div className="cards-track">
@@ -103,13 +106,17 @@ function CurrencyCard({ d }) {
     <section className="card tx-card" style={{ '--d': `${d}ms` }}>
       <div className="c-head rv" style={{ '--i': 0 }}>
         <div>
-          <h2 className="card-h">Currencies</h2>
+          <h2 className="card-h">{t('Currencies')}</h2>
           <p className="card-sub">
-            Total ≈ <CountUp value={total} format={(n) => whole(n)} delay={lead + 200} /> USD
+            {t('Total')} ≈ <CountUp value={total} format={(n) => whole(n)} delay={lead + 200} /> USD
           </p>
         </div>
-        <button type="button" className="link" onClick={() => toast('Rates refreshed', 'Live FX rates updated a moment ago.', { icon: 'refresh' })}>
-          Refresh rates <Icon name="refresh" size={15} />
+        <button
+          type="button"
+          className="link"
+          onClick={() => toast(t('Rates refreshed'), t('Live FX rates updated a moment ago.'), { icon: 'refresh' })}
+        >
+          {t('Refresh rates')} <Icon name="refresh" size={15} />
         </button>
       </div>
       <div className="wallets-list">
@@ -120,7 +127,7 @@ function CurrencyCard({ d }) {
               <Flag code={w.flag} size={34} />
               <div className="wl-name">
                 <b>{w.code}</b>
-                <small>{w.name}</small>
+                <small>{t(w.name)}</small>
               </div>
               <div className="meter">
                 <i style={{ '--p': `${(w.usd / total) * 100}%`, '--r': r }} />
@@ -140,10 +147,10 @@ export default function Wallet() {
   const { openModal } = useApp()
   return (
     <Stage>
-      <PageHead title="Wallet" sub="Your cards, balances and currencies in one place">
+      <PageHead title={t('Wallet')} sub={t('Your cards, balances and currencies in one place')}>
         <button type="button" className="btn solid lg" onClick={() => openModal('receive')}>
           <Icon name="plus" size={18} stroke={2} />
-          Add money
+          {t('Add money')}
         </button>
       </PageHead>
       <div className="grid-2" style={{ marginTop: 0 }}>

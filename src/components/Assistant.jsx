@@ -3,9 +3,10 @@ import Icon from './Icon'
 import BuddyArt from './BuddyArt'
 import { MerchantLogo } from './Brand'
 import { useApp } from '../lib/store'
-import { respond, STARTERS } from '../lib/assistant'
+import { respond, starters } from '../lib/assistant'
 import { signed, uid } from '../lib/format'
 import { ASSISTANT, BRAND } from '../config'
+import { t, tName } from '../lib/i18n'
 
 /* "**bold**", newlines and "• " bullets, cut off after `limit` visible characters */
 const plainLength = (text) => text.replace(/\*\*/g, '').replace(/^• /gm, '').length
@@ -55,14 +56,14 @@ function Card({ card }) {
   if (card.type === 'tx') {
     return (
       <div className="ai-card">
-        {card.rows.map((t) => (
-          <div key={t.id} className="ai-tx">
-            <MerchantLogo kind={t.kind} size={32} />
+        {card.rows.map((row) => (
+          <div key={row.id} className="ai-tx">
+            <MerchantLogo kind={row.kind} size={32} />
             <span>
-              <b>{t.name}</b>
-              <small>{t.category}</small>
+              <b>{tName(row.name)}</b>
+              <small>{t(row.category)}</small>
             </span>
-            <strong className={t.amount > 0 ? 'in' : ''}>{signed(t.amount)}</strong>
+            <strong className={row.amount > 0 ? 'in' : ''}>{signed(row.amount)}</strong>
           </div>
         ))}
       </div>
@@ -116,7 +117,7 @@ function BotMessage({ m, last, onTyped, onConfirm, onCancel, onAsk }) {
           <div className={`ai-confirm ${m.status ?? ''}`}>
             <p>
               <Icon name={m.status === 'done' ? 'check' : 'shield'} size={15} stroke={2} />
-              {m.status === 'done' ? 'Completed' : m.status === 'cancelled' ? 'Cancelled' : m.confirm.note}
+              {m.status === 'done' ? t('Completed') : m.status === 'cancelled' ? t('Cancelled') : m.confirm.note}
             </p>
             {m.status ? null : (
               <div>
@@ -124,7 +125,7 @@ function BotMessage({ m, last, onTyped, onConfirm, onCancel, onAsk }) {
                   {m.confirm.label}
                 </button>
                 <button type="button" className="btn" onClick={() => onCancel(m)}>
-                  Cancel
+                  {t('Cancel')}
                 </button>
               </div>
             )}
@@ -143,8 +144,8 @@ function BotMessage({ m, last, onTyped, onConfirm, onCancel, onAsk }) {
         {typed && last && m.chips?.length ? (
           <div className="ai-links">
             {m.chips.map((c, k) => (
-              <button key={c} type="button" style={{ '--k': k + 1 }} onClick={() => onAsk(c)}>
-                {c}
+              <button key={c.q} type="button" style={{ '--k': k + 1 }} onClick={() => onAsk(c.q, c.label)}>
+                {c.label}
               </button>
             ))}
           </div>
@@ -192,9 +193,12 @@ export default function Assistant({ open, onClose }) {
       hello = window.setTimeout(
         () =>
           pushBot({
-            text: `Hi ${appRef.current.user.first}! 👋 I’m **${ASSISTANT.name}**, your ${BRAND.name} money buddy. I can answer questions about your accounts and do things for you — send money, pay bills, top up goals, change the theme and more. What would you like to do?`,
+            text: t(
+              'Hi {name}! 👋 I’m **{assistant}**, your {brand} money buddy. I can answer questions about your accounts and do things for you: send money, pay bills, top up goals, change the theme and more. What would you like to do?',
+              { name: appRef.current.user.first, assistant: ASSISTANT.name, brand: BRAND.name },
+            ),
             mood: 'happy',
-            chips: ['Give me a summary', 'What’s my balance?', 'Any bills due?'],
+            chips: starters().filter((c) => ['Give me a summary', 'What’s my balance?', 'Any bills due?'].includes(c.q)),
           }),
         520,
       )
@@ -233,11 +237,12 @@ export default function Assistant({ open, onClose }) {
     },
   })
 
-  const ask = (q) => {
+  /* q goes to the engine; label (a translated chip) is what the bubble shows */
+  const ask = (q, label = q) => {
     const question = q.trim()
     if (!question || thinking) return
     setText('')
-    setMsgs((list) => [...list, { id: uid(), from: 'me', text: question }])
+    setMsgs((list) => [...list, { id: uid(), from: 'me', text: label.trim() }])
     setThinking(true)
     setMood('think')
     window.setTimeout(
@@ -266,7 +271,7 @@ export default function Assistant({ open, onClose }) {
   }
   const onCancel = (m) => {
     setMsgs((list) => list.map((x) => (x.id === m.id ? { ...x, status: 'cancelled' } : x)))
-    window.setTimeout(() => pushBot({ text: 'No worries — cancelled. Anything else?' }), 300)
+    window.setTimeout(() => pushBot({ text: t('No worries, cancelled. Anything else?') }), 300)
   }
 
   const reset = () => {
@@ -280,7 +285,7 @@ export default function Assistant({ open, onClose }) {
   return (
     <aside
       className={`ai-panel ${open ? 'open' : ''}`}
-      aria-label={`${ASSISTANT.name} assistant`}
+      aria-label={t('{name} assistant', { name: ASSISTANT.name })}
       aria-hidden={!open}
       inert={!open ? true : undefined}
     >
@@ -292,13 +297,13 @@ export default function Assistant({ open, onClose }) {
           <strong>{ASSISTANT.name}</strong>
           <small>
             <i />
-            {thinking ? 'Thinking…' : mood === 'talk' ? 'Typing…' : `Your ${BRAND.name} assistant · Online`}
+            {thinking ? t('Thinking…') : mood === 'talk' ? t('Typing…') : t('Your {brand} assistant · Online', { brand: BRAND.name })}
           </small>
         </div>
-        <button type="button" className="icon-btn" onClick={reset} aria-label="New chat" title="New chat">
+        <button type="button" className="icon-btn" onClick={reset} aria-label={t('New chat')} title={t('New chat')}>
           <Icon name="refresh" size={17} stroke={2} />
         </button>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close assistant">
+        <button type="button" className="icon-btn" onClick={onClose} aria-label={t('Close assistant')}>
           <Icon name="close" size={17} stroke={2} />
         </button>
       </header>
@@ -321,7 +326,7 @@ export default function Assistant({ open, onClose }) {
               <span className="msg-dot">
                 <BuddyArt size={26} mood="think" />
               </span>
-              <div className="bubble typing" aria-label={`${ASSISTANT.name} is typing`}>
+              <div className="bubble typing" aria-label={t('{name} is typing', { name: ASSISTANT.name })}>
                 <i />
                 <i />
                 <i />
@@ -333,9 +338,9 @@ export default function Assistant({ open, onClose }) {
 
       <footer className="ai-foot">
         <div className="ai-chips">
-          {STARTERS.map((s) => (
-            <button key={s} type="button" onClick={() => ask(s)}>
-              {s}
+          {starters().map((s) => (
+            <button key={s.q} type="button" onClick={() => ask(s.q, s.label)}>
+              {s.label}
             </button>
           ))}
         </div>
@@ -350,15 +355,15 @@ export default function Assistant({ open, onClose }) {
             ref={input}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={`Ask ${ASSISTANT.name} anything…`}
-            aria-label={`Message ${ASSISTANT.name}`}
+            placeholder={t('Ask {name} anything…', { name: ASSISTANT.name })}
+            aria-label={t('Message {name}', { name: ASSISTANT.name })}
           />
-          <button type="submit" className="ai-send" disabled={!text.trim() || thinking} aria-label="Send">
+          <button type="submit" className="ai-send" disabled={!text.trim() || thinking} aria-label={t('Send')}>
             <Icon name="arrowUp" size={18} stroke={2.4} />
           </button>
         </form>
         <p className="ai-hint">
-          Press <kbd>/</kbd> to chat anytime · {ASSISTANT.name} can read and update this dashboard
+          {t('Press')} <kbd>/</kbd> {t('to chat anytime · {name} can read and update this dashboard', { name: ASSISTANT.name })}
         </p>
       </footer>
     </aside>

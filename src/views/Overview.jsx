@@ -16,6 +16,7 @@ import {
 import { Reveal } from '../components/ui'
 import { useApp } from '../lib/store'
 import { PERIODS } from '../data/seed'
+import { t } from '../lib/i18n'
 
 export default function OverviewView() {
   const { period } = useApp()
@@ -48,7 +49,7 @@ export default function OverviewView() {
 
       {/* ---------------- extra insights ---------------- */}
       <Reveal>
-        <h3 className="section-label">Insights &amp; activity</h3>
+        <h3 className="section-label">{t('Insights & activity')}</h3>
         <div className="grid-4">
           <CashFlowCard className="span-2" d={0} />
           <SpendingCard d={90} />

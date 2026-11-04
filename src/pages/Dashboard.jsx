@@ -3,6 +3,7 @@ import { Dropdown, PageHead, Stage } from '../components/ui'
 import { useApp } from '../lib/store'
 import { PERIOD_OPTIONS, TABS } from '../lib/routes'
 import OverviewView from '../views/Overview'
+import { t } from '../lib/i18n'
 
 const TransactionsView = lazy(() => import('../views/Transactions'))
 const BudgetsView = lazy(() => import('../views/Budgets'))
@@ -48,25 +49,31 @@ export default function Dashboard() {
   return (
     <div className={`dash ${idx === 0 ? 'first' : ''}`}>
       <Stage>
-        <PageHead title="Financial Overview" sub="Real-time financial insights to help you make informed decisions">
-          <Dropdown icon="calendar" label="Reporting period" value={period} onChange={setPeriod} options={PERIOD_OPTIONS} />
+        <PageHead title={t('Financial Overview')} sub={t('Real-time financial insights to help you make informed decisions')}>
+          <Dropdown
+            icon="calendar"
+            label={t('Reporting period')}
+            value={period}
+            onChange={setPeriod}
+            options={PERIOD_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))}
+          />
         </PageHead>
 
         <div className="tabs-row">
-          <div className={`tabs ${idx === 0 ? 'first' : ''}`} ref={tabs} role="tablist" aria-label="Dashboard sections">
+          <div className={`tabs ${idx === 0 ? 'first' : ''}`} ref={tabs} role="tablist" aria-label={t('Dashboard sections')}>
             <span className="tab-thumb" ref={thumb} />
-            {TABS.map((t, i) => (
+            {TABS.map((tb, i) => (
               <button
-                key={t.id}
+                key={tb.id}
                 type="button"
                 role="tab"
-                data-tab={t.id}
+                data-tab={tb.id}
                 aria-selected={idx === i}
                 className={`tab ${idx === i ? 'on' : ''}`}
                 style={{ '--i': i }}
-                onClick={() => setTab(t.id)}
+                onClick={() => setTab(tb.id)}
               >
-                {t.label}
+                {t(tb.label)}
               </button>
             ))}
           </div>
@@ -78,7 +85,7 @@ export default function Dashboard() {
             aria-pressed={live}
           >
             <LiveIcon />
-            {live ? 'Live Update' : 'Paused'}
+            {live ? t('Live Update') : t('Paused')}
           </button>
         </div>
       </Stage>
