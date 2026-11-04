@@ -1,0 +1,41 @@
+{
+  "name": "watchdog-wallet",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Animated React fintech dashboard with a fluffy AI assistant mascot, dark mode, five pages and zero backend.",
+  "keywords": [
+    "react",
+    "vite",
+    "dashboard",
+    "fintech",
+    "finance",
+    "admin template",
+    "framer-motion",
+    "ai assistant"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "format": "prettier --write \"src/**/*.{js,jsx,css}\""
+  },
+  "dependencies": {
+    "framer-motion": "^12.43.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "eslint": "^10.13.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "vite": "^8.3.5"
+  }
+}

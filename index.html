@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f7f7" />
+    <title>Watchdog Wallet — Financial Overview</title>
+    <meta name="description" content="Animated fintech dashboard with an AI assistant mascot — balances, budgets, goals, transfers and analytics." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Watchdog Wallet — Financial Overview" />
+    <meta property="og:description" content="Animated fintech dashboard with an AI assistant mascot — balances, budgets, goals, transfers and analytics." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      // apply the saved theme before first paint so there is no flash
+      try {
+        document.documentElement.dataset.theme = localStorage.getItem('codexr-theme') || 'light'
+        document.documentElement.dataset.accent = localStorage.getItem('codexr-accent') || 'orange'
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
