@@ -1,4 +1,4 @@
-# Watchdog Wallet — Animated Finance Dashboard
+# Watchdog Wallet: Animated Finance Dashboard
 
 A polished React fintech dashboard with fluid, choreographed animations and **Grace**, a German Shepherd puppy assistant mascot. Grace flies in when the page loads, lives in the corner, and opens a chat that can answer questions about the dashboard data and act on it.
 
