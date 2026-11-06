@@ -321,8 +321,9 @@ export function GoalModal({ open, onClose }) {
 
 /* ---------------- Add a transaction by hand ---------------- */
 function TransactionBody({ payload, onClose }) {
-  const { addTransaction, balance } = useApp()
+  const { addTransaction, balance, pots } = useApp()
   const [type, setType] = useState(payload?.type ?? 'expense')
+  const [potId, setPotId] = useState(payload?.potId ?? '')
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState(type === 'income' ? 'Salary' : 'Food & Dining')
@@ -345,6 +346,7 @@ function TransactionBody({ payload, onClose }) {
       amount: type === 'income' ? n : -n,
       category,
       date: date === today ? localIso() : `${date}T12:00`,
+      potId: type === 'expense' ? potId || null : null,
     })
     onClose()
   }
@@ -385,6 +387,19 @@ function TransactionBody({ payload, onClose }) {
         onChange={setAmount}
         hint={type === 'expense' && n > balance ? <small>{t('This will take your balance below zero.')}</small> : null}
       />
+      {type === 'expense' && pots.length ? (
+        <label className="field">
+          <span>{t('Pay from')}</span>
+          <select value={potId} onChange={(e) => setPotId(e.target.value)}>
+            <option value="">{t('Unassigned')}</option>
+            {pots.map((p) => (
+              <option key={p.id} value={p.id}>
+                {t(p.name)} · {money(p.amount)}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <div className="field-row">
         <label className="field">
           <span>{t('Category')}</span>
@@ -507,6 +522,243 @@ export function BillModal({ open, onClose }) {
   return (
     <Modal open={open} onClose={onClose} title={t('New bill')} sub={t('We’ll show it in Upcoming Bills until you pay it')}>
       {open ? <BillBody onClose={onClose} /> : null}
+    </Modal>
+  )
+}
+
+/* ---------------- Add money (just the numbers, no bank) ---------------- */
+const SOURCES = [...INCOME_CATEGORIES.slice(0, 3), 'Gift', 'Refund', 'Savings', 'Other income']
+
+function AddMoneyBody({ payload, onClose }) {
+  const { addMoney, pots, balance } = useApp()
+  const [amount, setAmount] = useState('')
+  const [category, setCategory] = useState('Salary')
+  const [name, setName] = useState('')
+  const [potId, setPotId] = useState(payload?.potId ?? '')
+  const [date, setDate] = useState(isoDay(new Date()))
+  const n = Number(amount)
+
+  const submit = (e) => {
+    e.preventDefault()
+    if (!(n > 0)) return
+    const today = isoDay(new Date())
+    addMoney({ amount: n, category, name: name.trim() || t(category), date: date === today ? localIso() : `${date}T12:00`, potId: potId || null })
+    onClose()
+  }
+
+  return (
+    <form className="form" onSubmit={submit}>
+      <AmountField
+        value={amount}
+        onChange={setAmount}
+        hint={<small>{t('Your balance after: {amount}', { amount: money(balance + (n || 0)) })}</small>}
+      />
+      <div className="chips">
+        {[100, 500, 1000, 2500].map((q) => (
+          <button key={q} type="button" className={`chip ${n === q ? 'on' : ''}`} onClick={() => setAmount(String(q))}>
+            ${q.toLocaleString('en-US')}
+          </button>
+        ))}
+      </div>
+      <div className="field-row">
+        <label className="field">
+          <span>{t('Where it came from')}</span>
+          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+            {SOURCES.map((c) => (
+              <option key={c} value={c}>
+                {t(c)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>{t('Date')}</span>
+          <input type="date" value={date} max={isoDay(new Date())} onChange={(e) => setDate(e.target.value || isoDay(new Date()))} />
+        </label>
+      </div>
+      <label className="field">
+        <span>{t('Note (optional)')}</span>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('October salary, birthday money…')} />
+      </label>
+      <label className="field">
+        <span>{t('Put it in')}</span>
+        <select value={potId} onChange={(e) => setPotId(e.target.value)}>
+          <option value="">{t('Unassigned (sort it later)')}</option>
+          {pots.map((p) => (
+            <option key={p.id} value={p.id}>
+              {t(p.name)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button type="submit" className="btn solid lg block" disabled={!(n > 0)}>
+        <Icon name="plus" size={18} stroke={2} />
+        {n > 0 ? t('Add {amount}', { amount: money(n) }) : t('Enter an amount')}
+      </button>
+    </form>
+  )
+}
+
+export function AddMoneyModal({ open, payload, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose} title={t('Add money')} sub={t('Type in money you have. No bank needed, it’s just for tracking.')}>
+      {open ? <AddMoneyBody payload={payload} onClose={onClose} /> : null}
+    </Modal>
+  )
+}
+
+/* ---------------- Move money between pots ---------------- */
+function MoveMoneyBody({ payload, onClose }) {
+  const { pots, unassigned, moveMoney, openModal } = useApp()
+  const [from, setFrom] = useState(payload?.from ?? 'unassigned')
+  const [to, setTo] = useState(payload?.to ?? pots.find((p) => p.id !== payload?.from)?.id ?? 'unassigned')
+  const [amount, setAmount] = useState('')
+  const n = Number(amount)
+  const have = from === 'unassigned' ? Math.max(0, unassigned) : (pots.find((p) => p.id === from)?.amount ?? 0)
+  const over = n > have
+  const ok = n > 0 && !over && from !== to
+
+  if (!pots.length)
+    return (
+      <div className="card-empty">
+        <span>
+          <Icon name="safe" size={20} />
+        </span>
+        <strong>{t('No pots yet')}</strong>
+        <p>{t('Create a pot first, then move money into it.')}</p>
+        <button type="button" className="btn solid lg" onClick={() => openModal('pot')}>
+          <Icon name="plus" size={18} stroke={2} />
+          {t('New pot')}
+        </button>
+      </div>
+    )
+
+  const options = [{ id: 'unassigned', name: 'Unassigned', amount: unassigned }, ...pots]
+  const submit = (e) => {
+    e.preventDefault()
+    if (!ok) return
+    moveMoney({ from, to, amount: n })
+    onClose()
+  }
+
+  return (
+    <form className="form" onSubmit={submit}>
+      <div className="field-row">
+        <label className="field">
+          <span>{t('From')}</span>
+          <select value={from} onChange={(e) => setFrom(e.target.value)}>
+            {options.map((o) => (
+              <option key={o.id} value={o.id}>
+                {t(o.name)} · {money(o.amount)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>{t('To')}</span>
+          <select value={to} onChange={(e) => setTo(e.target.value)}>
+            {options.map((o) => (
+              <option key={o.id} value={o.id}>
+                {t(o.name)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <AmountField
+        value={amount}
+        onChange={setAmount}
+        bad={over}
+        hint={
+          over ? (
+            <small className="err">{t('Only {amount} available there.', { amount: money(have) })}</small>
+          ) : (
+            <small>{t('Available: {amount}', { amount: money(have) })}</small>
+          )
+        }
+      />
+      <div className="chips">
+        <button type="button" className="chip" onClick={() => setAmount(String(Math.round(have * 100) / 100))} disabled={have <= 0}>
+          {t('All of it')}
+        </button>
+        <button type="button" className="chip" onClick={() => setAmount(String(Math.round((have / 2) * 100) / 100))} disabled={have <= 0}>
+          {t('Half')}
+        </button>
+      </div>
+      <button type="submit" className="btn solid lg block" disabled={!ok}>
+        <Icon name="transfer" size={18} />
+        {from === to ? t('Pick two different places') : n > 0 ? t('Move {amount}', { amount: money(n) }) : t('Enter an amount')}
+      </button>
+    </form>
+  )
+}
+
+export function MoveMoneyModal({ open, payload, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose} title={t('Move money')} sub={t('Shift money between your pots and unassigned')}>
+      {open ? <MoveMoneyBody payload={payload} onClose={onClose} /> : null}
+    </Modal>
+  )
+}
+
+/* ---------------- New pot ---------------- */
+const POT_ICONS = ['home', 'cart', 'safe', 'plane', 'gift', 'car', 'heart', 'laptop', 'sack', 'luggage']
+
+function PotBody({ onClose }) {
+  const { createPot, unassigned } = useApp()
+  const [name, setName] = useState('')
+  const [icon, setIcon] = useState('safe')
+  const [amount, setAmount] = useState('')
+  const n = Number(amount) || 0
+  const over = n > Math.max(0, unassigned)
+  const ok = name.trim() && !over
+
+  const submit = (e) => {
+    e.preventDefault()
+    if (!ok) return
+    createPot({ name: name.trim(), icon, amount: n })
+    onClose()
+  }
+
+  return (
+    <form className="form" onSubmit={submit}>
+      <label className="field">
+        <span>{t('Pot name')}</span>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('Rent, groceries, holiday…')} autoFocus />
+      </label>
+      <div className="field">
+        <span>{t('Icon')}</span>
+        <div className="icon-pick">
+          {POT_ICONS.map((ic) => (
+            <button key={ic} type="button" className={icon === ic ? 'on' : ''} onClick={() => setIcon(ic)} aria-label={ic} aria-pressed={icon === ic}>
+              <Icon name={ic} size={20} />
+            </button>
+          ))}
+        </div>
+      </div>
+      <label className="field">
+        <span>{t('Start with (optional)')}</span>
+        <div className={`amount-input ${over ? 'bad' : ''}`}>
+          <b>$</b>
+          <input inputMode="decimal" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ''))} />
+          <em>USD</em>
+        </div>
+        <small className={over ? 'err' : undefined}>
+          {t('Taken from unassigned: {amount} available', { amount: money(Math.max(0, unassigned)) })}
+        </small>
+      </label>
+      <button type="submit" className="btn solid lg block" disabled={!ok}>
+        <Icon name="plus" size={18} stroke={2} />
+        {t('Create pot')}
+      </button>
+    </form>
+  )
+}
+
+export function PotModal({ open, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose} title={t('New pot')} sub={t('Set money aside for something specific')}>
+      {open ? <PotBody onClose={onClose} /> : null}
     </Modal>
   )
 }

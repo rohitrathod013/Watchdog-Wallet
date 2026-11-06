@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Icon from '../components/Icon'
 import { Flag, Logo, Mastercard } from '../components/Brand'
-import { BalanceCard, BillsCard } from '../components/Cards'
+import { BalanceCard, BillsCard, PotsCard } from '../components/Cards'
 import { CountUp, PageHead, Stage } from '../components/ui'
 import { useApp, useLead } from '../lib/store'
 import { money, whole } from '../lib/format'
@@ -148,14 +148,15 @@ export default function Wallet() {
   return (
     <Stage>
       <PageHead title={t('Wallet')} sub={t('Your cards, balances and currencies in one place')}>
-        <button type="button" className="btn solid lg" onClick={() => openModal('receive')}>
+        <button type="button" className="btn solid lg" onClick={() => openModal('addMoney')}>
           <Icon name="plus" size={18} stroke={2} />
           {t('Add money')}
         </button>
       </PageHead>
       <div className="grid-2" style={{ marginTop: 0 }}>
         <BalanceCard d={0} />
-        <CardsCard d={90} />
+        <PotsCard d={90} />
+        <CardsCard d={140} />
         <CurrencyCard d={180} />
         <BillsCard d={270} />
       </div>

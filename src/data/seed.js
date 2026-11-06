@@ -137,6 +137,15 @@ export const CONTACTS = [
   { id: 'c5', name: 'Nina Patel', hue: 265 },
 ]
 
+/** The demo's money pots: the balance split by what it's for (the rest is unassigned). */
+export const POTS = [
+  { id: 'p1', name: 'Rent', icon: 'home', amount: 1850 },
+  { id: 'p2', name: 'Groceries', icon: 'cart', amount: 600 },
+  { id: 'p3', name: 'Emergency savings', icon: 'safe', amount: 25000 },
+  { id: 'p4', name: 'Travel', icon: 'plane', amount: 3200 },
+  { id: 'p5', name: 'Fun money', icon: 'gift', amount: 400 },
+]
+
 /** Contacts a brand-new account starts with (the list above is the demo owner's). */
 export const STARTER_CONTACTS = CONTACTS.filter((c) => !['c6', 'c7', 'c8'].includes(c.id))
 

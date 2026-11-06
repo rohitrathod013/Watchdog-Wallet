@@ -2,7 +2,18 @@ import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useSt
 import { flushSync } from 'react-dom'
 
 import TopBar from './components/TopBar'
-import { BillModal, ContactModal, GoalModal, ReceiveModal, RequestModal, SendModal, TransactionModal } from './components/Modals'
+import {
+  AddMoneyModal,
+  BillModal,
+  ContactModal,
+  GoalModal,
+  MoveMoneyModal,
+  PotModal,
+  ReceiveModal,
+  RequestModal,
+  SendModal,
+  TransactionModal,
+} from './components/Modals'
 import { Toasts } from './components/ui'
 import { Logo } from './components/Brand'
 
@@ -47,6 +58,7 @@ const freshState = () => ({
   budgets: DEFAULT_BUDGETS,
   bills: [],
   contacts: [],
+  pots: [],
   notifications: [
     {
       id: 'welcome',
@@ -70,6 +82,7 @@ const demoState = () => ({
   bills: seed.BILLS,
   contacts: seed.CONTACTS,
   notifications: seed.NOTIFICATIONS,
+  pots: seed.POTS,
 })
 
 /** Shown while checking the session or loading an account's data. */
@@ -190,6 +203,8 @@ export default function App() {
   const [bills, setBills] = useState(seed.BILLS)
   const [notifications, setNotifications] = useState(seed.NOTIFICATIONS)
   const [contacts, setContacts] = useState(seed.CONTACTS)
+  // the balance split into pots by what it's for; whatever is left is unassigned
+  const [pots, setPots] = useState(seed.POTS)
   const [sentToday, setSentToday] = useState(0)
 
   /* ---------- accounts (Supabase) ----------
@@ -213,6 +228,7 @@ export default function App() {
     setBills(data.bills ?? [])
     setNotifications(data.notifications ?? [])
     setContacts(data.contacts ?? [])
+    setPots(data.pots ?? [])
     setDrift(0)
     setSentToday(0)
   }, [])
@@ -256,8 +272,8 @@ export default function App() {
 
   // save the dashboard back to the account a moment after anything changes
   const saved = useMemo(
-    () => ({ balance, transactions, goals, budgets, bills, notifications, contacts }),
-    [balance, transactions, goals, budgets, bills, notifications, contacts],
+    () => ({ balance, transactions, goals, budgets, bills, notifications, contacts, pots }),
+    [balance, transactions, goals, budgets, bills, notifications, contacts, pots],
   )
   const [saveFailed, setSaveFailed] = useState(false)
   useEffect(() => {
@@ -419,8 +435,11 @@ export default function App() {
 
   /** Record money in (amount > 0) or out (amount < 0) by hand. */
   const addTransaction = useCallback(
-    ({ name, amount, category, date, method, note }) => {
+    ({ name, amount, category, date, method, note, potId }) => {
       setBalance((b) => Math.round((b + amount) * 100) / 100)
+      // spending from a pot empties that pot first; the rest comes out of unassigned
+      if (potId && amount < 0)
+        setPots((list) => list.map((p) => (p.id === potId ? { ...p, amount: Math.max(0, Math.round((p.amount + amount) * 100) / 100) } : p)))
       addTx({ name, amount, category, kind: KIND_FOR[category] ?? 'transfer', method: method || 'Cash', date: date || localIso(), note })
       toast(amount > 0 ? t('Income added') : t('Expense added'), `${t(name)} · ${money(Math.abs(amount))}`, { icon: amount > 0 ? 'receive' : 'send' })
     },
@@ -443,6 +462,72 @@ export default function App() {
       toast(t('Bill added'), t('{name} is due {date}.', { name, date: tMonths(billDue({ dueDate }).due) }), { icon: 'receipt' })
     },
     [toast],
+  )
+
+  /* ---------- pots ---------- */
+  const inPots = useMemo(() => Math.round(pots.reduce((s, p) => s + p.amount, 0) * 100) / 100, [pots])
+  const unassigned = Math.round((balance - inPots) * 100) / 100
+
+  /** Record money the user has (no bank involved) and optionally drop it straight into a pot. */
+  const addMoney = useCallback(
+    ({ amount, category, name, date, potId }) => {
+      setBalance((b) => Math.round((b + amount) * 100) / 100)
+      addTx({ name: name || category, amount, category, kind: KIND_FOR[category] ?? 'request', method: 'Added by you', date: date || localIso() })
+      if (potId) setPots((list) => list.map((p) => (p.id === potId ? { ...p, amount: Math.round((p.amount + amount) * 100) / 100 } : p)))
+      const pot = pots.find((p) => p.id === potId)
+      toast(
+        t('Money added'),
+        pot
+          ? t('{amount} went into {name}.', { amount: money(amount), name: t(pot.name) })
+          : t('{amount} is ready to sort into pots.', { amount: money(amount) }),
+        { icon: 'receive' },
+      )
+    },
+    [addTx, pots, toast],
+  )
+
+  const createPot = useCallback(
+    ({ name, icon, amount = 0 }) => {
+      const start = Math.max(0, Math.min(amount, unassigned))
+      setPots((list) => [...list, { id: uid(), name, icon, amount: start }])
+      toast(
+        t('Pot created'),
+        start ? t('{name} starts with {amount}.', { name, amount: money(start) }) : t('{name} is ready. Move money into it any time.', { name }),
+        {
+          icon: 'safe',
+        },
+      )
+    },
+    [unassigned, toast],
+  )
+
+  /** Move money between two pots, or between a pot and unassigned ('unassigned'). */
+  const moveMoney = useCallback(
+    ({ from, to, amount }) => {
+      if (!amount || from === to) return
+      const have = from === 'unassigned' ? unassigned : (pots.find((p) => p.id === from)?.amount ?? 0)
+      const n = Math.round(Math.min(amount, Math.max(0, have)) * 100) / 100
+      if (n <= 0) return
+      setPots((list) =>
+        list.map((p) => {
+          if (p.id === from) return { ...p, amount: Math.round((p.amount - n) * 100) / 100 }
+          if (p.id === to) return { ...p, amount: Math.round((p.amount + n) * 100) / 100 }
+          return p
+        }),
+      )
+      const label = (id) => (id === 'unassigned' ? t('Unassigned') : t(pots.find((p) => p.id === id)?.name ?? ''))
+      toast(t('Money moved'), t('{amount} from {from} to {to}.', { amount: money(n), from: label(from), to: label(to) }), { icon: 'transfer' })
+    },
+    [pots, unassigned, toast],
+  )
+
+  const removePot = useCallback(
+    (id) => {
+      const p = pots.find((x) => x.id === id)
+      setPots((list) => list.filter((x) => x.id !== id))
+      if (p) toast(t('Pot removed'), p.amount ? t('{amount} went back to Unassigned.', { amount: money(p.amount) }) : t(p.name), { icon: 'trash' })
+    },
+    [pots, toast],
   )
 
   /** Wipe this account back to a fresh, empty dashboard. */
@@ -527,6 +612,13 @@ export default function App() {
       addBill,
       clearData,
       leaveDemo,
+      pots,
+      unassigned,
+      inPots,
+      addMoney,
+      createPot,
+      moveMoney,
+      removePot,
       contacts,
       period,
       setPeriod,
@@ -577,6 +669,13 @@ export default function App() {
       addBill,
       clearData,
       leaveDemo,
+      pots,
+      unassigned,
+      inPots,
+      addMoney,
+      createPot,
+      moveMoney,
+      removePot,
       contacts,
       period,
       currency,
@@ -675,6 +774,9 @@ export default function App() {
       <TransactionModal open={modal?.type === 'transaction'} payload={modal?.payload} onClose={closeModal} />
       <ContactModal open={modal?.type === 'contact'} payload={modal?.payload} onClose={closeModal} />
       <BillModal open={modal?.type === 'bill'} onClose={closeModal} />
+      <AddMoneyModal open={modal?.type === 'addMoney'} payload={modal?.payload} onClose={closeModal} />
+      <MoveMoneyModal open={modal?.type === 'move'} payload={modal?.payload} onClose={closeModal} />
+      <PotModal open={modal?.type === 'pot'} onClose={closeModal} />
       {accountsEnabled && demo ? (
         <div className="demo-bar" role="status">
           <span className="demo-long">{t('You’re exploring the demo. Nothing here is saved.')}</span>

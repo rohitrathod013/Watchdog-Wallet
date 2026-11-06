@@ -47,7 +47,7 @@ const PIX = [
 ]
 
 export function BalanceCard({ attached = false, d = 0 }) {
-  const { currency, setCurrency, balance, openModal, live, stats } = useApp()
+  const { currency, setCurrency, balance, openModal, live, stats, demo, pots, unassigned } = useApp()
   const [curOpen, setCurOpen] = useState(false)
   const [hidden, setHidden] = useState(false)
   const amt = useRef(null)
@@ -131,10 +131,21 @@ export function BalanceCard({ attached = false, d = 0 }) {
         )}
       </div>
 
+      {pots.length ? (
+        <p className="bal-split rv" style={{ '--i': 2 }}>
+          <span>
+            {t('In pots')} <b>{money(balance - unassigned)}</b>
+          </span>
+          <span className={unassigned < 0 ? 'neg' : ''}>
+            {t('Unassigned')} <b>{money(unassigned)}</b>
+          </span>
+        </p>
+      ) : null}
+
       <div className="bal-actions rv" style={{ '--i': 3 }}>
-        <button type="button" className="btn solid xl" onClick={() => openModal('receive')}>
-          <Icon name="receive" size={22} />
-          {t('Receive Money')}
+        <button type="button" className="btn solid xl" onClick={() => openModal(demo ? 'receive' : 'addMoney')}>
+          <Icon name={demo ? 'receive' : 'plus'} size={22} />
+          {demo ? t('Receive Money') : t('Add money')}
         </button>
         <button type="button" className="btn soft xl" onClick={() => openModal('send')}>
           <Icon name="send" size={20} />
@@ -883,6 +894,121 @@ export function HeatmapCard({ d = 0, className = '' }) {
           <span>{t('More')}</span>
         </div>
       </div>
+    </section>
+  )
+}
+
+/* ============================================================
+   Money pots: the balance sorted by what it's for
+   ============================================================ */
+export function PotsCard({ d = 0, className = '' }) {
+  const { pots, unassigned, inPots, balance, openModal, removePot } = useApp()
+  const lead = useLead()
+  const total = Math.max(inPots + Math.max(0, unassigned), 1)
+  return (
+    <section className={`card pots-card ${className}`} style={slot(d)}>
+      <div className="c-head rv" style={{ '--i': 0 }}>
+        <div>
+          <h2 className="card-h">{t('My Pots')}</h2>
+          <p className="card-sub">{t('Sort your money by what it’s for')}</p>
+        </div>
+        <div className="c-tools">
+          <button type="button" className="btn" onClick={() => openModal('move')} disabled={!pots.length}>
+            <Icon name="transfer" size={17} />
+            {t('Move money')}
+          </button>
+          <button type="button" className="btn solid" onClick={() => openModal('pot')}>
+            <Icon name="plus" size={17} stroke={2} />
+            {t('New pot')}
+          </button>
+        </div>
+      </div>
+
+      <div className={`pots-free rv ${unassigned < 0 ? 'neg' : ''}`} style={{ '--i': 1 }}>
+        <div>
+          <small>{t('Unassigned')}</small>
+          <b>
+            <CountUp value={unassigned} format={(n) => money(n)} delay={lead + 200} />
+          </b>
+          <small>
+            {unassigned < 0
+              ? t('Your pots hold more than your balance. Move some back.')
+              : t('of {amount} total, ready to sort', { amount: money(balance) })}
+          </small>
+        </div>
+        <button type="button" className="btn soft" onClick={() => openModal('addMoney')}>
+          <Icon name="plus" size={17} stroke={2} />
+          {t('Add money')}
+        </button>
+      </div>
+
+      {pots.length ? (
+        <>
+          <div className="stacked pots-bar rv" style={{ '--i': 2, height: 12 }}>
+            {pots.map((p, i) => (
+              <i key={p.id} style={{ '--w': Math.max(p.amount, 0.0001), '--c': CAT_COLORS[i % CAT_COLORS.length], '--i': i }} />
+            ))}
+            {unassigned > 0 ? <i style={{ '--w': unassigned, '--c': 'var(--soft-3)', '--i': pots.length }} /> : null}
+          </div>
+          <div className="pots">
+            {pots.map((p, r) => (
+              <div key={p.id} className="pot" style={{ '--r': r }}>
+                <span
+                  className="tile-logo"
+                  style={{
+                    background: `color-mix(in srgb, ${CAT_COLORS[r % CAT_COLORS.length]} 14%, var(--card))`,
+                    color: CAT_COLORS[r % CAT_COLORS.length],
+                  }}
+                >
+                  <Icon name={p.icon} size={19} stroke={1.9} />
+                </span>
+                <div className="pot-main">
+                  <b>{t(p.name)}</b>
+                  <small>{t('{pct}% of your money', { pct: Math.round((p.amount / total) * 100) })}</small>
+                </div>
+                <strong>{money(p.amount)}</strong>
+                <div className="pot-acts">
+                  <button
+                    type="button"
+                    className="icon-btn soft"
+                    onClick={() => openModal('move', { to: p.id })}
+                    aria-label={t('Add to {name}', { name: t(p.name) })}
+                    title={t('Add to {name}', { name: t(p.name) })}
+                  >
+                    <Icon name="arrowDown" size={16} stroke={2} />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn soft"
+                    onClick={() => openModal('move', { from: p.id, to: 'unassigned' })}
+                    aria-label={t('Take from {name}', { name: t(p.name) })}
+                    title={t('Take from {name}', { name: t(p.name) })}
+                  >
+                    <Icon name="arrowUp" size={16} stroke={2} />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn soft"
+                    onClick={() => removePot(p.id)}
+                    aria-label={t('Remove {name}', { name: t(p.name) })}
+                    title={t('Remove {name}', { name: t(p.name) })}
+                  >
+                    <Icon name="trash" size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <CardEmpty
+          icon="safe"
+          title={t('No pots yet')}
+          body={t('Make pots like Rent, Food or Savings and split your money between them.')}
+          action={t('New pot')}
+          onAction={() => openModal('pot')}
+        />
+      )}
     </section>
   )
 }

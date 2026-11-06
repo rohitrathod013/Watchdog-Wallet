@@ -349,6 +349,42 @@ export function respond(raw, app) {
     return { text: t('Here are your account details. Share the QR or the link to get paid 📥'), run: () => app.openModal('receive') }
   }
 
+  /* ---------------- pots ---------------- */
+  if (/(add|record|put in|top up) (some )?(money|cash|income|funds)|paise (add|dal)/.test(s) && !goal && !contact) {
+    return { text: t('Opening **Add money** 💰 Type in what you have and pick a pot for it.'), run: () => app.openModal('addMoney') }
+  }
+  if (/\b(pots?|unassigned|envelopes?|sorted|set aside)\b/.test(s)) {
+    if (!app.pots.length)
+      return {
+        text: t('You don’t have any pots yet. Make pots like Rent, Food or Savings and split your money between them.'),
+        links: [{ label: t('New pot'), run: () => app.openModal('pot') }],
+      }
+    const total = Math.max(app.inPots + Math.max(0, app.unassigned), 1)
+    return {
+      text: t('You have **{inPots}** in {n} pots and **{free}** unassigned.', {
+        inPots: money(app.inPots),
+        n: app.pots.length,
+        free: money(app.unassigned),
+      }),
+      card: {
+        type: 'bars',
+        rows: [...app.pots]
+          .sort((a, b) => b.amount - a.amount)
+          .map((p, k) => ({
+            label: t(p.name),
+            value: money(p.amount),
+            p: Math.round((p.amount / total) * 100),
+            c: CAT_COLORS[k % CAT_COLORS.length],
+            k,
+          })),
+      },
+      links: [
+        { label: t('Move money'), run: () => app.openModal('move') },
+        { label: t('Open Wallet'), run: go('wallet') },
+      ],
+    }
+  }
+
   /* ---------------- navigation ---------------- */
   const wantsNav = /(open|go to|goto|take me|navigate|jump to|kholo|khol do|le chalo|visit|switch to)/.test(s)
   const nav = NAV.find((n) => n.re.test(s))

@@ -1636,3 +1636,131 @@
 .bill {
   gap: 10px;
 }
+
+/* ============================================================
+   Money pots (Wallet) and the split line on the balance card
+   ============================================================ */
+.pots-card {
+  display: flex;
+  flex-direction: column;
+}
+.pots-free {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: var(--soft);
+}
+.pots-free > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pots-free small {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.pots-free b {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.6px;
+  font-variant-numeric: tabular-nums;
+}
+.pots-free.neg b {
+  color: var(--red);
+}
+.pots-free .btn {
+  flex-shrink: 0;
+  background: var(--card);
+}
+.pots-bar {
+  margin-top: 16px;
+}
+.pots {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 12px;
+}
+.pot {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 14px;
+  transition: background-color 0.2s;
+  animation: rowIn 0.6s var(--ease) both;
+  animation-delay: calc(var(--base, 0ms) + var(--d, 0ms) + 420ms + var(--r) * 60ms);
+}
+.pot:hover {
+  background: var(--soft);
+}
+.pot .tile-logo {
+  width: 40px;
+  height: 40px;
+}
+.pot-main {
+  min-width: 0;
+}
+.pot-main b {
+  display: block;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pot-main small {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.pot > strong {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pot-acts {
+  display: flex;
+  gap: 4px;
+}
+.pot-acts .icon-btn {
+  width: 32px;
+  height: 32px;
+}
+.bal-split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.bal-split b {
+  color: var(--ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.bal-split .neg b {
+  color: var(--red);
+}
+@media (max-width: 480px) {
+  .pot {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    row-gap: 6px;
+  }
+  .pot .tile-logo {
+    width: 36px;
+    height: 36px;
+  }
+  .pot-acts {
+    grid-column: 2 / -1;
+    justify-content: flex-end;
+  }
+  .pots-free b {
+    font-size: 22px;
+  }
+}
