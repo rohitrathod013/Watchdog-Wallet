@@ -1,161 +1,171 @@
-# Watchdog Wallet: Animated Finance Dashboard
+# Watchdog Wallet
 
 **Live site:** https://rohitrathod013.github.io/Watchdog-Wallet/
 
-A polished React fintech dashboard with fluid, choreographed animations and **Grace**, a German Shepherd puppy assistant mascot. Grace flies in when the page loads, lives in the corner, and opens a chat that can answer questions about the dashboard data and act on it.
+Watchdog Wallet is a personal finance dashboard with accounts, five languages and **Grace**, a German Shepherd puppy assistant who can answer questions about your money and act on it.
 
-No backend and no API keys. It runs on demo data and is ready to connect to your own.
+Sign up to track your own balance, transactions, budgets, goals and bills, or click **Explore the demo** on the login screen to look around with sample data and no account.
 
 ---
 
 ## Features
 
-**Pages and views**
+### Accounts
 
-- **Dashboard** with four folder-style tabs:
-  - Overview: balance, earnings chart, KPIs, profit split, financial report card, savings goals, cash-flow line chart, spending donut, quick transfer, transactions, bills, budget health and a 52-week spending heatmap
-  - Transactions: search, filters, sorting, CSV export
-  - Budgets: limit sliders
-  - Reports: downloadable reports
-- **Analytics**: KPI sparklines, cash flow, earnings, spending, heatmap
-- **Transfer**: quick transfer, recent transfers, limits
-- **Wallet**: flippable 3D cards, multi-currency balances, bills
-- **Budget**: category budgets with smart rebalance
+- Sign up, log in, email confirmation and password reset, powered by [Supabase](https://supabase.com).
+- Every account has its own private dashboard, saved automatically. Row level security means no one can read anyone else's data.
+- A new account starts empty: $0, with no transactions, goals, bills or contacts.
+- **Clear my data** in the account menu resets an account.
+- **Explore the demo** opens a full sample dashboard without an account. Nothing in the demo is saved.
 
-**Interactions**
+### Your money
 
-- Working modals: Send Money, Receive Money (QR code), Payment Request, New Goal
-- Every action updates the shared state: balance, transactions, notifications and toasts
-- Live mode: the balance drifts in real time
-- Currency switcher: USD, EUR, GBP, JPY
-- Period switcher: week, month, quarter, year
+- **Add transaction**: record money in or out with a description, category and date.
+- **Add contact**, **Add bill** and **Add Goal**.
+- **Send money** and **request money** from your contacts. **Pay bills** and **top up goals** in one tap.
+- All charts and totals are worked out from your own transactions: income, expenses, net profit, savings rate, earnings by month, 12-month cash flow, spending by category, budget usage and a 52-week spending heatmap.
+- Currency switcher (USD, EUR, GBP, JPY) and period switcher (week, month, quarter, year).
+- Export transactions and reports as CSV.
 
-**Motion**
+### Pages
 
-- Staggered entrances
-- Numbers that count up
-- Bars, lines and donuts that draw themselves
-- Sections that reveal as you scroll
-- A sliding navigation indicator
-- Spring physics on modals and toasts
+- **Dashboard**, with four tabs:
+  - **Overview**: balance, earnings, KPIs, savings goals, cash flow, spending, quick transfer, recent transactions, bills, budget health and the spending heatmap.
+  - **Transactions**: search, filters, sorting and CSV export.
+  - **Budgets**: monthly limits per category.
+  - **Reports**: income by source and downloadable statements.
+- **Analytics**: KPI sparklines, cash flow, earnings, spending and the heatmap.
+- **Transfer**: quick transfer, recent transfers and transfer limits.
+- **Wallet**: your card, balances by currency and bills.
+- **Budget**: category budgets with a one-tap smart rebalance.
 
-**Theming**
+### Grace, the assistant
 
-- Light and dark mode with a liquid "blob" theme transition
-- 5 accent colours
-- Reduced-motion support
-
-**Grace, the AI assistant mascot**
-
-- Built with Framer Motion. On load he flies in, does a happy hop, then docks bottom-right. He blinks, follows the cursor and waves.
-- The chat panel answers questions about balance, income, spending, budgets, goals and bills.
-- It can also take actions: send or request money, pay bills, top up goals, change budgets, switch theme, accent, currency or period, and open pages.
-- Money actions always ask for confirmation first.
-- Understands some Roman Urdu ("balance kitna hai", "dark karo").
+- Flies in when the page loads, then sits in the corner, blinks, follows the pointer and waves.
+- Answers questions about your balance, income, spending, budgets, goals and bills, using your own numbers.
+- Takes actions: send or request money, pay bills, top up goals, change budget limits, switch theme, colour, currency or period, and open pages. Money actions always ask you to confirm first.
+- Understands some Roman Urdu, such as "balance kitna hai" and "dark karo".
 - Press **/** anywhere to open the chat.
 
-**Responsive**: desktop down to 375px phones.
+### Languages
 
-**Fast**: about 86 KB gzipped initial JS. The secondary pages and the assistant load on demand.
+English, Español, Français, Deutsch and العربية. Everything is translated, including Grace's replies. Arabic switches the whole layout to right-to-left. The chosen language is remembered.
+
+### Look and feel
+
+- Light and dark mode with a liquid theme transition, and 5 accent colours.
+- Staggered entrances, counting numbers, self-drawing charts and sections that reveal as you scroll.
+- Reduce motion setting, and respect for the system reduced-motion preference.
+- Works on phones (tested down to 360px wide), tablets and desktops.
 
 ## Tech stack
 
-React 19 · Vite 8 · Framer Motion 12 · plain CSS with design tokens · no UI kit and no chart library (all charts are hand-built SVG).
+React 19, Vite 8, Framer Motion 12, Supabase (auth and database), and plain CSS with design tokens. No UI kit and no chart library: every chart is hand-built SVG.
 
-## Quick start
+## Getting started
+
+Requires Node 20.19+ or 22.12+.
 
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm run build      # production build in /dist
-npm run preview    # serve the production build locally
 ```
 
-Requires Node 20.19+ or 22.12+.
+The app connects to the Supabase project set in `src/config.js`. To use your own project, see the next section.
 
-## Accounts (login and signup)
+## Setting up Supabase
 
-Without any setup the dashboard runs as a single-user demo with no login. To let people sign up and keep their own data, connect a free [Supabase](https://supabase.com) project:
+1. Create a free project at [supabase.com](https://supabase.com).
+2. Open **SQL Editor**, paste the contents of [`supabase/schema.sql`](supabase/schema.sql) and click **Run**. It creates the `user_state` table, one private row per user.
+3. In **Authentication > URL Configuration**:
+   - set **Site URL** to where the site lives, for example `https://rohitrathod013.github.io/Watchdog-Wallet/`;
+   - add `http://localhost:5173/` to **Redirect URLs** for local testing.
+4. Copy the **Project URL** and the **Publishable key** (or the legacy **anon** key) from **Project Settings > API Keys**, and put them in one of these places:
+   - `SUPABASE` in `src/config.js`, or
+   - a `.env.local` file (copy `.env.example`) as `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, or
+   - GitHub repository variables with the same names (**Settings > Secrets and variables > Actions > Variables**).
 
-1. Create a project at supabase.com.
-2. In **SQL Editor**, run [`supabase/schema.sql`](supabase/schema.sql). It creates one private row per user, protected by row level security.
-3. In **Authentication > URL Configuration**, set **Site URL** to where the app runs (for example `https://rohitrathod013.github.io/Watchdog-Wallet/`) and add `http://localhost:5173/` to **Redirect URLs** for local testing.
-4. Copy **Project URL** and the **anon public** key from **Project Settings > API**:
-   - locally: copy `.env.example` to `.env.local` and fill both values in;
-   - for GitHub Pages: add them as repository variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (**Settings > Secrets and variables > Actions > Variables**), then push or re-run the deploy.
+The publishable/anon key is meant to be public, and row level security keeps each account private. Never put the **secret** or **service_role** key in the app.
 
-The anon key is designed to be public; row level security is what keeps each account's data private.
+To run without accounts, leave both values empty in `src/config.js` and don't set the variables. The site then opens straight into the demo with no login.
 
-A new account starts empty: $0, no transactions, goals, bills or contacts. Users add their own with **Add transaction**, **Add contact**, **Add bill** and **Add Goal**, and every chart is worked out from their own transactions (`src/lib/stats.js`). Everything is saved to their account. **Clear my data** in the account menu resets an account.
-
-The sample dashboard is kept separate as a demo: **Explore the demo** on the login screen opens it without an account, and nothing in it is saved.
+**Before real users sign up:** Supabase's built-in email service only sends a few emails per hour. Connect your own provider under **Authentication > Emails > SMTP Settings**.
 
 ## Make it yours
 
-### 1. Brand, user and assistant: `src/config.js`
+### Brand, demo profile and assistant: `src/config.js`
 
 ```js
 export const BRAND = { name: 'Watchdog Wallet', domain: 'watchdogwallet.io' }
-export const USER = { first: 'Rohit', name: 'Rohit Rathod' }
+export const USER = { first: 'Rohit', name: 'Rohit Rathod' } // the demo profile
+export const SUPABASE = { url: '…', anonKey: '…' }
 export const THEME = { defaultTheme: 'light', defaultAccent: 'orange' }
 export const ASSISTANT = { enabled: true, name: 'Grace', intro: true }
 export const FEATURES = { liveUpdates: true }
 ```
 
 - `ASSISTANT.enabled: false` removes the mascot and the chat completely.
-- `ASSISTANT.intro: false` keeps Grace but skips the fly-in, so it starts in the corner.
+- `ASSISTANT.intro: false` keeps Grace but skips the fly-in.
+- Update the page `<title>` and meta tags in `index.html` too.
 
-Also update the page `<title>` and meta tags in `index.html`.
+### Logo and profile photo
 
-### 2. Logo
+- The logo is the `Logo` component in `src/components/Brand.jsx`. Replace its SVG path, and `public/favicon.svg` to match.
+- `public/avatar.jpg` is the demo profile's photo. Signed-in users see their initials.
 
-- The logo mark is the `Logo` component in `src/components/Brand.jsx`, an SVG with a single path. Replace that path with your own.
-- Replace `public/favicon.svg` to match.
-
-### 3. Colours and fonts: `src/styles/base.css`
+### Colours and fonts: `src/styles/base.css`
 
 - All colours are CSS variables on `:root`. Dark mode overrides them in `[data-theme='dark']`, and each accent in `[data-accent='…']`.
-- To add an accent, add a `[data-accent='yours']` block, then add it to the `ACCENTS` list in `src/components/TopBar.jsx`.
-- The font is Inter, loaded in `index.html`. Change `--font` to use another one.
+- To add an accent, add a `[data-accent='yours']` block and add it to `ACCENTS` in `src/components/TopBar.jsx`.
+- The font is Inter, loaded in `index.html`. Change `--font` to use another.
 
-### 4. Data: `src/data/seed.js`
+### Demo data: `src/data/seed.js`
 
-All demo data lives in this one file: transactions, budgets, goals, bills, contacts, cards, chart series and reports. Swap the arrays for your API responses; the shapes are plain objects.
+The sample dashboard shown in the demo: transactions, budgets, goals, bills, contacts, cards, chart series and reports.
 
-The app state and every action live in `src/App.jsx` (`sendMoney`, `payBill`, `fundGoal` and so on). Point those at your backend when you connect real data.
+### Translations: `src/i18n/`
 
-### 5. Grace's answers: `src/lib/assistant.js`
+- One file per language (`es.js`, `fr.js`, `de.js`, `ar.js`). The English text is the key, so `t('Total Balance')` looks up `'Total Balance'`. Placeholders like `{name}` are filled in for you.
+- Anything without a translation shows in English, so nothing breaks while you add text.
+- To add a language, create a file, then register it in `src/lib/i18n.js` and `LANGUAGES` in `src/data/seed.js`.
 
-The assistant is a local intent engine, so there are no API costs and it works offline.
+### Grace's answers: `src/lib/assistant.js`
 
-- Each intent is a regex plus a reply.
-- A reply can include a card (bars, stats or transactions), a confirm button, quick links and follow-up chips.
-- To support a new question, add a block before the fallback at the bottom of `respond()`.
-- To use a real LLM instead, send the user's message and a summary of the app state to your model inside the `ask()` function in `src/components/Assistant.jsx`.
+A local intent engine: no API costs, and it works offline.
+
+- Each intent is a pattern plus a reply. A reply can include a card (bars, stats or transactions), a confirm button, quick links and follow-up chips.
+- To support a new question, add a block before the fallback at the end of `respond()`.
+- To use a real AI model instead, call it from `ask()` in `src/components/Assistant.jsx` with the user's message and a summary of the app state.
 
 ## Project structure
 
 ```
 src/
-  config.js            ← rebrand here
-  App.jsx              app state, actions, routing, lazy loading
+  config.js            brand, demo profile, Supabase, theme, assistant
+  App.jsx              app state, actions, accounts, routing, lazy loading
   pages/               Dashboard, Analytics, Transfer, Wallet, Budget
   views/               Dashboard tabs: Overview, Transactions, Budgets, Reports
   components/
-    Cards.jsx          every dashboard card
+    Auth.jsx           log in, sign up, password reset, demo entry
+    Cards.jsx          every dashboard card, with empty states
     Charts.jsx         earning bars, line chart, donut, heatmap, sparkline
+    Modals.jsx         send, receive, request, goal, transaction, contact, bill
     TopBar.jsx         navigation, notifications, settings, language, account
-    Modals.jsx         send / receive / request / new goal
-    Buddy.jsx          Grace's on-page choreography (Framer Motion)
-    BuddyArt.jsx       Grace herself: a German Shepherd puppy in layered SVG with fur filters
-    Assistant.jsx      chat panel
+    Assistant.jsx      Grace's chat panel
+    Buddy.jsx          Grace's on-page movement (Framer Motion)
+    BuddyArt.jsx       Grace: a German Shepherd puppy in layered SVG
     ui.jsx             CountUp, Stage, Reveal, Modal, Popover, Segmented, Ring…
   lib/
+    supabase.js        Supabase client, loading and saving each user's data
+    stats.js           charts and totals worked out from transactions
     assistant.js       Grace's intent engine
-    themeTransition.js liquid theme switch
+    i18n.js            translation helper
     format.js          money and date helpers
+    themeTransition.js liquid theme switch
+  i18n/                es, fr, de, ar translations
   data/seed.js         demo data
-  styles/              base (tokens), shell, dashboard, pages, assistant
+  styles/              base (tokens), shell, dashboard, pages, assistant, auth, mobile
+supabase/schema.sql    database table and security rules
 ```
 
 ## Scripts
@@ -164,22 +174,28 @@ src/
 | --- | --- |
 | `npm run dev` | Start the dev server with hot reload |
 | `npm run build` | Production build into `dist/` |
-| `npm run preview` | Preview the production build |
+| `npm run preview` | Serve the production build at `/Watchdog-Wallet/`, like the live site |
 | `npm run lint` | ESLint |
 | `npm run format` | Prettier |
 
 ## Deploying
 
-`npm run build` produces a static site in `dist/` that works on any static host: Vercel, Netlify, Cloudflare Pages or GitHub Pages. Routing uses URL hashes (`#/wallet`), so no server rewrites are needed.
+Every push to `main` deploys automatically. The GitHub Actions workflow in `.github/workflows/deploy.yml` builds the site and publishes it to the `gh-pages` branch, which GitHub Pages serves.
+
+For your own fork:
+
+1. In **Settings > Pages**, set **Source** to **Deploy from a branch**, branch `gh-pages`, folder `/ (root)`.
+2. If your repository isn't called `Watchdog-Wallet`, change `base` in `vite.config.js` to `/your-repo-name/`.
+
+`dist/` also works on any other static host, such as Vercel, Netlify or Cloudflare Pages. Pages use URL hashes (`#/wallet`), so no server rewrites are needed.
 
 ## Browser support
 
-Supported: the latest Chrome, Edge, Safari and Firefox.
-
-The liquid theme switch uses the View Transitions API. Browsers without it get a smooth colour fade instead.
+The latest Chrome, Edge, Safari and Firefox, on desktop and mobile. The liquid theme switch uses the View Transitions API; other browsers get a smooth colour fade instead.
 
 ## Credits
 
 - Icons: custom SVG paths in `src/components/Icon.jsx`
 - Font: [Inter](https://rsms.me/inter/) (SIL Open Font License)
 - Animation: [Framer Motion](https://motion.dev) (MIT)
+- Accounts and database: [Supabase](https://supabase.com)
