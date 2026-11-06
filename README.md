@@ -73,6 +73,19 @@ npm run preview    # serve the production build locally
 
 Requires Node 20.19+ or 22.12+.
 
+## Accounts (login and signup)
+
+Without any setup the dashboard runs as a single-user demo with no login. To let people sign up and keep their own data, connect a free [Supabase](https://supabase.com) project:
+
+1. Create a project at supabase.com.
+2. In **SQL Editor**, run [`supabase/schema.sql`](supabase/schema.sql). It creates one private row per user, protected by row level security.
+3. In **Authentication > URL Configuration**, set **Site URL** to where the app runs (for example `https://rohitrathod013.github.io/Watchdog-Wallet/`) and add `http://localhost:5173/` to **Redirect URLs** for local testing.
+4. Copy **Project URL** and the **anon public** key from **Project Settings > API**:
+   - locally: copy `.env.example` to `.env.local` and fill both values in;
+   - for GitHub Pages: add them as repository variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (**Settings > Secrets and variables > Actions > Variables**), then push or re-run the deploy.
+
+The anon key is designed to be public; row level security is what keeps each account's data private. A new account starts with a copy of the sample data, and every change is saved to that account.
+
 ## Make it yours
 
 ### 1. Brand, user and assistant: `src/config.js`

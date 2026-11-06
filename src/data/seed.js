@@ -137,6 +137,9 @@ export const CONTACTS = [
   { id: 'c5', name: 'Nina Patel', hue: 265 },
 ]
 
+/** Contacts a brand-new account starts with (the list above is the demo owner's). */
+export const STARTER_CONTACTS = CONTACTS.filter((c) => !['c6', 'c7', 'c8'].includes(c.id))
+
 export const TRANSACTIONS = [
   {
     id: 't01',

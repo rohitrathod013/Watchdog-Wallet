@@ -27,11 +27,18 @@ export function Logo({ size = 52 }) {
   )
 }
 
-/** Profile photo for the signed-in user (public/avatar.jpg). */
-export function Avatar({ size = 52 }) {
+/** The signed-in user's picture, or their initials when they have none. */
+export function Avatar({ size = 52, user }) {
+  if (!user?.avatar) {
+    return (
+      <span className="avatar-svg avatar-initials" style={{ width: size, height: size, fontSize: size * 0.36 }} aria-hidden="true">
+        {initials(user?.name || '?')}
+      </span>
+    )
+  }
   return (
     <img
-      src={`${import.meta.env.BASE_URL}avatar.jpg`}
+      src={user.avatar}
       width={size}
       height={size}
       alt=""

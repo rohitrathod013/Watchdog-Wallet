@@ -231,11 +231,11 @@ export default function TopBar() {
         {/* account */}
         <div className="anchor">
           <button type="button" className={`avatar-btn ${open === 'user' ? 'on' : ''}`} onClick={() => toggle('user')} aria-label={t('Account menu')}>
-            <Avatar />
+            <Avatar user={user} />
           </button>
           <Popover open={open === 'user'} onClose={close} className="user-pop">
             <div className="user-card">
-              <Avatar size={44} />
+              <Avatar size={44} user={user} />
               <div>
                 <strong>{user.name}</strong>
                 <small>{user.email}</small>

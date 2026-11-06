@@ -11,9 +11,23 @@ export const BRAND = {
   domain: 'watchdogwallet.io',
 }
 
+/** The demo profile, used when accounts (Supabase below) are not set up. */
 export const USER = {
   first: 'Rohit',
   name: 'Rohit Rathod',
+}
+
+/**
+ * Accounts and per-user storage. Create a free project at supabase.com, run
+ * supabase/schema.sql in its SQL editor, then provide the two values from
+ * Project Settings > API, either as VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY
+ * (.env.local locally, repository variables for GitHub Pages) or pasted here.
+ * The anon key is meant to be public: row level security keeps each user's data private.
+ * Leave both empty to run the dashboard as a single-user demo with no login.
+ */
+export const SUPABASE = {
+  url: import.meta.env.VITE_SUPABASE_URL || 'https://jwrdfciewgxklturgcbp.supabase.co',
+  anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_wMz68SJQaKFkDKMbfRts6Q_xDH8ivsg',
 }
 
 export const THEME = {
