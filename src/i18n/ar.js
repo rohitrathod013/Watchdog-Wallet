@@ -689,4 +689,21 @@ export default {
   'You have **{inPots}** in {n} pots and **{free}** unassigned.': 'لديك **{inPots}** في {n} حصالات و**{free}** غير مخصصة.',
   'Your balance after: {amount}': 'رصيدك بعدها: {amount}',
   'Your pots hold more than your balance. Move some back.': 'حصالاتك تحتوي أكثر من رصيدك. أعد بعضها.',
+
+  // ---------------- Grace logs spending ----------------
+  '{category} · from {pot}': '{category} · من {pot}',
+  '{category} · from your balance': '{category} · من رصيدك',
+  '{category} · into {pot}': '{category} · إلى {pot}',
+  '{category} · into unassigned': '{category} · إلى غير المخصص',
+  'Added ✅ {amount} for {name}. Your balance is now {balance}.': 'تمت الإضافة ✅ {amount} مقابل {name}. رصيدك الآن {balance}.',
+  'Added ✅ {amount}. Your balance is now {balance}.': 'تمت الإضافة ✅ {amount}. رصيدك الآن {balance}.',
+  'Added by {name}': 'أضافته {name}',
+  'Got it. Add **{amount}** for **{name}** under {category} ({when})?': 'فهمت. هل أضيف **{amount}** مقابل **{name}** ضمن {category} ({when})؟',
+  'Heads up: this takes your balance below zero.': 'تنبيه: سيصبح رصيدك أقل من الصفر.',
+  'How much is in my pots?': 'كم يوجد في حصالاتي؟',
+  'Nice! Add **{amount}** from {name} as {category} ({when})?': 'رائع! هل أضيف **{amount}** من {name} بصفة {category} ({when})؟',
+  'That brings {name} to {spent} of your {limit} budget.': 'بهذا يصل {name} إلى {spent} من ميزانيتك البالغة {limit}.',
+  today: 'اليوم',
+  yesterday: 'أمس',
+  'I spent $25 on lunch': 'أنفقت 25$ على الغداء',
 }

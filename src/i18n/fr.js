@@ -704,4 +704,21 @@ export default {
   'You have **{inPots}** in {n} pots and **{free}** unassigned.': 'Vous avez **{inPots}** dans {n} pots et **{free}** non attribués.',
   'Your balance after: {amount}': 'Votre solde ensuite : {amount}',
   'Your pots hold more than your balance. Move some back.': 'Vos pots dépassent votre solde. Remettez-en une partie.',
+
+  // ---------------- Grace logs spending ----------------
+  '{category} · from {pot}': '{category} · depuis {pot}',
+  '{category} · from your balance': '{category} · depuis votre solde',
+  '{category} · into {pot}': '{category} · dans {pot}',
+  '{category} · into unassigned': '{category} · dans le non attribué',
+  'Added ✅ {amount} for {name}. Your balance is now {balance}.': 'Ajouté ✅ {amount} pour {name}. Votre solde est maintenant de {balance}.',
+  'Added ✅ {amount}. Your balance is now {balance}.': 'Ajouté ✅ {amount}. Votre solde est maintenant de {balance}.',
+  'Added by {name}': 'Ajouté par {name}',
+  'Got it. Add **{amount}** for **{name}** under {category} ({when})?': 'Compris. J’ajoute **{amount}** pour **{name}** dans {category} ({when}) ?',
+  'Heads up: this takes your balance below zero.': 'Attention : votre solde passera sous zéro.',
+  'How much is in my pots?': 'Combien y a-t-il dans mes pots ?',
+  'Nice! Add **{amount}** from {name} as {category} ({when})?': 'Super ! J’ajoute **{amount}** de {name} en {category} ({when}) ?',
+  'That brings {name} to {spent} of your {limit} budget.': '{name} atteint ainsi {spent} sur votre budget de {limit}.',
+  today: 'aujourd’hui',
+  yesterday: 'hier',
+  'I spent $25 on lunch': 'J’ai dépensé 25 $ pour le déjeuner',
 }

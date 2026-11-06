@@ -17,7 +17,7 @@
      chips?,               // follow-up prompts
    }
    ------------------------------------------------------------------ */
-import { money, whole } from './format'
+import { isoDay, localIso, money, whole } from './format'
 import { t } from './i18n'
 import { ASSISTANT, BRAND } from '../config'
 import { CAT_COLORS, CURRENCIES } from '../data/seed'
@@ -34,6 +34,7 @@ export const STARTERS = [
   'How are my goals?',
   'Switch to dark mode',
   'Give me a saving tip',
+  'I spent $25 on lunch',
 ]
 
 /** The starter chips in the current language. */
@@ -92,6 +93,73 @@ const JOKES = [
   'My budget and I have a great relationship: I ignore it and it judges me silently. 🙈',
   'I told my wallet a joke… it didn’t laugh. Too many **bills** on its mind. 😅',
 ]
+
+/* ---------------- "I spent $300 on dinner": turning a sentence into a transaction ---------------- */
+const EXPENSE_WORDS = [
+  [
+    'Food & Dining',
+    /\b(dinner|lunch|breakfast|brunch|food|restaurant|coffee|cafe|caf[eé]|pizza|burger|groceries|grocery|supermarket|snacks?|meal|takeaway|takeout|drinks?|bar|khana|chai)\b/,
+  ],
+  ['Transport', /\b(uber|lyft|taxi|cab|fuel|gas|petrol|diesel|bus|train|metro|subway|parking|toll|ride|auto)\b/],
+  ['Housing', /\b(rent|mortgage|landlord)\b/],
+  ['Bills', /\b(electricity|electric|internet|wifi|phone bill|mobile bill|water bill|bill|subscription|recharge)\b/],
+  ['Entertainment', /\b(movie|movies|cinema|netflix|spotify|concert|game|games|gaming|party|show|tickets?|club)\b/],
+  ['Health', /\b(doctor|medicine|medicines|pharmacy|chemist|gym|hospital|dentist|clinic)\b/],
+  ['Travel', /\b(hotel|flight|flights|airbnb|trip|vacation|holiday|travel)\b/],
+  ['Shopping', /\b(clothes|shoes|shirt|dress|shopping|amazon|mall|gadget|phone|laptop|gift|present)\b/],
+]
+const INCOME_WORDS = [
+  ['Salary', /\b(salary|paycheck|pay ?check|wages?|got paid|payday)\b/],
+  ['Freelance', /\b(freelanc\w*|client|gig|project|commission)\b/],
+  ['Business', /\b(business|shop sales|sales|dividend|profit)\b/],
+  ['Gift', /\b(gift|birthday|present)\b/],
+  ['Refund', /\b(refund|cashback|cash back|returned)\b/],
+]
+const SPENT = /\b(spent|paid|bought|purchased|was charged|got charged|blew|kharch\w*|kharcha|lagaye|lagaya)\b/
+const EARNED = /\b(earned|got paid|received|recieved|was paid|made|kamaye|kamaya|mile|mila)\b|\bgot\s+(?:\$|usd\s?|\d)/
+const QUESTION = /^(how|what|did|do|when|where|why|which|show|tell|can|could|should|is|are|am)\b|\?\s*$/
+
+const titleCase = (x) => x.replace(/\b\w/g, (c) => c.toUpperCase())
+
+/* the thing it was for: "on dinner with friends" → "Dinner with friends" */
+function describe(raw) {
+  const bought = raw.match(/\bbought\s+(?:an?\s+|some\s+|the\s+|new\s+)?([a-z][a-z' -]{1,30}?)(?:\s+(?:for|from|yesterday|today|at)\b|[.!,]|$)/i)
+  if (bought) return titleCase(bought[1].trim())
+  const m = raw.match(
+    /\b(?:on|for|at|towards)\s+(?:an?\s+|the\s+|some\s+|my\s+)?([a-z][a-z' &-]{1,40}?)(?:\s+(?:yesterday|today|from|using|with my|last night|this morning)\b|[.!,]|$)/i,
+  )
+  if (!m) return null
+  const what = m[1].replace(/\s+(pot|budget)$/i, '').trim()
+  if (!what || /^\d/.test(what)) return null
+  return titleCase(what)
+}
+
+/** Parse "spent / paid / bought … $amount …" (or got paid / received for income). */
+export function parseLogged(raw, s, amount, pots) {
+  if (!amount || QUESTION.test(s)) return null
+  // "got paid", "received", "earned" mean money in, even though they contain words like "paid"
+  const strongIn = /\b(got paid|was paid|get paid|received|recieved|earned|kamaye|kamaya)\b/.test(s)
+  const out = !strongIn && SPENT.test(s)
+  const inn = !out && EARNED.test(s) && !/\b(got to|got a question|made a goal)\b/.test(s)
+  if (!out && !inn) return null
+  const words = out ? EXPENSE_WORDS : INCOME_WORDS
+  const category = words.find(([, re]) => re.test(s))?.[0] ?? (out ? 'Other' : 'Other income')
+  const day = new Date()
+  if (/\byesterday|last night|kal\b/.test(s)) day.setDate(day.getDate() - 1)
+  const date = isoDay(day) === isoDay(new Date()) ? localIso() : `${isoDay(day)}T12:00`
+  const pot = pots.find((p) => s.includes(p.name.toLowerCase()) || words.some(([c, re]) => c === category && re.test(p.name.toLowerCase())))
+  const potNamed = pot && s.includes(pot.name.toLowerCase())
+  return {
+    type: out ? 'expense' : 'income',
+    amount,
+    category,
+    name: describe(raw) ?? category,
+    date,
+    yesterday: isoDay(day) !== isoDay(new Date()),
+    potId: potNamed ? pot.id : null,
+    pot: potNamed ? pot : null,
+  }
+}
 
 export function respond(raw, app) {
   const s = norm(raw)
@@ -201,6 +269,81 @@ export function respond(raw, app) {
         net: whole(np.net),
       }),
       run: () => app.setPeriod(key),
+    }
+  }
+
+  /* ---------------- "I spent $300 on dinner" / "got paid $2,000" ---------------- */
+  const logged = !contact ? parseLogged(raw, s, amount, app.pots ?? []) : null
+  if (logged) {
+    const when = logged.yesterday ? t('yesterday') : t('today')
+    const cat = t(logged.category)
+    if (logged.type === 'expense') {
+      const budget = app.budgets.find((b) => b.name === logged.category)
+      const after = app.balance - logged.amount
+      const notes = [
+        budget
+          ? t('That brings {name} to {spent} of your {limit} budget.', {
+              name: cat,
+              spent: whole(budget.spent + logged.amount),
+              limit: whole(budget.limit),
+            })
+          : null,
+        after < 0 ? t('Heads up: this takes your balance below zero.') : null,
+      ].filter(Boolean)
+      return {
+        text:
+          t('Got it. Add **{amount}** for **{name}** under {category} ({when})?', {
+            amount: money(logged.amount),
+            name: t(logged.name),
+            category: cat,
+            when,
+          }) + (notes.length ? `\n${notes.join(' ')}` : ''),
+        confirm: {
+          label: t('Add expense'),
+          note: logged.pot
+            ? t('{category} · from {pot}', { category: cat, pot: t(logged.pot.name) })
+            : t('{category} · from your balance', { category: cat }),
+          run: () =>
+            app.addTransaction({
+              name: logged.name,
+              amount: -logged.amount,
+              category: logged.category,
+              date: logged.date,
+              method: t('Added by {name}', { name: ASSISTANT.name }),
+              potId: logged.potId,
+            }),
+          done: t('Added ✅ {amount} for {name}. Your balance is now {balance}.', {
+            amount: money(logged.amount),
+            name: t(logged.name),
+            balance: money(after),
+          }),
+        },
+        chips: [chip('Where did my money go?'), chip('Am I over budget?')],
+      }
+    }
+    return {
+      text: t('Nice! Add **{amount}** from {name} as {category} ({when})?', {
+        amount: money(logged.amount),
+        name: t(logged.name),
+        category: cat,
+        when,
+      }),
+      confirm: {
+        label: t('Add income'),
+        note: logged.pot
+          ? t('{category} · into {pot}', { category: cat, pot: t(logged.pot.name) })
+          : t('{category} · into unassigned', { category: cat }),
+        run: () =>
+          app.addMoney({
+            amount: logged.amount,
+            category: logged.category === 'Other income' ? 'Other income' : logged.category,
+            name: logged.name,
+            date: logged.date,
+            potId: logged.potId,
+          }),
+        done: t('Added ✅ {amount}. Your balance is now {balance}.', { amount: money(logged.amount), balance: money(app.balance + logged.amount) }),
+      },
+      chips: [chip('How much is in my pots?'), chip('Give me a summary')],
     }
   }
 

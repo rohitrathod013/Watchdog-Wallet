@@ -698,4 +698,21 @@ export default {
   'You have **{inPots}** in {n} pots and **{free}** unassigned.': 'Tienes **{inPots}** en {n} botes y **{free}** sin asignar.',
   'Your balance after: {amount}': 'Tu saldo después: {amount}',
   'Your pots hold more than your balance. Move some back.': 'Tus botes suman más que tu saldo. Devuelve algo.',
+
+  // ---------------- Grace logs spending ----------------
+  '{category} · from {pot}': '{category} · desde {pot}',
+  '{category} · from your balance': '{category} · desde tu saldo',
+  '{category} · into {pot}': '{category} · a {pot}',
+  '{category} · into unassigned': '{category} · a sin asignar',
+  'Added ✅ {amount} for {name}. Your balance is now {balance}.': 'Añadido ✅ {amount} por {name}. Tu saldo ahora es {balance}.',
+  'Added ✅ {amount}. Your balance is now {balance}.': 'Añadido ✅ {amount}. Tu saldo ahora es {balance}.',
+  'Added by {name}': 'Añadido por {name}',
+  'Got it. Add **{amount}** for **{name}** under {category} ({when})?': 'Entendido. ¿Añado **{amount}** por **{name}** en {category} ({when})?',
+  'Heads up: this takes your balance below zero.': 'Ojo: esto deja tu saldo por debajo de cero.',
+  'How much is in my pots?': '¿Cuánto hay en mis botes?',
+  'Nice! Add **{amount}** from {name} as {category} ({when})?': '¡Genial! ¿Añado **{amount}** de {name} como {category} ({when})?',
+  'That brings {name} to {spent} of your {limit} budget.': 'Con esto, {name} llega a {spent} de tu presupuesto de {limit}.',
+  today: 'hoy',
+  yesterday: 'ayer',
+  'I spent $25 on lunch': 'Gasté 25 $ en el almuerzo',
 }
