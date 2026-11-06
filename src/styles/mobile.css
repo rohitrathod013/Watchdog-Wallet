@@ -1,0 +1,243 @@
+/* ============================================================
+   Phones. Loaded last so these refinements win over the
+   desktop-first rules elsewhere. Target: 360–430px wide.
+   ============================================================ */
+
+/* nothing may push the page sideways */
+html,
+body {
+  overflow-x: clip;
+}
+
+/* the demo banner's short wording is for phones only */
+.demo-bar .demo-short {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  /* ---------- top bar ---------- */
+  .tool.lang {
+    display: grid; /* keep the language picker reachable on phones */
+    font-size: 14px;
+  }
+  .topbar .pop {
+    max-width: calc(100vw - 24px);
+  }
+  .set-pop,
+  .user-pop,
+  .opt-pop {
+    min-width: 0;
+    width: min(300px, calc(100vw - 24px));
+  }
+
+  /* ---------- page head ---------- */
+  .page-head {
+    flex-direction: column;
+    gap: 16px;
+  }
+  .page-actions {
+    width: 100%;
+  }
+  .tabs-row {
+    gap: 10px;
+  }
+
+  /* ---------- quick transfer: contacts scroll instead of squashing ---------- */
+  .qt-card .people {
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-inline: -6px;
+    padding-inline: 6px;
+  }
+  .qt-card:not(.big) .person {
+    flex: 0 0 62px;
+    min-width: 62px;
+  }
+
+  /* ---------- transactions filters scroll sideways ---------- */
+  .tx-tools .seg {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs,
+  .nav {
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar,
+  .nav::-webkit-scrollbar,
+  .tx-tools .seg::-webkit-scrollbar,
+  .qt-card .people::-webkit-scrollbar {
+    display: none;
+  }
+  .tx-tools .seg button {
+    flex-shrink: 0;
+  }
+  .search-box {
+    width: 100%;
+  }
+
+  /* ---------- savings goals: full name, figures underneath ---------- */
+  .goal-row {
+    grid-template-columns: minmax(0, 1fr) auto 28px;
+    grid-template-areas:
+      'name pct chev'
+      'bar bar bar'
+      'amt amt amt';
+    row-gap: 6px;
+    padding-block: 14px;
+  }
+  .goal-name {
+    grid-area: name;
+  }
+  .goal-pct {
+    grid-area: pct;
+  }
+  .goal-chev {
+    grid-area: chev;
+  }
+  .goal-bar {
+    grid-area: bar;
+  }
+  .goal-amt {
+    grid-area: amt;
+    text-align: start;
+    font-size: 13.5px;
+  }
+  .goal-name span {
+    white-space: normal;
+  }
+
+  /* ---------- budget summary ---------- */
+  .budget-sum {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+    padding: 22px 20px;
+  }
+  .budget-sum > :first-child {
+    display: flex;
+    justify-content: center;
+  }
+  .bs-stats b {
+    font-size: 20px;
+  }
+
+  /* ---------- currencies: drop the share bar so names have room ---------- */
+  .wl {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+  }
+  .wl .meter {
+    display: none;
+  }
+  .wl-name small {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ---------- modals fill the width and scroll ---------- */
+  .modal-veil {
+    padding: 12px;
+  }
+  .modal {
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+  }
+  .modal-head {
+    padding-inline: 20px;
+  }
+  .modal-body {
+    padding-inline: 20px;
+  }
+
+  /* ---------- Grace's hint would sit on top of the content ---------- */
+  .buddy-note {
+    display: none;
+  }
+
+  /* ---------- the demo banner: one slim line above Grace ---------- */
+  .demo-bar {
+    inset-inline-start: 12px;
+    inset-inline-end: calc(12px + 220px * 0.34 + 8px);
+    translate: none;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 8px 8px 14px;
+    border-radius: 18px;
+    font-size: 12.5px;
+    line-height: 1.3;
+    text-align: start;
+    max-width: none;
+  }
+  [dir='rtl'] .demo-bar {
+    translate: none;
+    padding: 8px 14px 8px 8px;
+  }
+  .demo-bar .btn {
+    height: 34px;
+    padding: 0 12px;
+    font-size: 12.5px;
+  }
+  .demo-bar .demo-long {
+    display: none;
+  }
+  .demo-bar .demo-short {
+    display: inline;
+  }
+  html:has(.demo-bar) .shell {
+    padding-bottom: 96px;
+  }
+  .save-warn {
+    inset-inline: 12px;
+    translate: none;
+    text-align: center;
+    border-radius: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* logo only, so bell, settings, language and avatar all fit */
+  .brand-name {
+    display: none;
+  }
+  .page-head h1 {
+    font-size: 28px;
+  }
+  /* room for Grace's ears under the language picker */
+  .auth {
+    padding-top: 104px;
+  }
+
+  /* cash flow: every other month label, or they run together */
+  .lc-labels span:nth-child(even) {
+    visibility: hidden;
+  }
+  .lc-axis span {
+    font-size: 11.5px;
+  }
+
+  /* KPI pills and card heads wrap rather than overflow */
+  .c-head {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .c-tools {
+    flex-wrap: wrap;
+  }
+  .chg {
+    flex-wrap: wrap;
+  }
+
+  .field-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* heatmap keeps its size and scrolls (it already sits in a scroller) */
+  .hm-stats {
+    flex-wrap: wrap;
+    gap: 12px 20px;
+  }
+}

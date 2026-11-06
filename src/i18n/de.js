@@ -639,4 +639,5 @@ export default {
   'Your account is ready. Add your first transaction to get started.': 'Dein Konto ist bereit. Füge deinen ersten Umsatz hinzu, um loszulegen.',
   'Your data was cleared': 'Deine Daten wurden gelöscht',
   'Your total balance is **{amount}**, {name}.': 'Dein Gesamtsaldo beträgt **{amount}**, {name}.',
+  'Demo · nothing is saved': 'Demo · nichts wird gespeichert',
 }

@@ -630,4 +630,5 @@ export default {
   'Your account is ready. Add your first transaction to get started.': 'حسابك جاهز. أضف أول معاملة لتبدأ.',
   'Your data was cleared': 'تم مسح بياناتك',
   'Your total balance is **{amount}**, {name}.': 'رصيدك الإجمالي **{amount}** يا {name}.',
+  'Demo · nothing is saved': 'عرض تجريبي · لا يُحفظ شيء',
 }

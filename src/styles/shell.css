@@ -498,6 +498,16 @@
   transform-origin: top right;
   animation: popOpen 0.32s var(--ease) both;
 }
+/* The entrance animations give headers, cards and .rv blocks their own layer,
+   which would trap an open menu underneath whatever comes next (the tabs under
+   "This Month", the next card…). Lift the whole block while its menu is open. */
+.page-head:has(.pop),
+.page-actions:has(.pop),
+.card:has(.pop),
+.rv:has(.pop) {
+  position: relative;
+  z-index: 25;
+}
 .pop.right {
   right: 0;
 }

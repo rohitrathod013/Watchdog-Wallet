@@ -677,7 +677,8 @@ export default function App() {
       <BillModal open={modal?.type === 'bill'} onClose={closeModal} />
       {accountsEnabled && demo ? (
         <div className="demo-bar" role="status">
-          <span>{t('You’re exploring the demo. Nothing here is saved.')}</span>
+          <span className="demo-long">{t('You’re exploring the demo. Nothing here is saved.')}</span>
+          <span className="demo-short">{t('Demo · nothing is saved')}</span>
           <button type="button" className="btn solid" onClick={() => leaveDemo('signup')}>
             {t('Create your account')}
           </button>

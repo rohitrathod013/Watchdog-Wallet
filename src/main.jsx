@@ -6,6 +6,7 @@ import './styles/dashboard.css'
 import './styles/pages.css'
 import './styles/assistant.css'
 import './styles/auth.css'
+import './styles/mobile.css'
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(
