@@ -7,18 +7,30 @@ const parseDay = (s) => {
   return new Date(y, m - 1, d)
 }
 
-/* ---------------- Earning Overview — soft columns, one lit in orange ---------------- */
-export function EarningBars({ values, selected, onSelect, max = 100 }) {
+/* values are in $k: 0.25 → "$250", 12.5 → "12.5k" */
+const kLabel = (v) => (v >= 1 || v === 0 ? `${Math.round(v * 10) / 10}k` : `$${Math.round(v * 1000)}`)
+
+/* the smallest "round" axis top above the data: 1, 2, 2.5, 5 × 10ⁿ */
+const axisTop = (v) => {
+  if (!(v > 0)) return 1
+  const p = Math.pow(10, Math.floor(Math.log10(v * 1.05)))
+  return [1, 2, 2.5, 5, 10].map((m) => m * p).find((x) => x >= v * 1.05)
+}
+
+/* ---------------- Earning Overview: soft columns, one lit in orange ---------------- */
+export function EarningBars({ values, selected, onSelect }) {
   const [hover, setHover] = useState(null)
   const hot = hover ?? selected
-  const ticks = [100, 80, 60, 40, 20, 0]
+  const top = Math.max(...values)
+  const max = top <= 100 && top > 50 ? 100 : axisTop(top)
+  const ticks = [1, 0.8, 0.6, 0.4, 0.2, 0].map((f) => Math.round(max * f * 1000) / 1000)
 
   return (
     <div className="eb">
       <div className="eb-axis">
         {ticks.map((tick, i) => (
           <span key={tick} className="rv" style={{ bottom: `${(tick / max) * 100}%`, '--i': 2 + i * 0.3 }}>
-            {tick}k
+            {kLabel(tick)}
           </span>
         ))}
       </div>
@@ -36,11 +48,11 @@ export function EarningBars({ values, selected, onSelect, max = 100 }) {
             onFocus={() => setHover(i)}
             onBlur={() => setHover(null)}
             onClick={() => onSelect(i)}
-            aria-label={`${t(MONTHS[i])}: $${v}k`}
+            aria-label={`${t(MONTHS[i])}: ${kLabel(v)}`}
             aria-pressed={selected === i}
           >
             <span className="eb-bar" />
-            {hot === i ? <span className={`eb-label ${hover == null ? 'boot' : ''}`}>{v}k</span> : null}
+            {hot === i ? <span className={`eb-label ${hover == null ? 'boot' : ''}`}>{kLabel(Math.round(v * 10) / 10)}</span> : null}
           </button>
         ))}
       </div>
@@ -75,14 +87,14 @@ const niceMax = (v) => {
   return Math.ceil((v * 1.1) / p) * p
 }
 
-export function LineChart({ labels, series, height = 240, unit = 'k' }) {
+export function LineChart({ labels, series, height = 240 }) {
   const [hover, setHover] = useState(null)
   const gid = useId().replace(/:/g, '')
   const W = 1000
   const H = height
   const top = 12
   const bottom = 6
-  const max = niceMax(Math.max(...series.flatMap((s) => s.values)))
+  const max = niceMax(Math.max(...series.flatMap((s) => s.values)) || 1)
   const n = labels.length
   const x = (i) => (i / (n - 1)) * W
   const y = (v) => top + (1 - v / max) * (H - top - bottom)
@@ -105,8 +117,7 @@ export function LineChart({ labels, series, height = 240, unit = 'k' }) {
       <div className="lc-axis">
         {[1, 0.75, 0.5, 0.25, 0].map((f) => (
           <span key={f} style={{ top: `${(y(max * f) / H) * 100}%` }}>
-            {Math.round(max * f)}
-            {f ? unit : ''}
+            {f ? kLabel(Math.round(max * f * 100) / 100) : 0}
           </span>
         ))}
       </div>
@@ -160,10 +171,7 @@ export function LineChart({ labels, series, height = 240, unit = 'k' }) {
                 <span key={l.name}>
                   <i className="sw" style={{ background: l.color }} />
                   {l.name}
-                  <strong>
-                    ${l.values[hover].toFixed(1)}
-                    {unit}
-                  </strong>
+                  <strong>{l.values[hover] >= 1 ? `$${l.values[hover].toFixed(1)}k` : `$${Math.round(l.values[hover] * 1000)}`}</strong>
                 </span>
               ))}
             </div>

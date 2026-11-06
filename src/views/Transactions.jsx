@@ -15,7 +15,7 @@ const FILTERS = {
 }
 
 export default function TransactionsView({ attached = true }) {
-  const { transactions, openModal, toast } = useApp()
+  const { transactions, openModal, toast, stats } = useApp()
   const lead = useLead()
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState('all')
@@ -65,9 +65,15 @@ export default function TransactionsView({ attached = true }) {
       <div className="c-head rv" style={{ '--i': 0 }}>
         <div>
           <h2 className="card-h">{t('All Transactions')}</h2>
-          <p className="card-sub">{t('{n} movements in October 2026', { n: transactions.length })}</p>
+          <p className="card-sub">
+            {stats.demo ? t('{n} movements in October 2026', { n: transactions.length }) : t('{n} movements', { n: transactions.length })}
+          </p>
         </div>
         <div className="c-tools">
+          <button type="button" className="btn" onClick={() => openModal('transaction')}>
+            <Icon name="plus" size={17} stroke={2} />
+            {t('Add transaction')}
+          </button>
           <button type="button" className="btn" onClick={() => openModal('send')}>
             <Icon name="send" size={17} />
             {t('Send')}

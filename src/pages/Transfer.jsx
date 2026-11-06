@@ -6,12 +6,13 @@ import { whole } from '../lib/format'
 import { t } from '../lib/i18n'
 
 function LimitsCard({ d }) {
-  const { sentToday } = useApp()
+  const { sentToday, stats } = useApp()
+  const used = stats.limits
   const lead = useLead()
   const limits = [
-    { name: 'Daily transfers', used: 250 + sentToday, cap: 5000 },
-    { name: 'Monthly transfers', used: 3240 + sentToday, cap: 50000 },
-    { name: 'International', used: 642, cap: 10000 },
+    { name: 'Daily transfers', used: stats.demo ? used.daily + sentToday : used.daily, cap: 5000 },
+    { name: 'Monthly transfers', used: stats.demo ? used.monthly + sentToday : used.monthly, cap: 50000 },
+    { name: 'International', used: used.international, cap: 10000 },
   ]
   return (
     <section className="card health-card" style={{ '--d': `${d}ms` }}>

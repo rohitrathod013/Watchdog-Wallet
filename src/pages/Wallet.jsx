@@ -5,7 +5,7 @@ import { BalanceCard, BillsCard } from '../components/Cards'
 import { CountUp, PageHead, Stage } from '../components/ui'
 import { useApp, useLead } from '../lib/store'
 import { money, whole } from '../lib/format'
-import { CARDS, CURRENCIES, WALLETS } from '../data/seed'
+import { CURRENCIES } from '../data/seed'
 import { BRAND } from '../config'
 import { t } from '../lib/i18n'
 
@@ -68,7 +68,7 @@ function BankCard({ card, flipped, onFlip, style }) {
 }
 
 function CardsCard({ d }) {
-  const { openModal } = useApp()
+  const { openModal, cards: CARDS } = useApp()
   const [flipped, setFlipped] = useState(null)
   return (
     <section className="card cards-card" style={{ '--d': `${d}ms` }}>
@@ -98,7 +98,7 @@ function CardsCard({ d }) {
 }
 
 function CurrencyCard({ d }) {
-  const { balance, toast } = useApp()
+  const { balance, toast, wallets: WALLETS } = useApp()
   const lead = useLead()
   const wallets = WALLETS.map((w) => (w.code === 'USD' ? { ...w, amount: balance, usd: balance } : w))
   const total = wallets.reduce((s, w) => s + w.usd, 0)

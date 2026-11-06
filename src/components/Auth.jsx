@@ -49,7 +49,7 @@ function Field({ label, type = 'text', value, onChange, autoComplete, autoFocus,
  * The signed-out experience: log in, sign up, forgot password, and (after
  * following a reset link) choose a new password.
  */
-export default function Auth({ initialMode = 'login', lang, setLang, onPasswordUpdated }) {
+export default function Auth({ initialMode = 'login', lang, setLang, onPasswordUpdated, onDemo }) {
   const [mode, setMode] = useState(initialMode)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -225,6 +225,16 @@ export default function Auth({ initialMode = 'login', lang, setLang, onPasswordU
           </>
         )}
       </div>
+
+      {onDemo && mode !== 'reset' ? (
+        <button type="button" className="auth-demo" onClick={onDemo}>
+          <Icon name="play" size={15} />
+          <span>
+            <b>{t('Just looking?')}</b> {t('Explore the demo with sample data, no account needed.')}
+          </span>
+          <Icon name="arrowRight" size={15} className="auth-demo-go" />
+        </button>
+      ) : null}
 
       <p className="auth-foot">{t('{name} keeps an eye on your money. Your data is private to your account.', { name: ASSISTANT.name })}</p>
     </div>

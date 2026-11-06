@@ -59,7 +59,9 @@ function BudgetCard({ b, i, d }) {
 }
 
 export default function BudgetsView({ attached = true }) {
-  const { budgets } = useApp()
+  const { budgets, stats } = useApp()
+  const now = new Date()
+  const daysLeft = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate()
   const lead = useLead()
   const [hot, setHot] = useState(null)
   const spent = budgets.reduce((s, b) => s + b.spent, 0)
@@ -70,17 +72,23 @@ export default function BudgetsView({ attached = true }) {
     <>
       <section className={`card budget-sum ${attached ? 'attached' : ''}`} style={{ '--d': '0ms' }}>
         <div className="rv" style={{ '--i': 0 }}>
-          <Ring value={spent / limit} size={170} stroke={16} color={spent > limit ? 'var(--red)' : 'var(--accent)'}>
+          <Ring value={limit ? spent / limit : 0} size={170} stroke={16} color={spent > limit ? 'var(--red)' : 'var(--accent)'}>
             <small>{t('Used')}</small>
             <strong>
-              <CountUp value={(spent / limit) * 100} format={(n) => `${Math.round(n)}%`} delay={lead + 200} />
+              <CountUp value={limit ? (spent / limit) * 100 : 0} format={(n) => `${Math.round(n)}%`} delay={lead + 200} />
             </strong>
             <small>{t('of budget')}</small>
           </Ring>
         </div>
         <div className="rv" style={{ '--i': 1 }}>
-          <h2 className="card-h">{t('October Budget')}</h2>
-          <p className="card-sub">{t('3 days left in this cycle')}</p>
+          <h2 className="card-h">{t('{month} Budget', { month: t(stats.monthLabel) })}</h2>
+          <p className="card-sub">
+            {stats.demo
+              ? t('3 days left in this cycle')
+              : daysLeft === 1
+                ? t('1 day left in this cycle')
+                : t('{n} days left in this cycle', { n: daysLeft })}
+          </p>
           <div className="bs-stats" style={{ marginTop: 20 }}>
             <div>
               <small>{t('Total budget')}</small>
@@ -124,7 +132,7 @@ export default function BudgetsView({ attached = true }) {
               <span key={b.id} onMouseEnter={() => setHot(i)} onMouseLeave={() => setHot(null)}>
                 <i className="sw" style={{ background: CAT_COLORS[i % CAT_COLORS.length], borderRadius: '50%' }} />
                 {t(b.name)}
-                <em>{Math.round((b.spent / spent) * 100)}%</em>
+                <em>{spent ? Math.round((b.spent / spent) * 100) : 0}%</em>
               </span>
             ))}
           </div>

@@ -338,7 +338,7 @@ export default function Assistant({ open, onClose }) {
 
       <footer className="ai-foot">
         <div className="ai-chips">
-          {starters().map((s) => (
+          {starters(app.contacts).map((s) => (
             <button key={s.q} type="button" onClick={() => ask(s.q, s.label)}>
               {s.label}
             </button>

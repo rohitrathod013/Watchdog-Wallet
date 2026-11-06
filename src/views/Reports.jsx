@@ -3,14 +3,16 @@ import { Sparkline } from '../components/Charts'
 import { Chg, CountUp } from '../components/ui'
 import { useApp, useLead } from '../lib/store'
 import { saveFile, whole } from '../lib/format'
-import { INCOME_SOURCES, REPORTS } from '../data/seed'
 import { BRAND } from '../config'
 import { t, tMonths } from '../lib/i18n'
+import { CardEmpty } from '../components/Cards'
 
 const SRC_COLORS = ['var(--solid)', 'var(--green)', 'var(--accent)']
 
 export default function ReportsView({ attached = true }) {
-  const { toast } = useApp()
+  const { toast, stats } = useApp()
+  const INCOME_SOURCES = stats.incomeSources
+  const REPORTS = stats.reports
   const lead = useLead()
   const total = INCOME_SOURCES.reduce((s, x) => s + x.value, 0)
 
@@ -56,13 +58,22 @@ export default function ReportsView({ attached = true }) {
               <b>
                 <CountUp value={s.value} format={(n) => whole(n)} delay={lead + 300 + i * 100} />
               </b>
-              <em>{t('{pct}% of income', { pct: Math.round((s.value / total) * 100) })}</em>
+              <em>{t('{pct}% of income', { pct: total ? Math.round((s.value / total) * 100) : 0 })}</em>
               <Sparkline values={s.trend} color={SRC_COLORS[i]} />
             </div>
           ))}
         </div>
       </section>
 
+      {REPORTS.length ? null : (
+        <section className="card" style={{ '--d': '120ms' }}>
+          <CardEmpty
+            icon="receipt"
+            title={t('No reports yet')}
+            body={t('Monthly statements will appear here once you have a full month of activity.')}
+          />
+        </section>
+      )}
       <div className="grid-3">
         {REPORTS.map((r, i) => (
           <section key={r.id} className={`card report ${i % 3 === 1 ? 'dark' : ''}`} style={{ '--d': `${120 + i * 70}ms` }}>

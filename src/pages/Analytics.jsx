@@ -4,7 +4,6 @@ import { CashFlowCard, EarningCard, HealthCard, HeatmapCard, SpendingCard, TxCar
 import { Chg, CountUp, Dropdown, PageHead, Reveal, Stage } from '../components/ui'
 import { useApp, useLead } from '../lib/store'
 import { money } from '../lib/format'
-import { CASHFLOW, PERIODS } from '../data/seed'
 import { PERIOD_OPTIONS } from '../lib/routes'
 import { t } from '../lib/i18n'
 
@@ -26,9 +25,10 @@ function SparkKpi({ icon, label, value, format = (n) => money(n), delta, note, v
 }
 
 export default function Analytics() {
-  const { period, setPeriod } = useApp()
-  const p = PERIODS[period]
-  const rate = CASHFLOW.income.map((v, i) => ((v - CASHFLOW.expenses[i]) / v) * 100)
+  const { period, setPeriod, stats } = useApp()
+  const CASHFLOW = stats.cashflow
+  const p = stats.periods[period]
+  const rate = CASHFLOW.income.map((v, i) => (v ? ((v - CASHFLOW.expenses[i]) / v) * 100 : 0))
 
   return (
     <Stage>
@@ -68,9 +68,9 @@ export default function Analytics() {
         <SparkKpi
           icon="percent"
           label="Savings Rate"
-          value={(p.net / p.income) * 100}
+          value={p.income ? (p.net / p.income) * 100 : 0}
           format={(n) => `${n.toFixed(1)}%`}
-          delta={3.4}
+          delta={p.rateDelta}
           note={p.vs}
           values={rate}
           color="var(--green)"
@@ -80,10 +80,10 @@ export default function Analytics() {
         <SparkKpi
           icon="clock"
           label="Avg. Daily Spend"
-          value={161.29}
-          delta={-4.2}
+          value={stats.daily.value}
+          delta={stats.daily.delta}
           note={p.vs}
-          values={[188, 172, 181, 165, 176, 158, 169, 161]}
+          values={stats.daily.trend}
           color="var(--blue)"
           d={210}
           i={3}

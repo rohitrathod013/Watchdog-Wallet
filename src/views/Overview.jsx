@@ -15,12 +15,11 @@ import {
 } from '../components/Cards'
 import { Reveal } from '../components/ui'
 import { useApp } from '../lib/store'
-import { PERIODS } from '../data/seed'
 import { t } from '../lib/i18n'
 
 export default function OverviewView() {
-  const { period } = useApp()
-  const p = PERIODS[period]
+  const { period, stats } = useApp()
+  const p = stats.periods[period]
 
   return (
     <>

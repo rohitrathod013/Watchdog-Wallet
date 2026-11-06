@@ -23,7 +23,11 @@ export default function TopBar() {
   const ind = useRef(null)
   const gear = useRef(null)
   const [open, setOpen] = useState(null)
-  const close = useCallback(() => setOpen(null), [])
+  const [confirmClear, setConfirmClear] = useState(false)
+  const close = useCallback(() => {
+    setOpen(null)
+    setConfirmClear(false)
+  }, [])
   const toggle = (k) => setOpen((o) => (o === k ? null : k))
 
   useLayoutEffect(() => {
@@ -251,8 +255,22 @@ export default function TopBar() {
               {t('Replay intro animation')}
             </MenuItem>
             <hr />
-            <MenuItem icon="logout" tone="danger" i={3} onClick={() => (close(), app.signOut())}>
-              {t('Log out')}
+            {app.demo ? null : (
+              <MenuItem
+                icon="trash"
+                tone={confirmClear ? 'danger confirm' : 'danger'}
+                i={3}
+                onClick={() => {
+                  if (!confirmClear) return setConfirmClear(true)
+                  close()
+                  app.clearData()
+                }}
+              >
+                {confirmClear ? t('Click again to delete everything') : t('Clear my data')}
+              </MenuItem>
+            )}
+            <MenuItem icon="logout" tone="danger" i={4} onClick={() => (close(), app.signOut())}>
+              {app.accounts && app.demo ? t('Leave demo') : t('Log out')}
             </MenuItem>
           </Popover>
         </div>

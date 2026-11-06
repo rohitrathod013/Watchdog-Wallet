@@ -3,9 +3,10 @@ import Icon from './Icon'
 import { Persona } from './Brand'
 import { Modal, Success } from './ui'
 import { useApp } from '../lib/store'
-import { money } from '../lib/format'
+import { isoDay, localIso, money } from '../lib/format'
 import { BRAND } from '../config'
 import { t } from '../lib/i18n'
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../lib/stats'
 
 const QUICK = [50, 100, 250, 500]
 
@@ -19,6 +20,24 @@ function People({ value, onChange }) {
           {c.name.split(' ')[0]}
         </button>
       ))}
+    </div>
+  )
+}
+
+/** Shown in Send / Request when the account has nobody to pay yet. */
+function NoContacts({ then }) {
+  const { openModal } = useApp()
+  return (
+    <div className="card-empty">
+      <span>
+        <Icon name="user" size={20} />
+      </span>
+      <strong>{t('No contacts yet')}</strong>
+      <p>{t('Add someone first, then you can send or request money.')}</p>
+      <button type="button" className="btn solid lg" onClick={() => openModal('contact', { then })}>
+        <Icon name="plus" size={18} stroke={2} />
+        {t('Add contact')}
+      </button>
     </div>
   )
 }
@@ -40,7 +59,7 @@ function AmountField({ value, onChange, bad, hint }) {
 /* ---------------- Send money ---------------- */
 function SendBody({ payload, onClose }) {
   const { contacts, balance, sendMoney } = useApp()
-  const [to, setTo] = useState(payload?.to ?? contacts[0].id)
+  const [to, setTo] = useState(payload?.to ?? contacts[0]?.id)
   const [amount, setAmount] = useState(payload?.amount ? String(payload.amount) : '')
   const [note, setNote] = useState('')
   const [done, setDone] = useState(null)
@@ -49,6 +68,7 @@ function SendBody({ payload, onClose }) {
   const person = contacts.find((c) => c.id === to)
 
   if (done) return <Success title={t('Money sent')} body={t('{amount} is on its way to {name}.', { amount: money(done.amount), name: done.name })} />
+  if (!person) return <NoContacts then="send" />
 
   const submit = (e) => {
     e.preventDefault()
@@ -124,7 +144,7 @@ const QR = (() => {
 })()
 
 function ReceiveBody({ onClose }) {
-  const { user, receiveMoney, toast } = useApp()
+  const { user, receiveMoney, toast, demo } = useApp()
   const acct = 'ST 4821 0093 7710'
   const copy = (text, what) => {
     navigator.clipboard?.writeText(text).catch(() => {})
@@ -163,17 +183,19 @@ function ReceiveBody({ onClose }) {
           {t('Share link')}
         </button>
       </div>
-      <button
-        type="button"
-        className="btn solid lg block"
-        onClick={() => {
-          receiveMoney()
-          onClose()
-        }}
-      >
-        <Icon name="receive" size={19} />
-        {t('Simulate an incoming payment')}
-      </button>
+      {demo ? (
+        <button
+          type="button"
+          className="btn solid lg block"
+          onClick={() => {
+            receiveMoney()
+            onClose()
+          }}
+        >
+          <Icon name="receive" size={19} />
+          {t('Simulate an incoming payment')}
+        </button>
+      ) : null}
     </div>
   )
 }
@@ -189,7 +211,7 @@ export function ReceiveModal({ open, onClose }) {
 /* ---------------- Payment request ---------------- */
 function RequestBody({ onClose }) {
   const { contacts, requestMoney } = useApp()
-  const [from, setFrom] = useState(contacts[1].id)
+  const [from, setFrom] = useState(contacts[1]?.id ?? contacts[0]?.id)
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [done, setDone] = useState(null)
@@ -198,6 +220,7 @@ function RequestBody({ onClose }) {
 
   if (done)
     return <Success title={t('Request sent')} body={t('{name} will get a request for {amount}.', { name: done.name, amount: money(done.amount) })} />
+  if (!person) return <NoContacts then="request" />
 
   const submit = (e) => {
     e.preventDefault()
@@ -292,6 +315,198 @@ export function GoalModal({ open, onClose }) {
       sub={t('Set a target and {brand} will track it for you', { brand: BRAND.name })}
     >
       {open ? <GoalBody onClose={onClose} /> : null}
+    </Modal>
+  )
+}
+
+/* ---------------- Add a transaction by hand ---------------- */
+function TransactionBody({ payload, onClose }) {
+  const { addTransaction, balance } = useApp()
+  const [type, setType] = useState(payload?.type ?? 'expense')
+  const [name, setName] = useState('')
+  const [amount, setAmount] = useState('')
+  const [category, setCategory] = useState(type === 'income' ? 'Salary' : 'Food & Dining')
+  const [date, setDate] = useState(isoDay(new Date()))
+  const n = Number(amount)
+  const ok = name.trim() && n > 0
+  const cats = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES
+
+  const pickType = (next) => {
+    setType(next)
+    setCategory(next === 'income' ? 'Salary' : 'Food & Dining')
+  }
+
+  const submit = (e) => {
+    e.preventDefault()
+    if (!ok) return
+    const today = isoDay(new Date())
+    addTransaction({
+      name: name.trim(),
+      amount: type === 'income' ? n : -n,
+      category,
+      date: date === today ? localIso() : `${date}T12:00`,
+    })
+    onClose()
+  }
+
+  return (
+    <form className="form" onSubmit={submit}>
+      <div className="auth-switch" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={type === 'expense'}
+          className={type === 'expense' ? 'on' : ''}
+          onClick={() => pickType('expense')}
+        >
+          {t('Money out')}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={type === 'income'}
+          className={type === 'income' ? 'on' : ''}
+          onClick={() => pickType('income')}
+        >
+          {t('Money in')}
+        </button>
+      </div>
+      <label className="field">
+        <span>{t('Description')}</span>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={type === 'income' ? t('Salary, client payment…') : t('Groceries, rent, coffee…')}
+          autoFocus
+        />
+      </label>
+      <AmountField
+        value={amount}
+        onChange={setAmount}
+        hint={type === 'expense' && n > balance ? <small>{t('This will take your balance below zero.')}</small> : null}
+      />
+      <div className="field-row">
+        <label className="field">
+          <span>{t('Category')}</span>
+          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+            {cats.map((c) => (
+              <option key={c} value={c}>
+                {t(c)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>{t('Date')}</span>
+          <input type="date" value={date} max={isoDay(new Date())} onChange={(e) => setDate(e.target.value || isoDay(new Date()))} />
+        </label>
+      </div>
+      <button type="submit" className="btn solid lg block" disabled={!ok}>
+        <Icon name="plus" size={18} stroke={2} />
+        {type === 'income' ? t('Add income') : t('Add expense')}
+      </button>
+    </form>
+  )
+}
+
+export function TransactionModal({ open, payload, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose} title={t('Add transaction')} sub={t('Record money that came in or went out')}>
+      {open ? <TransactionBody payload={payload} onClose={onClose} /> : null}
+    </Modal>
+  )
+}
+
+/* ---------------- Add a contact ---------------- */
+function ContactBody({ payload, onClose }) {
+  const { addContact, openModal } = useApp()
+  const [name, setName] = useState('')
+  const ok = name.trim().length > 1
+
+  const submit = (e) => {
+    e.preventDefault()
+    if (!ok) return
+    const c = addContact(name.trim())
+    if (payload?.then) openModal(payload.then, { to: c.id })
+    else onClose()
+  }
+
+  return (
+    <form className="form" onSubmit={submit}>
+      <label className="field">
+        <span>{t('Full name')}</span>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('e.g. Priya Sharma')} autoFocus />
+      </label>
+      <button type="submit" className="btn solid lg block" disabled={!ok}>
+        <Icon name="plus" size={18} stroke={2} />
+        {t('Add contact')}
+      </button>
+    </form>
+  )
+}
+
+export function ContactModal({ open, payload, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose} title={t('New contact')} sub={t('People you send money to or request money from')}>
+      {open ? <ContactBody payload={payload} onClose={onClose} /> : null}
+    </Modal>
+  )
+}
+
+/* ---------------- Add a bill ---------------- */
+function BillBody({ onClose }) {
+  const { addBill } = useApp()
+  const [name, setName] = useState('')
+  const [amount, setAmount] = useState('')
+  const [category, setCategory] = useState('Bills')
+  const inWeek = new Date()
+  inWeek.setDate(inWeek.getDate() + 7)
+  const [dueDate, setDueDate] = useState(isoDay(inWeek))
+  const n = Number(amount)
+  const ok = name.trim() && n > 0 && dueDate
+
+  const submit = (e) => {
+    e.preventDefault()
+    if (!ok) return
+    addBill({ name: name.trim(), amount: n, dueDate, category })
+    onClose()
+  }
+
+  return (
+    <form className="form" onSubmit={submit}>
+      <label className="field">
+        <span>{t('Bill name')}</span>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('Electricity, phone, gym…')} autoFocus />
+      </label>
+      <AmountField value={amount} onChange={setAmount} />
+      <div className="field-row">
+        <label className="field">
+          <span>{t('Category')}</span>
+          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+            {EXPENSE_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {t(c)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>{t('Due date')}</span>
+          <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+        </label>
+      </div>
+      <button type="submit" className="btn solid lg block" disabled={!ok}>
+        <Icon name="plus" size={18} stroke={2} />
+        {t('Add bill')}
+      </button>
+    </form>
+  )
+}
+
+export function BillModal({ open, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose} title={t('New bill')} sub={t('We’ll show it in Upcoming Bills until you pay it')}>
+      {open ? <BillBody onClose={onClose} /> : null}
     </Modal>
   )
 }

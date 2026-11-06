@@ -6,9 +6,29 @@ import { Chg, CountUp, Dropdown, Popover, Ring, Segmented, Status, Toggle } from
 import { useApp, useLead } from '../lib/store'
 import { money, signed, stamp, whole } from '../lib/format'
 import { t, tMonths, tName } from '../lib/i18n'
-import { CASHFLOW, CAT_COLORS, CATEGORIES, CURRENCIES, EARNINGS, HEAT, INCOME_SOURCES, PERIODS } from '../data/seed'
+import { CAT_COLORS, CURRENCIES } from '../data/seed'
+import { billDue } from '../lib/stats'
 
 const sum = (list, f = (x) => x) => list.reduce((s, x) => s + f(x), 0)
+
+/** A friendly placeholder for a card with nothing to show yet. */
+export function CardEmpty({ icon = 'sparkle', title, body, action, onAction }) {
+  return (
+    <div className="card-empty rv" style={{ '--i': 1 }}>
+      <span>
+        <Icon name={icon} size={20} />
+      </span>
+      <strong>{title}</strong>
+      {body ? <p>{body}</p> : null}
+      {action ? (
+        <button type="button" className="btn solid" onClick={onAction}>
+          <Icon name="plus" size={16} stroke={2.2} />
+          {action}
+        </button>
+      ) : null}
+    </div>
+  )
+}
 const slot = (d) => ({ '--d': `${d}ms` })
 
 /* ============================================================
@@ -27,7 +47,7 @@ const PIX = [
 ]
 
 export function BalanceCard({ attached = false, d = 0 }) {
-  const { currency, setCurrency, balance, openModal, live } = useApp()
+  const { currency, setCurrency, balance, openModal, live, stats } = useApp()
   const [curOpen, setCurOpen] = useState(false)
   const [hidden, setHidden] = useState(false)
   const amt = useRef(null)
@@ -98,7 +118,12 @@ export function BalanceCard({ attached = false, d = 0 }) {
           <Icon key={hidden ? 'off' : 'on'} name={hidden ? 'eyeOff' : 'eye'} size={19} />
         </button>
       </div>
-      <Chg className="bal-delta rv" style={{ '--i': 2 }} value={12.4} note={t('vs Last Week')} />
+      <Chg
+        className="bal-delta rv"
+        style={{ '--i': 2 }}
+        value={stats.weekNet == null ? 12.4 : balance - stats.weekNet ? (stats.weekNet / Math.abs(balance - stats.weekNet)) * 100 : 0}
+        note={t('vs Last Week')}
+      />
 
       <div className={`pixels ${live ? 'live' : ''}`} aria-hidden="true">
         {PIX.map((col, c) =>
@@ -125,10 +150,11 @@ export function BalanceCard({ attached = false, d = 0 }) {
 }
 
 export function EarningCard({ d = 0, className = '' }) {
-  const [year, setYear] = useState('2026')
-  const [sel, setSel] = useState(6)
+  const { stats } = useApp()
+  const [year, setYear] = useState(stats.earningYears[0])
+  const [sel, setSel] = useState(stats.earningMonth)
   const lead = useLead()
-  const e = EARNINGS[year]
+  const e = stats.earnings[year]
   return (
     <section className={`card earn-card ${className}`} style={slot(d)}>
       <div className="ec-head rv" style={{ '--i': 0 }}>
@@ -139,8 +165,8 @@ export function EarningCard({ d = 0, className = '' }) {
           value={year}
           onChange={setYear}
           options={[
-            { value: '2026', label: t('This Year') },
-            { value: '2025', label: t('Last Year') },
+            { value: stats.earningYears[0], label: t('This Year') },
+            { value: stats.earningYears[1], label: t('Last Year') },
           ]}
         />
       </div>
@@ -206,8 +232,8 @@ function Split({ p }) {
 }
 
 export function NetProfitCard({ d = 0 }) {
-  const { period } = useApp()
-  const p = PERIODS[period]
+  const { period, stats } = useApp()
+  const p = stats.periods[period]
   return (
     <KpiCard icon="netflow" label="Net Profit" value={p.net} delta={p.netDelta} note={p.vs} d={d} i={2}>
       <Split p={p} />
@@ -222,7 +248,7 @@ const PAPERS = [
 ]
 
 export function ReportCard({ d = 0 }) {
-  const { go } = useApp()
+  const { go, stats } = useApp()
   const lead = useLead()
   const open = () => go('dashboard', { tab: 'reports' })
   return (
@@ -265,7 +291,7 @@ export function ReportCard({ d = 0 }) {
           {t('Total Income Overview')}
         </strong>
         <div className="rp-cols">
-          {INCOME_SOURCES.map((s, i) => (
+          {stats.incomeSources.slice(0, 3).map((s, i) => (
             <div key={s.id} className="rv" style={{ '--i': 3 + i * 0.6 }}>
               <small>{t(s.name)}</small>
               <b>
@@ -298,6 +324,15 @@ export function SavingsCard({ d = 0 }) {
         </button>
       </div>
       <div className="goals">
+        {goals.length ? null : (
+          <CardEmpty
+            icon="target"
+            title={t('No savings goals yet')}
+            body={t('Set a target for something you’re saving up for.')}
+            action={t('Add Goal')}
+            onAction={() => openModal('goal')}
+          />
+        )}
         {goals.map((g, r) => {
           const pct = Math.min(100, Math.round((g.saved / g.target) * 100))
           const isOpen = open === g.id
@@ -370,6 +405,8 @@ export function SavingsCard({ d = 0 }) {
    ============================================================ */
 
 export function CashFlowCard({ d = 0, className = '' }) {
+  const { stats } = useApp()
+  const CASHFLOW = stats.cashflow
   const [range, setRange] = useState('12')
   const [show, setShow] = useState({ income: true, expenses: true })
   const lead = useLead()
@@ -446,6 +483,8 @@ export function CashFlowCard({ d = 0, className = '' }) {
 }
 
 export function SpendingCard({ d = 0, className = '' }) {
+  const { stats, openModal } = useApp()
+  const CATEGORIES = stats.categories
   const [active, setActive] = useState(null)
   const lead = useLead()
   const total = sum(CATEGORIES, (c) => c.v)
@@ -456,10 +495,19 @@ export function SpendingCard({ d = 0, className = '' }) {
       <div className="c-head rv" style={{ '--i': 0 }}>
         <div>
           <h2 className="card-h">{t('Spending')}</h2>
-          <p className="card-sub">{t('By category · October')}</p>
+          <p className="card-sub">{t('By category · {month}', { month: t(stats.monthLabel) })}</p>
         </div>
       </div>
-      <div className="donut-wrap rv" style={{ '--i': 1 }}>
+      {total ? null : (
+        <CardEmpty
+          icon="pie"
+          title={t('Nothing spent this month')}
+          body={t('Add an expense and it will show up here by category.')}
+          action={t('Add expense')}
+          onAction={() => openModal('transaction', { type: 'expense' })}
+        />
+      )}
+      <div className="donut-wrap rv" style={{ '--i': 1, display: total ? undefined : 'none' }}>
         <Donut data={CATEGORIES} colors={CAT_COLORS} size={190} stroke={24} active={active} onActive={setActive}>
           {a ? (
             <span key={a.id}>
@@ -473,7 +521,7 @@ export function SpendingCard({ d = 0, className = '' }) {
               <strong>
                 <CountUp value={total} format={(v) => whole(v)} delay={lead + 300} />
               </strong>
-              <small>{t('of {amount} budget', { amount: '$5,500' })}</small>
+              <small>{t('of {amount} budget', { amount: whole(stats.budgetTotal) })}</small>
             </span>
           )}
         </Donut>
@@ -498,16 +546,16 @@ const QUICK = [50, 100, 250, 500]
 
 export function QuickTransferCard({ d = 0, big = false, className = '' }) {
   const { contacts, balance, sendMoney, openModal } = useApp()
-  const [to, setTo] = useState(contacts[0].id)
+  const [to, setTo] = useState(contacts[0]?.id)
   const [amount, setAmount] = useState('250')
   const [sent, setSent] = useState(false)
   const [repeat, setRepeat] = useState(false)
   const n = Number(amount)
   const over = n > balance
-  const person = contacts.find((c) => c.id === to)
+  const person = contacts.find((c) => c.id === to) ?? contacts[0]
 
   const send = () => {
-    if (!n || over || sent) return
+    if (!n || over || sent || !person) return
     sendMoney({ to: person.name, amount: n, note: repeat ? 'Repeats monthly' : '' })
     setSent(true)
     window.setTimeout(() => setSent(false), 1800)
@@ -525,15 +573,24 @@ export function QuickTransferCard({ d = 0, big = false, className = '' }) {
           •••• 4821
         </span>
       </div>
-      <div className="people">
+      {contacts.length ? null : (
+        <CardEmpty
+          icon="user"
+          title={t('No contacts yet')}
+          body={t('Add the people you pay most often.')}
+          action={t('Add contact')}
+          onAction={() => openModal('contact')}
+        />
+      )}
+      <div className="people" style={contacts.length ? undefined : { display: 'none' }}>
         {contacts.map((c, i) => (
-          <button key={c.id} type="button" className={`person ${to === c.id ? 'on' : ''}`} style={{ '--i': i }} onClick={() => setTo(c.id)}>
+          <button key={c.id} type="button" className={`person ${person?.id === c.id ? 'on' : ''}`} style={{ '--i': i }} onClick={() => setTo(c.id)}>
             <Persona name={c.name} hue={c.hue} size={big ? 54 : 46} />
             {c.name.split(' ')[0]}
           </button>
         ))}
         {big ? (
-          <button type="button" className="person add" style={{ '--i': contacts.length }} onClick={() => openModal('send')}>
+          <button type="button" className="person add" style={{ '--i': contacts.length }} onClick={() => openModal('contact')}>
             <span className="persona" style={{ width: 54, height: 54 }}>
               <Icon name="plus" size={20} />
             </span>
@@ -569,16 +626,20 @@ export function QuickTransferCard({ d = 0, big = false, className = '' }) {
           <Toggle on={repeat} onChange={setRepeat} label={t('Repeat monthly')} />
         </div>
       </div>
-      <button type="button" className="btn solid lg block rv" style={{ '--i': 5 }} disabled={!n || over} onClick={send}>
+      <button type="button" className="btn solid lg block rv" style={{ '--i': 5 }} disabled={!n || over || !person} onClick={send}>
         {sent ? (
           <>
             <Icon name="check" size={18} stroke={2.2} />
-            {t('Sent to {name}!', { name: person.name.split(' ')[0] })}
+            {t('Sent to {name}!', { name: person?.name.split(' ')[0] })}
           </>
         ) : (
           <>
             <Icon name="send" size={18} />
-            {n ? t('Send {amount} to {name}', { amount: money(n), name: person.name.split(' ')[0] }) : t('Enter an amount')}
+            {!person
+              ? t('No contacts yet')
+              : n
+                ? t('Send {amount} to {name}', { amount: money(n), name: person.name.split(' ')[0] })
+                : t('Enter an amount')}
           </>
         )}
       </button>
@@ -612,7 +673,7 @@ export function TxRow({ t: tx, r, full = false }) {
 }
 
 export function TxCard({ d = 0, className = '', title = 'Recent Transactions', sub = 'Your latest money movements', filter, order, limit = 6 }) {
-  const { transactions, go } = useApp()
+  const { transactions, go, openModal } = useApp()
   const list = filter ? transactions.filter(filter) : transactions
   const rows = (order ? [...list].sort(order) : list).slice(0, limit)
   return (
@@ -626,17 +687,28 @@ export function TxCard({ d = 0, className = '', title = 'Recent Transactions', s
           {t('View all')} <Icon name="arrowRight" size={15} />
         </button>
       </div>
-      <div className="tx-list">
-        {rows.map((row, r) => (
-          <TxRow key={row.id} t={row} r={r} />
-        ))}
-      </div>
+      {rows.length ? (
+        <div className="tx-list">
+          {rows.map((row, r) => (
+            <TxRow key={row.id} t={row} r={r} />
+          ))}
+        </div>
+      ) : (
+        <CardEmpty
+          icon="receipt"
+          title={t('No transactions yet')}
+          body={t('Record money in or out and it will appear here.')}
+          action={t('Add transaction')}
+          onAction={() => openModal('transaction')}
+        />
+      )}
     </section>
   )
 }
 
 export function BillsCard({ d = 0, className = '' }) {
-  const { bills, payBill } = useApp()
+  const { bills: raw, payBill, openModal } = useApp()
+  const bills = raw.map((b) => ({ ...b, ...billDue(b) }))
   const paid = bills.filter((b) => b.paid).length
   return (
     <section className={`card bills-card ${className}`} style={slot(d)}>
@@ -645,14 +717,26 @@ export function BillsCard({ d = 0, className = '' }) {
           <h2 className="card-h">{t('Upcoming Bills')}</h2>
           <p className="card-sub">{t('Due in the next 3 weeks')}</p>
         </div>
-        <div className="bills-sum">
-          <Ring value={paid / bills.length} size={46} stroke={5} color="var(--green)">
+        <button type="button" className="icon-btn soft" onClick={() => openModal('bill')} aria-label={t('Add bill')} title={t('Add bill')}>
+          <Icon name="plus" size={17} stroke={2.2} />
+        </button>
+        <div className="bills-sum" style={bills.length ? undefined : { display: 'none' }}>
+          <Ring value={bills.length ? paid / bills.length : 0} size={46} stroke={5} color="var(--green)">
             <small style={{ fontSize: 11, fontWeight: 600 }}>
               {paid}/{bills.length}
             </small>
           </Ring>
         </div>
       </div>
+      {bills.length ? null : (
+        <CardEmpty
+          icon="receipt"
+          title={t('No upcoming bills')}
+          body={t('Add rent, phone or subscriptions to get reminders.')}
+          action={t('Add bill')}
+          onAction={() => openModal('bill')}
+        />
+      )}
       <div className="bills">
         {bills.map((b, r) => (
           <div key={b.id} className={`bill ${b.paid ? 'paid' : ''}`} style={{ '--r': r }}>
@@ -660,7 +744,13 @@ export function BillsCard({ d = 0, className = '' }) {
             <div className="bill-main">
               <b>{t(b.name)}</b>
               <small className={!b.paid && b.days <= 5 ? 'soon' : ''}>
-                {b.paid ? t('Paid · {date}', { date: tMonths(b.due) }) : t('{date} · in {n} days', { date: tMonths(b.due), n: b.days })}
+                {b.paid
+                  ? t('Paid · {date}', { date: tMonths(b.due) })
+                  : b.days < 0
+                    ? t('{date} · overdue', { date: tMonths(b.due) })
+                    : b.days === 0
+                      ? t('{date} · due today', { date: tMonths(b.due) })
+                      : t('{date} · in {n} days', { date: tMonths(b.due), n: b.days })}
               </small>
             </div>
             <strong>{money(b.amount)}</strong>
@@ -697,7 +787,7 @@ export function BillsCard({ d = 0, className = '' }) {
 }
 
 export function HealthCard({ d = 0, className = '' }) {
-  const { budgets, go } = useApp()
+  const { budgets, go, stats } = useApp()
   const lead = useLead()
   const spent = sum(budgets, (b) => b.spent)
   const limit = sum(budgets, (b) => b.limit)
@@ -707,17 +797,17 @@ export function HealthCard({ d = 0, className = '' }) {
       <div className="c-head rv" style={{ '--i': 0 }}>
         <div>
           <h2 className="card-h">{t('Budget Health')}</h2>
-          <p className="card-sub">{t('October spending vs plan')}</p>
+          <p className="card-sub">{t('{month} spending vs plan', { month: t(stats.monthLabel) })}</p>
         </div>
         <button type="button" className="link" onClick={() => go('budget')}>
           {t('Manage')} <Icon name="arrowRight" size={15} />
         </button>
       </div>
       <div className="health-ring rv" style={{ '--i': 1 }}>
-        <Ring value={spent / limit} size={168} stroke={14}>
+        <Ring value={limit ? spent / limit : 0} size={168} stroke={14}>
           <small>{t('Used')}</small>
           <strong>
-            <CountUp value={(spent / limit) * 100} format={(v) => `${Math.round(v)}%`} delay={lead + 300} />
+            <CountUp value={limit ? (spent / limit) * 100 : 0} format={(v) => `${Math.round(v)}%`} delay={lead + 300} />
           </strong>
           <small>{t('{a} of {b}', { a: whole(spent), b: whole(limit) })}</small>
         </Ring>
@@ -746,9 +836,11 @@ export function HealthCard({ d = 0, className = '' }) {
 
 export function HeatmapCard({ d = 0, className = '' }) {
   const lead = useLead()
+  const { stats } = useApp()
+  const HEAT = stats.heat
   const days = HEAT.flat().filter((x) => !x.future)
   const total = sum(days, (x) => x.amt)
-  const peak = Math.max(...days.map((x) => x.amt))
+  const peak = Math.max(0, ...days.map((x) => x.amt))
   const quiet = days.filter((x) => !x.amt).length
   return (
     <section className={`card heat-card ${className}`} style={slot(d)}>
@@ -761,7 +853,7 @@ export function HeatmapCard({ d = 0, className = '' }) {
           <div>
             <small>{t('Daily average')}</small>
             <b>
-              <CountUp value={total / days.length} format={(v) => money(v)} delay={lead + 300} />
+              <CountUp value={days.length ? total / days.length : 0} format={(v) => money(v)} delay={lead + 300} />
             </b>
           </div>
           <div>

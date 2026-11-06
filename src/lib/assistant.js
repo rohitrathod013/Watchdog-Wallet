@@ -20,7 +20,7 @@
 import { money, whole } from './format'
 import { t } from './i18n'
 import { ASSISTANT, BRAND } from '../config'
-import { CASHFLOW, CAT_COLORS, CURRENCIES, INCOME_SOURCES, PERIODS } from '../data/seed'
+import { CAT_COLORS, CURRENCIES } from '../data/seed'
 
 /** A follow-up prompt: shown translated, sent back in English. */
 const chip = (q, key = q, vars) => ({ q, label: t(key, vars) })
@@ -37,8 +37,13 @@ export const STARTERS = [
 ]
 
 /** The starter chips in the current language. */
-export const starters = () =>
-  STARTERS.map((s) => (s === 'Send $50 to Maya' ? chip(s, 'Send {amount} to {name}', { amount: '$50', name: 'Maya' }) : chip(s)))
+export const starters = (contacts = []) => {
+  const who = contacts[0]?.name.split(' ')[0]
+  return STARTERS.flatMap((s) => {
+    if (s !== 'Send $50 to Maya') return [chip(s)]
+    return who ? [chip(`Send $50 to ${who}`, 'Send {amount} to {name}', { amount: '$50', name: who })] : []
+  })
+}
 
 const norm = (s) => s.toLowerCase().replace(/[’`]/g, "'").replace(/\s+/g, ' ').trim()
 
@@ -68,7 +73,7 @@ const findBudget = (s, list) =>
   (/\b(uber|fuel|gas|car|travel)\b/.test(s) ? list.find((b) => b.id === 'transport') : null)
 const findBill = (s, list) => list.find((b) => named(s, b.name))
 
-const pct = (a, b) => Math.round((a / b) * 100)
+const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0)
 const signedPct = (v) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}%`
 const tone = (p) => (p > 1 ? 'var(--red)' : p > 0.9 ? 'var(--amber)' : 'var(--accent)')
 
@@ -91,6 +96,7 @@ const JOKES = [
 export function respond(raw, app) {
   const s = norm(raw)
   const me = app.user.first
+  const { periods: PERIODS, incomeSources: INCOME_SOURCES, cashflow: CASHFLOW } = app.stats
   const p = PERIODS[app.period]
   const period = t(p.label.toLowerCase())
   const vsPeriod = t(p.vs.toLowerCase())
@@ -380,7 +386,9 @@ export function respond(raw, app) {
   }
   if (/(balance|how much (money )?(do )?i (have|got)|kitna paisa|kitne paise|paise kitne|balance kitna)/.test(s)) {
     return {
-      text: t('Your total balance is **{amount}**, up **+12.4%** vs last week. Nice work, {name}! 💪', { amount: balanceText, name: me }),
+      text: app.stats.demo
+        ? t('Your total balance is **{amount}**, up **+12.4%** vs last week. Nice work, {name}! 💪', { amount: balanceText, name: me })
+        : t('Your total balance is **{amount}**, {name}.', { amount: balanceText, name: me }),
       mood: 'happy',
       chips: [chip('Show it in euros'), chip('Where did my money go?')],
     }
@@ -444,6 +452,13 @@ export function respond(raw, app) {
   if (/(where.*(money|it).*(go|went)|expense|spent|spending|spend\b|kharch|breakdown)/.test(s)) {
     const total = app.budgets.reduce((sum, b) => sum + b.spent, 0)
     const top = [...app.budgets].sort((a, b) => b.spent - a.spent)
+    if (!total || !top.length)
+      return {
+        text: p.expenses
+          ? t('You spent **{amount}** {period}, none of it in a budget category yet.', { amount: money(p.expenses), period })
+          : t('You haven’t spent anything {period} yet. Add an expense and I’ll break it down for you.', { period }),
+        links: [{ label: t('Add transaction'), run: () => app.openModal('transaction', { type: 'expense' }) }],
+      }
     return {
       text: t('You spent **{amount}** {period} ({delta}). **{name}** is the biggest slice:', {
         amount: money(p.expenses),

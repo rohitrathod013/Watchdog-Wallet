@@ -84,7 +84,11 @@ Without any setup the dashboard runs as a single-user demo with no login. To let
    - locally: copy `.env.example` to `.env.local` and fill both values in;
    - for GitHub Pages: add them as repository variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (**Settings > Secrets and variables > Actions > Variables**), then push or re-run the deploy.
 
-The anon key is designed to be public; row level security is what keeps each account's data private. A new account starts with a copy of the sample data, and every change is saved to that account.
+The anon key is designed to be public; row level security is what keeps each account's data private.
+
+A new account starts empty: $0, no transactions, goals, bills or contacts. Users add their own with **Add transaction**, **Add contact**, **Add bill** and **Add Goal**, and every chart is worked out from their own transactions (`src/lib/stats.js`). Everything is saved to their account. **Clear my data** in the account menu resets an account.
+
+The sample dashboard is kept separate as a demo: **Explore the demo** on the login screen opens it without an account, and nothing in it is saved.
 
 ## Make it yours
 

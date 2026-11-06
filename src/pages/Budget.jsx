@@ -9,7 +9,8 @@ export default function Budget() {
 
   // give every category 10% headroom over what it actually spent, rounded to $50
   const rebalance = () => {
-    setBudgets((list) => list.map((b) => ({ ...b, limit: Math.max(100, Math.ceil((b.spent * 1.1) / 50) * 50) })))
+    const spent = Object.fromEntries(budgets.map((b) => [b.id, b.spent]))
+    setBudgets((list) => list.map((b) => ({ ...b, limit: Math.max(100, Math.ceil(((spent[b.id] ?? 0) * 1.1) / 50) * 50) })))
     toast(t('Budgets rebalanced'), t('Each category now has 10% headroom over this month’s spend.'), { icon: 'sparkle' })
   }
 

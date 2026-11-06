@@ -2,7 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useSt
 import { flushSync } from 'react-dom'
 
 import TopBar from './components/TopBar'
-import { GoalModal, ReceiveModal, RequestModal, SendModal } from './components/Modals'
+import { BillModal, ContactModal, GoalModal, ReceiveModal, RequestModal, SendModal, TransactionModal } from './components/Modals'
 import { Toasts } from './components/ui'
 import { Logo } from './components/Brand'
 
@@ -11,7 +11,8 @@ import Dashboard from './pages/Dashboard'
 import { AppContext } from './lib/store'
 import { PAGES, TABS } from './lib/routes'
 import { liquidSwitch } from './lib/themeTransition'
-import { localIso, money, uid } from './lib/format'
+import { localIso, MONTHS, money, uid } from './lib/format'
+import { accountCards, billDue, computeStats, DEFAULT_BUDGETS, demoStats, KIND_FOR } from './lib/stats'
 import { LOCALES, setLocale, t, tMonths } from './lib/i18n'
 import { accountsEnabled, getSupabase, loadUserState, profileOf, SAVED_KEYS, saveUserState } from './lib/supabase'
 import * as seed from './data/seed'
@@ -37,28 +38,38 @@ const Auth = lazy(() => import('./components/Auth'))
 
 const PAGE_VIEWS = { dashboard: Dashboard, analytics: Analytics, transfer: Transfer, wallet: Wallet, budget: Budget }
 
-/* A new account starts from a copy of the sample dashboard (with generic contacts),
-   saved to that account so every change is theirs. */
-const starterState = () => ({
-  balance: seed.BALANCE_USD,
-  transactions: seed.TRANSACTIONS,
-  goals: seed.GOALS,
-  budgets: seed.BUDGETS,
-  bills: seed.BILLS,
-  contacts: seed.STARTER_CONTACTS,
+/* A new account starts empty: no money, no history. Only a few budget
+   categories are suggested so the Budget page has something to adjust. */
+const freshState = () => ({
+  balance: 0,
+  transactions: [],
+  goals: [],
+  budgets: DEFAULT_BUDGETS,
+  bills: [],
+  contacts: [],
   notifications: [
     {
       id: 'welcome',
       icon: 'sparkle',
       tone: 'accent',
       title: 'Welcome to {brand}!',
-      body: 'Your dashboard starts with sample data. Change anything you like.',
+      body: 'Your account is ready. Add your first transaction to get started.',
       vars: { brand: BRAND.name },
       time: 'Now',
       unread: true,
     },
-    ...seed.NOTIFICATIONS,
   ],
+})
+
+/* The demo: the full sample dashboard, never saved anywhere. */
+const demoState = () => ({
+  balance: seed.BALANCE_USD,
+  transactions: seed.TRANSACTIONS,
+  goals: seed.GOALS,
+  budgets: seed.BUDGETS,
+  bills: seed.BILLS,
+  contacts: seed.CONTACTS,
+  notifications: seed.NOTIFICATIONS,
 })
 
 /** Shown while checking the session or loading an account's data. */
@@ -188,7 +199,23 @@ export default function App() {
   const [recovery, setRecovery] = useState(false)
   const [loadedFor, setLoadedFor] = useState(null)
   const [loadError, setLoadError] = useState('')
-  const userId = session?.user?.id ?? null
+  const [authMode, setAuthMode] = useState('login')
+  // exploring the sample dashboard without an account
+  const [demo, setDemo] = useState(false)
+  const isDemo = !accountsEnabled || demo
+  const userId = demo ? null : (session?.user?.id ?? null)
+
+  const applyState = useCallback((data) => {
+    setBalance(data.balance ?? 0)
+    setTransactions(data.transactions ?? [])
+    setGoals(data.goals ?? [])
+    setBudgets(data.budgets ?? [])
+    setBills(data.bills ?? [])
+    setNotifications(data.notifications ?? [])
+    setContacts(data.contacts ?? [])
+    setDrift(0)
+    setSentToday(0)
+  }, [])
 
   useEffect(() => {
     if (!accountsEnabled) return undefined
@@ -215,25 +242,17 @@ export default function App() {
     let alive = true
     loadUserState(userId)
       .then(async (saved) => {
-        const data = saved ?? starterState()
+        const data = saved ?? freshState()
         if (!saved) await saveUserState(userId, data)
         if (!alive) return
-        setBalance(data.balance ?? 0)
-        setTransactions(data.transactions ?? [])
-        setGoals(data.goals ?? [])
-        setBudgets(data.budgets ?? [])
-        setBills(data.bills ?? [])
-        setNotifications(data.notifications ?? [])
-        setContacts(data.contacts?.length ? data.contacts : seed.STARTER_CONTACTS)
-        setDrift(0)
-        setSentToday(0)
+        applyState(data)
         setLoadedFor(userId)
       })
       .catch((err) => alive && setLoadError(err?.message || 'Could not load your data.'))
     return () => {
       alive = false
     }
-  }, [userId, loadedFor])
+  }, [userId, loadedFor, applyState])
 
   // save the dashboard back to the account a moment after anything changes
   const saved = useMemo(
@@ -296,13 +315,13 @@ export default function App() {
 
   /* ---------- live update: small real-time drift in the balance ---------- */
   useEffect(() => {
-    if (!live || signedOut) return undefined
+    if (!live || signedOut || !isDemo) return undefined
     const t = window.setInterval(() => {
       const step = Math.round((Math.random() * 260 - 60) * 100) / 100
       setDrift((d) => Math.round((d + step) * 100) / 100)
     }, 5200)
     return () => window.clearInterval(t)
-  }, [live, signedOut])
+  }, [live, signedOut, isDemo])
 
   /* ---------- actions shared across pages ---------- */
   const addTx = useCallback((row) => setTransactions((list) => [{ id: uid(), date: localIso(), status: 'Completed', ...row }, ...list]), [])
@@ -328,7 +347,7 @@ export default function App() {
   )
 
   const receiveMoney = useCallback(() => {
-    const pool = contacts.length ? contacts : seed.STARTER_CONTACTS
+    const pool = contacts.length ? contacts : seed.CONTACTS
     const who = pool[Math.floor(Math.random() * pool.length)]
     const amount = Math.round((120 + Math.random() * 780) * 100) / 100
     setBalance((b) => b + amount)
@@ -344,16 +363,23 @@ export default function App() {
       setBills((list) => list.map((b) => (b.id === id ? { ...b, paid: true } : b)))
       setBalance((b) => b - bill.amount)
       addTx({ name: bill.name, category: 'Bills', kind: bill.kind, method: 'Autopay', amount: -bill.amount })
-      toast(t('{name} paid', { name: t(bill.name) }), t('{amount} paid ahead of {date}.', { amount: money(bill.amount), date: tMonths(bill.due) }), {
-        icon: 'check',
-      })
+      toast(
+        t('{name} paid', { name: t(bill.name) }),
+        t('{amount} paid ahead of {date}.', { amount: money(bill.amount), date: tMonths(billDue(bill).due) }),
+        {
+          icon: 'check',
+        },
+      )
     },
     [bills, addTx, toast],
   )
 
   const addGoal = useCallback(
     ({ name, target, saved, icon }) => {
-      setGoals((g) => [...g, { id: uid(), name, target, saved, icon, monthly: Math.max(50, Math.round(target / 24 / 10) * 10), due: 'Oct 2028' }])
+      const monthly = Math.max(50, Math.round(target / 24 / 10) * 10)
+      const at = new Date()
+      at.setMonth(at.getMonth() + Math.max(1, Math.ceil((target - saved) / monthly)))
+      setGoals((g) => [...g, { id: uid(), name, target, saved, icon, monthly, due: `${MONTHS[at.getMonth()]} ${at.getFullYear()}` }])
       toast(t('Goal created'), t('{name}: {amount} target. You’ve got this!', { name, amount: money(target, '$', 0) }), { icon: 'target' })
     },
     [toast],
@@ -391,14 +417,65 @@ export default function App() {
 
   const setBudgetLimit = useCallback((id, limit) => setBudgets((list) => list.map((b) => (b.id === id ? { ...b, limit } : b))), [])
 
+  /** Record money in (amount > 0) or out (amount < 0) by hand. */
+  const addTransaction = useCallback(
+    ({ name, amount, category, date, method, note }) => {
+      setBalance((b) => Math.round((b + amount) * 100) / 100)
+      addTx({ name, amount, category, kind: KIND_FOR[category] ?? 'transfer', method: method || 'Cash', date: date || localIso(), note })
+      toast(amount > 0 ? t('Income added') : t('Expense added'), `${t(name)} · ${money(Math.abs(amount))}`, { icon: amount > 0 ? 'receive' : 'send' })
+    },
+    [addTx, toast],
+  )
+
+  const addContact = useCallback(
+    (name) => {
+      const c = { id: uid(), name, hue: Math.floor(Math.random() * 360) }
+      setContacts((list) => [...list, c])
+      toast(t('Contact added'), t('{name} is now in your contacts.', { name }), { icon: 'check' })
+      return c
+    },
+    [toast],
+  )
+
+  const addBill = useCallback(
+    ({ name, amount, dueDate, category }) => {
+      setBills((list) => [...list, { id: uid(), name, amount, dueDate, kind: KIND_FOR[category] ?? 'wifi', paid: false }])
+      toast(t('Bill added'), t('{name} is due {date}.', { name, date: tMonths(billDue({ dueDate }).due) }), { icon: 'receipt' })
+    },
+    [toast],
+  )
+
+  /** Wipe this account back to a fresh, empty dashboard. */
+  const clearData = useCallback(() => {
+    applyState(freshState())
+    toast(t('Your data was cleared'), t('You’re starting fresh.'), { icon: 'trash' })
+  }, [applyState, toast])
+
+  const enterDemo = useCallback(() => {
+    applyState(demoState())
+    setDemo(true)
+    window.history.replaceState(null, '', '#/dashboard')
+    setRoute({ page: 'dashboard', tab: 'overview' })
+  }, [applyState])
+
+  const leaveDemo = useCallback((mode = 'login') => {
+    setModal(null)
+    setAiOpen(false)
+    setDemo(false)
+    setAuthMode(mode)
+  }, [])
+
   const signOut = useCallback(() => {
     setModal(null)
     setAiOpen(false)
-    if (accountsEnabled) {
+    if (accountsEnabled && demo) {
+      setDemo(false)
+      setAuthMode('login')
+    } else if (accountsEnabled) {
       setLoadedFor(null)
       getSupabase().then((supabase) => supabase.auth.signOut())
     } else setSignedOut(true)
-  }, [])
+  }, [demo])
   const replayIntro = useCallback(() => {
     setBooting(true)
     setBootKey((k) => k + 1)
@@ -410,9 +487,17 @@ export default function App() {
   }, [replayIntro])
 
   const user = useMemo(() => {
-    if (!accountsEnabled) return { ...seed.USER, avatar: `${import.meta.env.BASE_URL}avatar.jpg` }
+    if (isDemo) return { ...seed.USER, avatar: `${import.meta.env.BASE_URL}avatar.jpg` }
     return session?.user ? profileOf(session.user) : seed.USER
-  }, [session])
+  }, [session, isDemo])
+
+  /* every chart and summary, from the sample figures or this account's own transactions */
+  const stats = useMemo(() => (isDemo ? demoStats(budgets) : computeStats(transactions, budgets)), [isDemo, transactions, budgets])
+  const cards = useMemo(() => (isDemo ? seed.CARDS : accountCards(user)), [isDemo, user])
+  const wallets = useMemo(
+    () => (isDemo ? seed.WALLETS : [{ code: 'USD', name: 'US Dollar', flag: 'us', amount: balance, usd: balance }]),
+    [isDemo, balance],
+  )
 
   const ctx = useMemo(
     () => ({
@@ -433,6 +518,15 @@ export default function App() {
       signOut,
       user,
       accounts: accountsEnabled,
+      demo: isDemo,
+      stats,
+      cards,
+      wallets,
+      addTransaction,
+      addContact,
+      addBill,
+      clearData,
+      leaveDemo,
       contacts,
       period,
       setPeriod,
@@ -444,7 +538,7 @@ export default function App() {
       openAssistant,
       transactions,
       goals,
-      budgets,
+      budgets: stats.budgets,
       setBudgets,
       bills,
       notifications,
@@ -474,6 +568,15 @@ export default function App() {
       replayIntro,
       signOut,
       user,
+      isDemo,
+      stats,
+      cards,
+      wallets,
+      addTransaction,
+      addContact,
+      addBill,
+      clearData,
+      leaveDemo,
       contacts,
       period,
       currency,
@@ -483,7 +586,6 @@ export default function App() {
       openAssistant,
       transactions,
       goals,
-      budgets,
       bills,
       notifications,
       sentToday,
@@ -500,14 +602,15 @@ export default function App() {
     ],
   )
 
-  if (accountsEnabled) {
+  if (accountsEnabled && !demo) {
     if (session === undefined) return <Splash />
     if (!session || recovery) {
       return (
         <Suspense fallback={<Splash />}>
           <Auth
-            key={recovery ? 'reset' : 'auth'}
-            initialMode={recovery ? 'reset' : 'login'}
+            key={recovery ? 'reset' : `auth-${authMode}`}
+            initialMode={recovery ? 'reset' : authMode}
+            onDemo={enterDemo}
             lang={lang}
             setLang={setLang}
             onPasswordUpdated={() => {
@@ -569,6 +672,17 @@ export default function App() {
       <ReceiveModal open={modal?.type === 'receive'} onClose={closeModal} />
       <RequestModal open={modal?.type === 'request'} onClose={closeModal} />
       <GoalModal open={modal?.type === 'goal'} onClose={closeModal} />
+      <TransactionModal open={modal?.type === 'transaction'} payload={modal?.payload} onClose={closeModal} />
+      <ContactModal open={modal?.type === 'contact'} payload={modal?.payload} onClose={closeModal} />
+      <BillModal open={modal?.type === 'bill'} onClose={closeModal} />
+      {accountsEnabled && demo ? (
+        <div className="demo-bar" role="status">
+          <span>{t('You’re exploring the demo. Nothing here is saved.')}</span>
+          <button type="button" className="btn solid" onClick={() => leaveDemo('signup')}>
+            {t('Create your account')}
+          </button>
+        </div>
+      ) : null}
       {ASSISTANT.enabled ? (
         <Suspense fallback={null}>
           <Buddy key={`codi-${bootKey}`} hidden={aiOpen} onOpen={openAssistant} />
