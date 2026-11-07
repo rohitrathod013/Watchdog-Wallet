@@ -892,4 +892,26 @@ export default {
     'Una **suscripción** es un cargo periódico por un servicio continuo, como streaming o gimnasio. Es fácil olvidarlas, así que pídeme que te las liste.',
   'Your **balance** is all the money you’ve recorded: everything added minus everything spent.':
     'Tu **saldo** es todo el dinero que has registrado: todo lo añadido menos todo lo gastado.',
+  // ---------------- live data: rates, crypto, holidays, voice ----------------
+  'I can’t reach that service right now. Check your connection and try again in a minute.':
+    'Ahora mismo no puedo conectar con ese servicio. Revisa tu conexión y vuelve a intentarlo en un minuto.',
+  '**{from}** is **{to}**.\nThat’s the European Central Bank rate from {date}: 1 {a} = {rate} {b}.':
+    '**{from}** son **{to}**.\nEs el tipo del Banco Central Europeo del {date}: 1 {a} = {rate} {b}.',
+  'Show my balance in {code}': 'Mostrar mi saldo en {code}',
+  '{a} to {b}': '{a} a {b}',
+  '**{name}** is **{price}** ({change} in 24 hours).': '**{name}** está a **{price}** ({change} en 24 horas).',
+  'Prices from CoinGecko, for information only, not advice.': 'Precios de CoinGecko, solo informativos, no son un consejo.',
+  'Crypto prices': 'Precios de cripto',
+  '**{bill}** is due on {holiday} ({date}). Banks are closed, so it may go out the next working day.':
+    '**{bill}** vence el día de {holiday} ({date}). Los bancos cierran, así que puede cobrarse el siguiente día hábil.',
+  'I don’t have holiday data for that country yet.': 'Todavía no tengo datos de festivos para ese país.',
+  'Yes, {date} is **{name}**, so banks are closed.': 'Sí, el {date} es **{name}**, así que los bancos cierran.',
+  '{date} is a weekend, so most banks are closed.': 'El {date} es fin de semana, así que la mayoría de los bancos cierran.',
+  'No, {date} is a normal working day in {country}.': 'No, el {date} es un día laborable normal en {country}.',
+  'Next public holidays in {country}:': 'Próximos festivos en {country}:',
+  'Stop reading replies aloud': 'Dejar de leer las respuestas en voz alta',
+  'Read replies aloud': 'Leer las respuestas en voz alta',
+  'What’s $100 in euros?': '¿Cuánto son $100 en euros?',
+  'Bitcoin price': 'Precio de Bitcoin',
+  'Any bank holidays soon?': '¿Hay festivos bancarios pronto?',
 }

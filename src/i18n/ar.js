@@ -881,4 +881,26 @@ export default {
     '**الاشتراك** رسوم دورية لخدمة مستمرة، مثل البث أو النادي. من السهل نسيانها، فاطلب مني قائمة اشتراكاتك.',
   'Your **balance** is all the money you’ve recorded: everything added minus everything spent.':
     '**رصيدك** هو كل المال الذي سجلته: كل ما أضيف ناقص كل ما أُنفق.',
+  // ---------------- live data: rates, crypto, holidays, voice ----------------
+  'I can’t reach that service right now. Check your connection and try again in a minute.':
+    'لا أستطيع الوصول إلى هذه الخدمة الآن. تحقّق من اتصالك وحاول مرة أخرى بعد دقيقة.',
+  '**{from}** is **{to}**.\nThat’s the European Central Bank rate from {date}: 1 {a} = {rate} {b}.':
+    '**{from}** تساوي **{to}**.\nهذا سعر البنك المركزي الأوروبي بتاريخ {date}: 1 {a} = {rate} {b}.',
+  'Show my balance in {code}': 'اعرض رصيدي بـ {code}',
+  '{a} to {b}': '{a} إلى {b}',
+  '**{name}** is **{price}** ({change} in 24 hours).': 'سعر **{name}** هو **{price}** ({change} خلال 24 ساعة).',
+  'Prices from CoinGecko, for information only, not advice.': 'الأسعار من CoinGecko، للمعلومات فقط وليست نصيحة.',
+  'Crypto prices': 'أسعار العملات المشفّرة',
+  '**{bill}** is due on {holiday} ({date}). Banks are closed, so it may go out the next working day.':
+    'موعد **{bill}** في {holiday} ({date}). البنوك مغلقة، لذا قد يُخصم في يوم العمل التالي.',
+  'I don’t have holiday data for that country yet.': 'ليست لديّ بيانات العطلات لهذا البلد بعد.',
+  'Yes, {date} is **{name}**, so banks are closed.': 'نعم، {date} هو **{name}**، لذا البنوك مغلقة.',
+  '{date} is a weekend, so most banks are closed.': '{date} عطلة نهاية أسبوع، لذا معظم البنوك مغلقة.',
+  'No, {date} is a normal working day in {country}.': 'لا، {date} يوم عمل عادي في {country}.',
+  'Next public holidays in {country}:': 'العطلات الرسمية القادمة في {country}:',
+  'Stop reading replies aloud': 'إيقاف قراءة الردود بصوت عالٍ',
+  'Read replies aloud': 'قراءة الردود بصوت عالٍ',
+  'What’s $100 in euros?': 'كم تساوي 100 دولار باليورو؟',
+  'Bitcoin price': 'سعر البيتكوين',
+  'Any bank holidays soon?': 'هل هناك عطلات بنكية قريبًا؟',
 }

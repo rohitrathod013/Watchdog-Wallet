@@ -3,8 +3,10 @@
    it. Run with `npm test`. GitHub runs it before every deploy, so a
    change that breaks an answer never reaches the live site.
    ------------------------------------------------------------------ */
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { respond } from '../src/lib/assistant'
+import { accountWords, fixTypos } from '../src/lib/typos'
+import { clearLiveCache } from '../src/lib/live'
 import { demoStats, computeStats, DEFAULT_BUDGETS } from '../src/lib/stats'
 import * as seed from '../src/data/seed'
 
@@ -549,4 +551,177 @@ describe('empty accounts never crash', () => {
       expect(r.text.length).toBeGreaterThan(0)
       expect(r.text).not.toMatch(/NaN|undefined|Infinity/)
     })
+})
+
+/* ================================================================== */
+describe('typos (Fuse.js)', () => {
+  // each pair should get exactly the same answer
+  const pairs = [
+    ['whats my balnce', 'whats my balance'],
+    ['send $50 to varsah', 'send $50 to varsha'],
+    ['send $20 to nikil', 'send $20 to nikhil'],
+    ['I spnet $30 on dinnr', 'I spent $30 on dinner'],
+    ['show my subscritpions', 'show my subscriptions'],
+    ['any unusal charges?', 'any unusual charges?'],
+    ['forcast my month', 'forecast my month'],
+    ['what did I spend on fod this month', 'what did I spend on food this month'],
+    ['can I aford $500', 'can I afford $500'],
+    ['any bils due?', 'any bills due?'],
+    ['give me a sumary', 'give me a summary'],
+    ['swich to dark mode', 'switch to dark mode'],
+    ['whats my bslance', 'whats my balance'],
+    ['how much did I spend on groceriess', 'how much did I spend on groceries'],
+  ]
+  for (const [typo, right] of pairs)
+    it(`"${typo}" works like "${right}"`, () => {
+      const a = ask(demo(), typo)
+      const b = ask(demo(), right)
+      expect(plain(a)).toBe(plain(b))
+      expect(Boolean(a.confirm)).toBe(Boolean(b.confirm))
+    })
+
+  it('records the corrected description', () => {
+    const app = demo()
+    const calls = confirmAndRun(app, ask(app, 'I spent $30 on dinnr'))
+    expect(JSON.stringify(calls)).toMatch(/Dinner/)
+  })
+
+  for (const ok of [
+    'I spent $20 on sushi',
+    'I spent $12 on wine',
+    'send $50 to Varsha',
+    'what did I spend last week?',
+    'move $200 to travel, then pay rent',
+    'kal 300 ka khana kharch kiya',
+    'balance kitna hai',
+    'I bought a lamp for $40',
+    'I got scammed',
+    'my password is hunter2',
+    'I paid $80 in tax',
+    'the app might crash on the trail',
+    'refuses to load, remembers nothing',
+  ])
+    it(`leaves correct text alone: "${ok}"`, () => {
+      expect(fixTypos(ok, accountWords(demo())).fixes).toEqual([])
+    })
+
+  it('knows names on the account', () => {
+    const app = demo()
+    app.contacts = [...app.contacts, { id: 'cx', name: 'Priyanka Shah' }]
+    expect(fixTypos('send $5 to priyanka', accountWords(app)).fixes).toEqual([])
+    expect(fixTypos('send $5 to priyanak', accountWords(app)).text).toBe('send $5 to priyanka')
+  })
+})
+
+/* ================================================================== */
+describe('live data (rates, crypto, holidays)', () => {
+  const RATES = { amount: 1, base: 'USD', date: '2026-11-06', rates: { EUR: 0.9, GBP: 0.75, JPY: 150, INR: 90, CAD: 1.4 } }
+  const COINS_DATA = {
+    bitcoin: { usd: 75000, usd_24h_change: 1.5, eur: 67500, eur_24h_change: 1.2 },
+    ethereum: { usd: 2200, usd_24h_change: -2.25, eur: 1980, eur_24h_change: -2 },
+    solana: { usd: 150, usd_24h_change: 0.5, eur: 135, eur_24h_change: 0.4 },
+  }
+  const HOLIDAYS = [
+    { date: '2026-11-11', name: 'Veterans Day', global: true, types: ['Public', 'Bank'] },
+    { date: '2026-11-26', name: 'Thanksgiving Day', global: true, types: ['Public'] },
+    { date: '2026-12-25', name: 'Christmas Day', global: true, types: ['Public'] },
+  ]
+  let urls = []
+  beforeEach(() => {
+    urls = []
+    clearLiveCache()
+    vi.stubGlobal('fetch', async (url) => {
+      urls.push(String(url))
+      const body = url.includes('frankfurter') ? RATES : url.includes('coingecko') ? COINS_DATA : url.includes('/2026/') ? HOLIDAYS : []
+      return { ok: true, status: 200, json: async () => structuredClone(body) }
+    })
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  const live = async (app, text) => {
+    const r = ask(app, text)
+    expect(r.later, `expected an online lookup for: ${text}`).toBeTypeOf('function')
+    return r.later()
+  }
+
+  it('converts "$100 in euros"', async () => {
+    const r = await live(demo(), 'what’s $100 in euros?')
+    expect(plain(r)).toMatch(/\$100\.00 is €90\.00/)
+    expect(plain(r)).toMatch(/1 USD = 0\.9 EUR/)
+  })
+  it('converts "100 euros to dollars" the right way round', async () => {
+    expect(plain(await live(demo(), '100 euros to dollars'))).toMatch(/€100\.00 is \$111\.11/)
+  })
+  it('converts between two other currencies', async () => {
+    expect(plain(await live(demo(), 'convert 50 pounds to rupees'))).toMatch(/£50\.00 is ₹6,000\.00/)
+  })
+  it('answers "usd to eur" with the rate', async () => {
+    expect(plain(await live(demo(), 'usd to eur'))).toMatch(/\$1\.00 is €0\.90/)
+  })
+  it('does not mistake canadian dollars for US dollars', async () => {
+    expect(plain(await live(demo(), '100 canadian dollars in euros'))).toMatch(/CA\$100\.00 is €64\.29/)
+  })
+  it('keeps "show it in euros" as a display switch', () => {
+    const r = ask(demo(), 'show it in euros')
+    expect(r.later).toBeFalsy()
+    expect(r.run).toBeTypeOf('function')
+  })
+  for (const c of ['send $50 to Nikhil', 'I spent 20 euros on lunch', 'move $200 to travel', 'pay rent'])
+    it(`money actions are not conversions: "${c}"`, () => expect(ask(demo(), c).later).toBeFalsy())
+
+  it('caches rates instead of calling again', async () => {
+    await live(demo(), 'usd to eur')
+    await live(demo(), 'usd to gbp')
+    expect(urls.filter((u) => u.includes('frankfurter'))).toHaveLength(1)
+  })
+
+  it('gives a crypto price with the 24-hour change', async () => {
+    const r = await live(demo(), 'bitcoin price')
+    expect(plain(r)).toMatch(/Bitcoin is \$75,000\.00 \(\+1\.5% in 24 hours\)/)
+    expect(plain(r)).toMatch(/not advice/)
+  })
+  it('shows crypto in the dashboard currency', async () => {
+    const app = demo()
+    app.currency = 'EUR'
+    expect(plain(await live(app, 'how is eth doing'))).toMatch(/Ethereum is €1,980\.00 \(−2\.0% in 24 hours\)/)
+  })
+  it('lists the main coins for "crypto prices"', async () => {
+    const r = await live(demo(), 'crypto prices')
+    expect(r.card.items.map((i) => i.label)).toEqual(['BTC', 'ETH', 'SOL'])
+  })
+  it('still refuses crypto advice', () => {
+    const r = ask(demo(), 'should I buy bitcoin')
+    expect(r.later).toBeFalsy()
+    expect(plain(r)).toMatch(/can’t give investment advice/)
+  })
+
+  it('lists upcoming holidays', async () => {
+    const r = await live(demo(), 'any bank holidays soon?') // demo "today" is Oct 28 2026
+    expect(plain(r)).toMatch(/Veterans Day/)
+    expect(plain(r)).toMatch(/Thanksgiving Day/)
+  })
+  it('answers "are banks open on <day>"', async () => {
+    const app = demo()
+    app.now = new Date(2026, 10, 9, 12) // Monday Nov 9; Wednesday is the 11th
+    expect(plain(await live(app, 'are banks open on wednesday in the us'))).toMatch(/Yes, .* is Veterans Day/)
+    expect(plain(await live(app, 'are banks open tomorrow in the us'))).toMatch(/No, .* normal working day/)
+    expect(plain(await live(app, 'is saturday a holiday in the us'))).toMatch(/weekend/)
+  })
+  it('warns when a bill falls on a bank holiday', async () => {
+    const app = rich()
+    app.now = new Date(2026, 10, 6, 12)
+    app.bills = [{ id: 'b9', name: 'Gym', amount: 40, dueDate: '2026-11-11' }]
+    expect(plain(await live(app, 'next holiday in the us'))).toMatch(/Gym is due on Veterans Day/)
+  })
+  it('a holiday you pay for is spending, not a date question', () => {
+    expect(ask(demo(), 'I spent $500 on a holiday').later).toBeFalsy()
+    expect(ask(demo(), 'save $2000 for a holiday by june').later).toBeFalsy()
+  })
+
+  it('stays friendly when offline', async () => {
+    vi.stubGlobal('fetch', async () => {
+      throw new Error('offline')
+    })
+    expect(plain(await live(demo(), 'litecoin price'))).toMatch(/can’t reach that service/)
+  })
 })

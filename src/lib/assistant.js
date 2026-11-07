@@ -18,7 +18,8 @@
    }
    ------------------------------------------------------------------ */
 import { isoDay, localIso, money, whole } from './format'
-import { t } from './i18n'
+import { getLocale, LOCALES, t, tName } from './i18n'
+import { COINS, COUNTRIES, CURRENCY_WORDS, homeCountry, loadCoins, loadHolidays, loadRates } from './live'
 import { billDue } from './stats'
 import {
   afford,
@@ -33,6 +34,7 @@ import {
   planGoal,
   subscriptions,
 } from './insights'
+import { accountWords, fixTypos } from './typos'
 import { ASSISTANT, BRAND } from '../config'
 import { CAT_COLORS, CURRENCIES } from '../data/seed'
 
@@ -49,6 +51,9 @@ export const STARTERS = [
   'Switch to dark mode',
   'Give me a saving tip',
   'I spent $25 on lunch',
+  'What’s $100 in euros?',
+  'Bitcoin price',
+  'Any bank holidays soon?',
 ]
 
 /** The starter chips in the current language. */
@@ -1453,8 +1458,196 @@ function anomalyText(a) {
 
 /** Heads-ups for the chat's hello message (empty when there's nothing to say). */
 export function greetingAlerts(app) {
-  const list = alerts(app, nowFor(app))
-  return list.length ? `${t('Heads up:')}\n${list.map((a) => `• ${alertText(a)}`).join('\n')}` : ''
+  const list = [...alerts(app, nowFor(app)).map(alertText), ...holidayBills(app, nowFor(app), 7).map(holidayBillText)]
+  return list.length ? `${t('Heads up:')}\n${list.map((a) => `• ${a}`).join('\n')}` : ''
+}
+
+/* ---------------- live data: exchange rates, crypto, holidays ---------------- */
+const tag = () => LOCALES[getLocale()]?.tag ?? 'en'
+const cash = (n, code) =>
+  new Intl.NumberFormat(tag(), {
+    style: 'currency',
+    currency: code,
+    maximumFractionDigits: code === 'JPY' || code === 'KRW' ? 0 : n !== 0 && Math.abs(n) < 1 ? 4 : 2,
+  }).format(n)
+const dayText = (iso, opts = { weekday: 'long', day: 'numeric', month: 'long' }) => new Date(`${iso}T12:00`).toLocaleDateString(tag(), opts)
+const OFFLINE = () => ({ text: t('I can’t reach that service right now. Check your connection and try again in a minute.') })
+/* run an online lookup; any failure becomes a friendly reply */
+const online = (work) => ({ later: () => work().catch(OFFLINE) })
+
+const MONEY_ACTION =
+  /\b(send|sent|pay|paid|request|transfer|spent|spend|bought|buy|add|move|put|take|save|saving|budget|goal|pot|earned|received|got|made|kharch\w*|bhej\w*)\b/
+
+/** Currencies mentioned, in the order they appear: ['USD', 'EUR'] */
+function currenciesIn(s) {
+  return CURRENCY_WORDS.map(([code, re]) => [code, s.search(re)])
+    .filter(([, at]) => at >= 0)
+    .sort((a, b) => a[1] - b[1])
+    .map(([code]) => code)
+}
+
+function convertIntent(s, app) {
+  if (MONEY_ACTION.test(s)) return null
+  const found = currenciesIn(s)
+  const amount = parseAmount(s)
+  const rateQ = /\b(exchange rates?|rates?|convert|conversion|worth|how much is)\b/.test(s)
+  let from
+  let to
+  if (found.length >= 2) [from, to] = found
+  else if (found.length === 1 && (amount || rateQ) && /\b(convert|in|to|into|worth|how much|rates?)\b/.test(s)) {
+    to = found[0]
+    from = app.currency !== to ? app.currency : 'USD'
+    // "100 euros in my currency": the one named is where it comes from
+    if (amount && new RegExp(`\\d[\\d,.]*\\s*k?\\s*(${CURRENCY_WORDS.find(([c]) => c === to)[1].source})`).test(s)) [from, to] = [to, app.currency]
+  } else return null
+  if (!from || !to || from === to) return null
+  const n = amount ?? 1
+  return online(async () => {
+    const r = await loadRates()
+    if (!r?.rates[from] || !r?.rates[to]) return OFFLINE()
+    const rate = r.rates[to] / r.rates[from]
+    const switchable = CURRENCIES[to] && to !== app.currency
+    return {
+      text: t('**{from}** is **{to}**.\nThat’s the European Central Bank rate from {date}: 1 {a} = {rate} {b}.', {
+        from: cash(n, from),
+        to: cash(n * rate, to),
+        date: dayText(r.date, { day: 'numeric', month: 'long' }),
+        a: from,
+        b: to,
+        rate: rate.toLocaleString(tag(), { maximumSignificantDigits: 5 }),
+      }),
+      chips: switchable
+        ? [chip(`show my balance in ${to}`, 'Show my balance in {code}', { code: to })]
+        : [chip(`${to} to ${from}`, '{a} to {b}', { a: to, b: from })],
+    }
+  })
+}
+
+function cryptoIntent(s, app) {
+  if (SPENT.test(s) || EARNED.test(s)) return null
+  let coins = COINS.filter(([, , , re]) => re.test(s))
+  const priceQ = /\b(price|prices|worth|value|cost|trading|market|doing|today|now|rate|up|down|at)\b|how('?s| is)/.test(s)
+  if (!coins.length && /\b(crypto|cryptos|cryptocurrency|cryptocurrencies|coins?)\b/.test(s) && priceQ) coins = COINS.slice(0, 3)
+  // a bare "btc?" counts; otherwise ask about a price
+  const bare =
+    coins.length &&
+    s
+      .replace(/[^a-z ]/g, '')
+      .trim()
+      .split(' ').length <= 2
+  if (!coins.length || !(priceQ || bare)) return null
+  const vs = ['USD', 'EUR', 'GBP', 'JPY'].includes(app.currency) ? app.currency : 'USD'
+  return online(async () => {
+    const data = await loadCoins(coins.map(([id]) => id))
+    const rows = coins.filter(([id]) => data?.[id]?.[vs.toLowerCase()] != null)
+    if (!rows.length) return OFFLINE()
+    const line = ([id, name]) => {
+      const price = data[id][vs.toLowerCase()]
+      const change = data[id][`${vs.toLowerCase()}_24h_change`] ?? 0
+      return t('**{name}** is **{price}** ({change} in 24 hours).', { name, price: cash(price, vs), change: signedPct(change) })
+    }
+    return {
+      text: `${rows.length === 1 ? line(rows[0]) : rows.map((c) => `• ${line(c)}`).join('\n')}\n${t('Prices from CoinGecko, for information only, not advice.')}`,
+      card:
+        rows.length > 1
+          ? {
+              type: 'stats',
+              items: rows.map(([id, , sym]) => ({
+                label: sym,
+                value: cash(data[id][vs.toLowerCase()], vs),
+                note: ` ${signedPct(data[id][`${vs.toLowerCase()}_24h_change`] ?? 0)}`,
+              })),
+            }
+          : undefined,
+      chips: [chip('crypto prices', 'Crypto prices')].filter(() => rows.length === 1),
+    }
+  })
+}
+
+/* bills that fall on a weekend or bank holiday in the next `days` days */
+function holidayBills(app, now, days = 30) {
+  const list = app.holidays ?? []
+  if (!list.length || !app.bills?.length) return []
+  const off = new Map(list.filter((h) => !h.types || h.types.some((x) => x === 'Public' || x === 'Bank')).map((h) => [h.date, h]))
+  return app.bills.flatMap((b) => {
+    const left = billDue(b, now).days
+    if (left == null || left < 0 || left > days) return []
+    const due = new Date(now.getFullYear(), now.getMonth(), now.getDate() + left, 12)
+    const h = off.get(isoDay(due))
+    return h ? [{ bill: b, holiday: h, due }] : []
+  })
+}
+const holidayBillText = ({ bill, holiday, due }) =>
+  t('**{bill}** is due on {holiday} ({date}). Banks are closed, so it may go out the next working day.', {
+    bill: tName(bill.name),
+    holiday: holiday.name,
+    date: dayText(isoDay(due), { weekday: 'long', day: 'numeric', month: 'short' }),
+  })
+
+const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+
+function holidayIntent(s, app) {
+  if (!/\b(holidays?|bank holidays?|banks? (closed|open|shut)|day off|long weekend|public holiday)\b|\bbanks? .*\b(closed|open)\b/.test(s))
+    return null
+  // "I spent $500 on a holiday" or "save for a holiday" is about money, not dates
+  if (parseAmount(s) || MONEY_ACTION.test(s)) return null
+  const code = COUNTRIES.find(([, re]) => re.test(s))?.[0] ?? app.country ?? homeCountry()
+  let country = code
+  try {
+    country = new Intl.DisplayNames([tag()], { type: 'region' }).of(code) ?? code
+  } catch {
+    /* older browsers: keep the code */
+  }
+  const now = nowFor(app)
+  // "is Monday a holiday", "are banks open tomorrow"
+  let day = null
+  if (/\btoday\b/.test(s)) day = new Date(now)
+  else if (/\btomorrow\b/.test(s)) day = new Date(now.getTime() + 864e5)
+  else {
+    const w = WEEKDAYS.findIndex((d) => new RegExp(`\\b${d}\\b`).test(s))
+    if (w >= 0) day = new Date(now.getTime() + ((w - now.getDay() + 7) % 7 || 7) * 864e5)
+  }
+  return online(async () => {
+    const year = now.getFullYear()
+    const [a, b] = await Promise.all([loadHolidays(code, year), loadHolidays(code, year + 1).catch(() => [])])
+    if (!a) return { text: t('I don’t have holiday data for that country yet.') }
+    const all = [...a, ...(b ?? [])].filter((h) => h.global !== false)
+    const today = isoDay(now)
+    const bills = holidayBills({ ...app, holidays: all }, now, 30).map(holidayBillText)
+    const extra = bills.length ? `\n${bills.map((x) => `• ${x}`).join('\n')}` : ''
+    if (day) {
+      const iso = isoDay(day)
+      const h = all.find((x) => x.date === iso)
+      const weekend = day.getDay() === 0 || day.getDay() === 6
+      const when = dayText(iso)
+      const text = h
+        ? t('Yes, {date} is **{name}**, so banks are closed.', { date: when, name: h.name })
+        : weekend
+          ? t('{date} is a weekend, so most banks are closed.', { date: when })
+          : t('No, {date} is a normal working day in {country}.', { date: when, country })
+      return { text: text + extra }
+    }
+    const next = all.filter((h) => h.date >= today).slice(0, 4)
+    if (!next.length) return { text: t('I don’t have holiday data for that country yet.') }
+    const days = (iso) => Math.round((new Date(`${iso}T12:00`) - new Date(`${today}T12:00`)) / 864e5)
+    return {
+      text:
+        t('Next public holidays in {country}:', { country }) +
+        '\n' +
+        next
+          .map(
+            (h) =>
+              `• **${h.name}**, ${dayText(h.date)} (${days(h.date) === 0 ? t('today') : days(h.date) === 1 ? t('tomorrow') : t('in {n} days', { n: days(h.date) })})`,
+          )
+          .join('\n') +
+        extra,
+    }
+  })
+}
+
+/** Questions answered from the internet: rates, crypto prices, holidays. */
+function liveData(s, app) {
+  return holidayIntent(s, app) ?? convertIntent(s, app) ?? cryptoIntent(s, app)
 }
 
 /* ---------------- several requests in one message ---------------- */
@@ -1553,7 +1746,9 @@ function followUp(raw, s, app, memory) {
 }
 
 /** Grace's reply to a message. `memory` carries context between messages in one chat. */
-export function respond(raw, app, memory = {}) {
+export function respond(typed, app, memory = {}) {
+  // fix typos first (see typos.js); names on the account count as spelled right
+  const raw = fixTypos(typed, accountWords(app)).text
   const s = norm(raw)
   const keep = (r, extra = {}) => ({ ...r, memory: { ...memory, ...extra, ...(r.memory ?? {}) } })
 
@@ -1569,7 +1764,7 @@ export function respond(raw, app, memory = {}) {
   const f = followUp(raw, s, app, memory)
   if (f) return keep(f)
 
-  const r = smart(raw, s, app) ?? core(raw, app)
+  const r = liveData(s, app) ?? smart(raw, s, app) ?? core(raw, app)
   // remember an action with an amount, so "make it $80" can redo it
   const token = raw.match(AMOUNT_TOKEN)?.[0]
   const lastCommand = r.confirm && token && !r.confirm.steps ? raw.replace(token, '{amount}') : memory.lastCommand

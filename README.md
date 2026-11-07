@@ -52,6 +52,12 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 - **Helps with the site** ("where do I export a CSV?") and explains terms like fees, overdrafts, APR, pending or chargebacks.
 - **Stays safe**: it never asks for or keeps passwords, PINs or card numbers (they're hidden on screen), gives information rather than investment advice, and points fraud, disputes and locked accounts to the bank or password reset.
 - **Keeps an audit trail**: every change Grace makes is saved in **Grace's activity** (account menu) with what you asked and why, and "why did you do that?" explains the last one.
+- **Live data, no keys needed** (`src/lib/live.js`, cached so free limits are never hit):
+  - **Exchange rates** from the European Central Bank via [Frankfurter](https://frankfurter.dev): "what's $100 in euros?", "50 pounds to rupees", "usd to eur". The currency switcher uses the same live rates.
+  - **Crypto prices** from [CoinGecko](https://www.coingecko.com): "bitcoin price", "how's ETH doing", "crypto prices", with the 24-hour change.
+  - **Public holidays** from [Nager.Date](https://date.nager.at): "any bank holidays soon?", "are banks open on Monday?", "holidays in the UK". Grace also warns when a bill falls on a bank holiday.
+- **Talks back**: the speaker button in the chat header reads every reply aloud, and questions asked with the microphone are always answered out loud.
+- **Forgives typos**: "whats my balnce", "I spnet $30 on dinnr" and "send $50 to varsah" all work. [Fuse.js](https://www.fusejs.io) matches each unknown word against Grace's vocabulary and the names on your account (`src/lib/typos.js`), with strict rules so real words like "tax" or "crash" are never changed.
 - Understands some Roman Urdu, such as "balance kitna hai" and "kal 300 ka khana kharch kiya".
 - **Tested**: `npm test` runs 150+ example questions with expected answers (`tests/grace.test.js`), and GitHub runs them before every deploy.
 
@@ -68,7 +74,7 @@ English, Español, Français, Deutsch and العربية. Everything is translat
 
 ## Tech stack
 
-React 19, Vite 8, Framer Motion 12, Supabase (auth and database), and plain CSS with design tokens. No UI kit and no chart library: every chart is hand-built SVG.
+React 19, Vite 8, Framer Motion 12, Supabase (auth and database), Fuse.js (Grace's typo matching), and plain CSS with design tokens. No UI kit and no chart library: every chart is hand-built SVG.
 
 ## Getting started
 
@@ -168,6 +174,8 @@ src/
     stats.js           charts and totals worked out from transactions
     insights.js        search, forecasts, unusual charges, subscriptions, afford and goal plans
     assistant.js       Grace's intent engine
+    typos.js           typo correction with Fuse.js
+    live.js            exchange rates, crypto prices and holidays, with caching
     i18n.js            translation helper
     format.js          money and date helpers
     themeTransition.js liquid theme switch
@@ -210,3 +218,7 @@ The latest Chrome, Edge, Safari and Firefox, on desktop and mobile. The liquid t
 - Font: [Inter](https://rsms.me/inter/) (SIL Open Font License)
 - Animation: [Framer Motion](https://motion.dev) (MIT)
 - Accounts and database: [Supabase](https://supabase.com)
+- Typo matching: [Fuse.js](https://www.fusejs.io) (Apache 2.0)
+- Exchange rates: [Frankfurter](https://frankfurter.dev) (European Central Bank data)
+- Crypto prices: [CoinGecko](https://www.coingecko.com)
+- Public holidays: [Nager.Date](https://date.nager.at)

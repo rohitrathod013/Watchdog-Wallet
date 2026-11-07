@@ -4,6 +4,7 @@ import BuddyArt from './BuddyArt'
 import { MerchantLogo } from './Brand'
 import { useApp } from '../lib/store'
 import { greetingAlerts, respond, starters } from '../lib/assistant'
+import { cachedHolidays, homeCountry, loadHolidays } from '../lib/live'
 import { signed, uid } from '../lib/format'
 import { ASSISTANT, BRAND } from '../config'
 import { getLocale, LOCALES, t, tName } from '../lib/i18n'
@@ -46,6 +47,21 @@ const gist = (text) =>
     .slice(0, 120)
 
 const Speech = typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null
+const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window
+
+/* read a reply aloud in the current language, without the markdown and emoji */
+function say(text) {
+  if (!canSpeak || !text) return
+  const clean = text
+    .replace(/\*\*/g, '')
+    .replace(/^• /gm, '')
+    .replace(/[\p{Extended_Pictographic}️]/gu, '')
+    .replace(/\n+/g, '. ')
+  const u = new SpeechSynthesisUtterance(clean)
+  u.lang = LOCALES[getLocale()]?.tag ?? 'en'
+  window.speechSynthesis.cancel()
+  window.speechSynthesis.speak(u)
+}
 
 function Card({ card }) {
   if (card.type === 'stats') {
@@ -184,6 +200,33 @@ export default function Assistant({ open, onClose }) {
   const memory = useRef({})
   const [listening, setListening] = useState(false)
   const recognizer = useRef(null)
+  // read every reply aloud (remembered per browser)
+  const [spoken, setSpoken] = useState(() => {
+    try {
+      return localStorage.getItem('ww-grace-voice') === 'on'
+    } catch {
+      return false
+    }
+  })
+  const toggleSpoken = () => {
+    const next = !spoken
+    setSpoken(next)
+    if (!next) window.speechSynthesis?.cancel()
+    try {
+      localStorage.setItem('ww-grace-voice', next ? 'on' : 'off')
+    } catch {
+      /* not saved, still works for this visit */
+    }
+  }
+
+  // warm the holiday cache so the greeting can warn about bills due on a bank holiday
+  useEffect(() => {
+    if (!open) return
+    const year = (appRef.current.now ?? new Date()).getFullYear()
+    const country = homeCountry()
+    loadHolidays(country, year).catch(() => null)
+    loadHolidays(country, year + 1).catch(() => null)
+  }, [open])
 
   useEffect(() => {
     appRef.current = app
@@ -248,6 +291,7 @@ export default function Assistant({ open, onClose }) {
   /* the engine sees the live app, with theme switches spilling out of Grace's head */
   const brain = () => ({
     ...appRef.current,
+    holidays: cachedHolidays(homeCountry(), (appRef.current.now ?? new Date()).getFullYear()),
     switchTheme: (next) => {
       const r = avatar.current?.getBoundingClientRect()
       appRef.current.switchTheme(next, r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : undefined)
@@ -255,7 +299,7 @@ export default function Assistant({ open, onClose }) {
   })
 
   /* q goes to the engine; label (a translated chip) is what the bubble shows */
-  const ask = (q, label = q) => {
+  const ask = (q, label = q, voice = false) => {
     const question = q.trim()
     if (!question || thinking) return
     setText('')
@@ -264,10 +308,13 @@ export default function Assistant({ open, onClose }) {
     setThinking(true)
     setMood('think')
     window.setTimeout(
-      () => {
-        const r = respond(question, brain(), memory.current)
+      async () => {
+        let r = respond(question, brain(), memory.current)
         memory.current = r.memory ?? {}
+        // live answers (rates, crypto, holidays) arrive from the internet
+        if (r.later) r = { ...(await r.later()), memory: r.memory }
         setThinking(false)
+        if (voice || spoken) say(r.text)
         // something private was typed: don't keep it on screen
         if (r.mask) setMsgs((list) => list.map((x) => (x.id === mine ? { ...x, text: '••••••••' } : x)))
         pushBot({ ...r, request: r.mask ? '••••••••' : maskDigits(question) })
@@ -332,7 +379,7 @@ export default function Assistant({ open, onClose }) {
       setText(said)
       if (e.results[e.results.length - 1].isFinal) {
         rec.stop()
-        ask(said)
+        ask(said, said, true) // asked out loud, so answer out loud
       }
     }
     rec.onend = () => setListening(false)
@@ -369,6 +416,18 @@ export default function Assistant({ open, onClose }) {
             {thinking ? t('Thinking…') : mood === 'talk' ? t('Typing…') : t('Your {brand} assistant · Online', { brand: BRAND.name })}
           </small>
         </div>
+        {canSpeak ? (
+          <button
+            type="button"
+            className={`icon-btn ${spoken ? 'on' : ''}`}
+            onClick={toggleSpoken}
+            aria-pressed={spoken}
+            aria-label={spoken ? t('Stop reading replies aloud') : t('Read replies aloud')}
+            title={spoken ? t('Stop reading replies aloud') : t('Read replies aloud')}
+          >
+            <Icon name={spoken ? 'volume' : 'volumeOff'} size={17} stroke={2} />
+          </button>
+        ) : null}
         <button type="button" className="icon-btn" onClick={reset} aria-label={t('New chat')} title={t('New chat')}>
           <Icon name="refresh" size={17} stroke={2} />
         </button>

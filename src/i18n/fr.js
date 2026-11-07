@@ -903,4 +903,26 @@ export default {
     'Un **abonnement** est un débit régulier pour un service continu, comme le streaming ou une salle de sport. On les oublie facilement, alors demandez-moi la liste des vôtres.',
   'Your **balance** is all the money you’ve recorded: everything added minus everything spent.':
     'Votre **solde**, c’est tout l’argent enregistré : tout ce qui a été ajouté moins tout ce qui a été dépensé.',
+  // ---------------- live data: rates, crypto, holidays, voice ----------------
+  'I can’t reach that service right now. Check your connection and try again in a minute.':
+    'Je n’arrive pas à joindre ce service pour le moment. Vérifiez votre connexion et réessayez dans une minute.',
+  '**{from}** is **{to}**.\nThat’s the European Central Bank rate from {date}: 1 {a} = {rate} {b}.':
+    '**{from}** font **{to}**.\nC’est le taux de la Banque centrale européenne du {date} : 1 {a} = {rate} {b}.',
+  'Show my balance in {code}': 'Afficher mon solde en {code}',
+  '{a} to {b}': '{a} en {b}',
+  '**{name}** is **{price}** ({change} in 24 hours).': '**{name}** vaut **{price}** ({change} sur 24 heures).',
+  'Prices from CoinGecko, for information only, not advice.': 'Prix fournis par CoinGecko, à titre d’information uniquement, pas un conseil.',
+  'Crypto prices': 'Prix des cryptos',
+  '**{bill}** is due on {holiday} ({date}). Banks are closed, so it may go out the next working day.':
+    '**{bill}** est dû le jour de {holiday} ({date}). Les banques sont fermées, le prélèvement peut donc passer le jour ouvré suivant.',
+  'I don’t have holiday data for that country yet.': 'Je n’ai pas encore de données sur les jours fériés de ce pays.',
+  'Yes, {date} is **{name}**, so banks are closed.': 'Oui, le {date} est **{name}**, les banques sont donc fermées.',
+  '{date} is a weekend, so most banks are closed.': 'Le {date} tombe un week-end, la plupart des banques sont donc fermées.',
+  'No, {date} is a normal working day in {country}.': 'Non, le {date} est un jour ouvré normal en {country}.',
+  'Next public holidays in {country}:': 'Prochains jours fériés en {country} :',
+  'Stop reading replies aloud': 'Ne plus lire les réponses à voix haute',
+  'Read replies aloud': 'Lire les réponses à voix haute',
+  'What’s $100 in euros?': 'Combien font 100 $ en euros ?',
+  'Bitcoin price': 'Prix du Bitcoin',
+  'Any bank holidays soon?': 'Des jours fériés bientôt ?',
 }

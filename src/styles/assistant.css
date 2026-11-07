@@ -528,6 +528,10 @@
 .ai-head .icon-btn:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+.ai-head .icon-btn.on {
+  color: var(--accent);
+  background: #fff;
+}
 
 .ai-body {
   flex: 1;

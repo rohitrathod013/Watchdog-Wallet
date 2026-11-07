@@ -898,4 +898,26 @@ export default {
     'Ein **Abo** ist eine regelmäßige Abbuchung für einen laufenden Dienst, etwa Streaming oder Fitnessstudio. Man vergisst sie leicht, also frag mich nach deiner Liste.',
   'Your **balance** is all the money you’ve recorded: everything added minus everything spent.':
     'Dein **Saldo** ist alles erfasste Geld: alles Hinzugefügte minus alles Ausgegebene.',
+  // ---------------- live data: rates, crypto, holidays, voice ----------------
+  'I can’t reach that service right now. Check your connection and try again in a minute.':
+    'Ich erreiche diesen Dienst gerade nicht. Prüfe deine Verbindung und versuch es in einer Minute noch einmal.',
+  '**{from}** is **{to}**.\nThat’s the European Central Bank rate from {date}: 1 {a} = {rate} {b}.':
+    '**{from}** sind **{to}**.\nDas ist der Kurs der Europäischen Zentralbank vom {date}: 1 {a} = {rate} {b}.',
+  'Show my balance in {code}': 'Mein Guthaben in {code} anzeigen',
+  '{a} to {b}': '{a} in {b}',
+  '**{name}** is **{price}** ({change} in 24 hours).': '**{name}** steht bei **{price}** ({change} in 24 Stunden).',
+  'Prices from CoinGecko, for information only, not advice.': 'Preise von CoinGecko, nur zur Information, keine Beratung.',
+  'Crypto prices': 'Krypto-Preise',
+  '**{bill}** is due on {holiday} ({date}). Banks are closed, so it may go out the next working day.':
+    '**{bill}** ist am {holiday} fällig ({date}). Die Banken haben geschlossen, daher wird es eventuell erst am nächsten Werktag abgebucht.',
+  'I don’t have holiday data for that country yet.': 'Für dieses Land habe ich noch keine Feiertagsdaten.',
+  'Yes, {date} is **{name}**, so banks are closed.': 'Ja, {date} ist **{name}**, die Banken haben also geschlossen.',
+  '{date} is a weekend, so most banks are closed.': '{date} ist ein Wochenende, die meisten Banken haben also geschlossen.',
+  'No, {date} is a normal working day in {country}.': 'Nein, {date} ist ein normaler Werktag in {country}.',
+  'Next public holidays in {country}:': 'Nächste Feiertage in {country}:',
+  'Stop reading replies aloud': 'Antworten nicht mehr vorlesen',
+  'Read replies aloud': 'Antworten vorlesen',
+  'What’s $100 in euros?': 'Wie viel sind 100 $ in Euro?',
+  'Bitcoin price': 'Bitcoin-Preis',
+  'Any bank holidays soon?': 'Bald Bankfeiertage?',
 }

@@ -26,6 +26,7 @@ import { liquidSwitch } from './lib/themeTransition'
 import { localIso, MONTHS, money, uid } from './lib/format'
 import { accountCards, billDue, computeStats, DEFAULT_BUDGETS, demoStats, KIND_FOR } from './lib/stats'
 import { LOCALES, setLocale, t, tMonths } from './lib/i18n'
+import { applyRates, loadRates } from './lib/live'
 import { accountsEnabled, getSupabase, loadUserState, profileOf, SAVED_KEYS, saveUserState } from './lib/supabase'
 import * as seed from './data/seed'
 import { ASSISTANT, BRAND, FEATURES, THEME } from './config'
@@ -198,6 +199,17 @@ export default function App() {
   /* ---------- data ---------- */
   const [period, setPeriod] = useState('month')
   const [currency, setCurrency] = useState('USD')
+  // live exchange rates for the currency switcher (European Central Bank, via Frankfurter)
+  const [ratesDate, setRatesDate] = useState(null)
+  useEffect(() => {
+    loadRates()
+      .then((r) => {
+        if (!r) return
+        applyRates(r.rates)
+        setRatesDate(r.date)
+      })
+      .catch(() => null) // offline: the built-in rates stay
+  }, [])
   const [balance, setBalance] = useState(seed.BALANCE_USD)
   // the "live" wiggle is shown on top of the real balance and never saved
   const [drift, setDrift] = useState(0)
@@ -642,6 +654,7 @@ export default function App() {
       setPeriod,
       currency,
       setCurrency,
+      ratesDate,
       balance: balance + drift,
       live,
       setLive,
@@ -699,6 +712,7 @@ export default function App() {
       contacts,
       period,
       currency,
+      ratesDate,
       balance,
       drift,
       live,
