@@ -715,4 +715,181 @@ export default {
   today: 'hoy',
   yesterday: 'ayer',
   'I spent $25 on lunch': 'Gasté 25 $ en el almuerzo',
+
+  // ---------------- Grace: smarter answers ----------------
+  '{from} → {to}': '{from} → {to}',
+  '{n} steps, one after another': '{n} pasos, uno tras otro',
+  '{name} · {amount} a month': '{name} · {amount} al mes',
+  '{name} only has {amount}, so I can’t move {want}.': '{name} solo tiene {amount}, así que no puedo mover {want}.',
+  '**{amount}** came in': 'entraron **{amount}**',
+  '**{amount}** in bills still due': '**{amount}** en facturas pendientes',
+  '**{amount}** went out': 'salieron **{amount}**',
+  '**{bill}** ({amount}) is due {when} and you’ll be **{short}** short.': '**{bill}** ({amount}) vence {when} y te faltarán **{short}**.',
+  '**{bill}** ({amount}) is due {when}.': '**{bill}** ({amount}) vence {when}.',
+  '**{bill}** is overdue ({amount}).': '**{bill}** está vencida ({amount}).',
+  '**{name}** ({amount}) is much bigger than your usual {typical}.': '**{name}** ({amount}) es mucho mayor que tu gasto habitual de {typical}.',
+  '**{name}** down {amount}': '**{name}** baja {amount}',
+  '**{name}** is {amount} over budget.': '**{name}** se pasa del presupuesto en {amount}.',
+  '**{name}** is at {pct}% of its budget.': '**{name}** va por el {pct}% de su presupuesto.',
+  '**{name}** up {amount}': '**{name}** sube {amount}',
+  '**{name}** was charged twice ({amount}). Worth checking.': '**{name}** se cobró dos veces ({amount}). Conviene revisarlo.',
+  '**{name}** went up from {from} to {to}.': '**{name}** subió de {from} a {to}.',
+  '**{out}** went out and **{in}** came in': 'salieron **{out}** y entraron **{in}**',
+  'A few things stand out:': 'Hay algunas cosas que destacan:',
+  'about **{daily}** a day of everyday spending ({total} over {n} days)': 'unos **{daily}** al día de gasto cotidiano ({total} en {n} días)',
+  'All done ✅': 'Todo hecho ✅',
+  'All quiet 👍 No bills you can’t cover, no budgets near the limit and nothing unusual.':
+    'Todo tranquilo 👍 Ninguna factura que no puedas cubrir, ningún presupuesto al límite y nada raro.',
+  'And last month?': '¿Y el mes pasado?',
+  'And this month?': '¿Y este mes?',
+  'Any alerts?': '¿Alguna alerta?',
+  'Any unusual charges?': '¿Algún cargo raro?',
+  'At this pace you’ll end the month at **{amount}**.': 'A este ritmo terminarás el mes con **{amount}**.',
+  'By {date} I expect your balance to be about **{amount}**.': 'Para el {date} calculo que tu saldo será de unos **{amount}**.',
+  'by {month}': 'para {month}',
+  'Can I afford $500?': '¿Me puedo permitir 500 $?',
+  'Create this goal': 'Crear esta meta',
+  'Cutting **{name}** by {amount} a month would close most of the gap.': 'Recortar **{name}** en {amount} al mes cerraría casi toda la diferencia.',
+  'Do all {n}': 'Hacer los {n}',
+  'Every time Grace changes something for you, it’s listed here with what you asked and why.':
+    'Cada vez que Grace cambia algo por ti, aparece aquí con lo que pediste y por qué.',
+  'Everything Grace has done on your account, newest first': 'Todo lo que Grace ha hecho en tu cuenta, lo más reciente primero',
+  'for {name}': 'de {name}',
+  'Forecast my month': 'Previsión de mi mes',
+  'Found **{n} transactions**{when}{what}{size}: {sum}.': 'Encontré **{n} transacciones**{when}{what}{size}: {sum}.',
+  'Found **1 transaction**{when}{what}{size}: {sum}.': 'Encontré **1 transacción**{when}{what}{size}: {sum}.',
+  'Goal created ✅ I’ll track {name} for you.': 'Meta creada ✅ Seguiré {name} por ti.',
+  'Grace’s activity': 'Actividad de Grace',
+  'Heads up:': 'Atención:',
+  'Here’s the plan, in this order:': 'Este es el plan, en este orden:',
+  'Here’s what I can do:\n• **Answer** about your balance, spending, budgets, goals, bills and pots\n• **Find** transactions, like “what did I spend on food last week”\n• **Warn** you about bills, budgets and unusual charges, and forecast your month\n• **Plan**: “can I afford $1,200 in March?” or “save $5k by June”\n• **Do things**: record spending, send or request money, pay bills, move money between pots, top up goals, several in a row\nJust ask like you would a friend 🙂':
+    'Esto es lo que puedo hacer:\n• **Responder** sobre tu saldo, gastos, presupuestos, metas, facturas y botes\n• **Buscar** transacciones, como “qué gasté en comida la semana pasada”\n• **Avisarte** de facturas, presupuestos y cargos raros, y prever tu mes\n• **Planificar**: “¿me puedo permitir 1.200 $ en marzo?” o “ahorrar 5.000 $ para junio”\n• **Hacer cosas**: anotar gastos, enviar o pedir dinero, pagar facturas, mover dinero entre botes, aportar a metas, varias seguidas\nPregúntame como a un amigo 🙂',
+  'Here’s what I’d keep an eye on:': 'Esto es lo que vigilaría:',
+  'How much do I keep each month?': '¿Cuánto me queda cada mes?',
+  'I bought it': 'Lo compré',
+  'I can do several things in a row, but I didn’t understand step {n}: “{text}”. Could you say that step another way?':
+    'Puedo hacer varias cosas seguidas, pero no entendí el paso {n}: “{text}”. ¿Puedes decirlo de otra forma?',
+  'I can’t cancel them for you. If you don’t use one, cancel it with the company directly.':
+    'No puedo cancelarlas por ti. Si no usas alguna, cancélala directamente con la empresa.',
+  'I can’t give investment advice or tell you what to buy. I can share information, like how much you could set aside each month, but for investing decisions please talk to a licensed financial adviser.':
+    'No puedo dar consejos de inversión ni decirte qué comprar. Puedo darte información, como cuánto podrías apartar cada mes, pero para invertir habla con un asesor financiero autorizado.',
+  'I don’t see any subscriptions or repeat charges yet.': 'Aún no veo suscripciones ni cargos repetidos.',
+  'I haven’t done anything on your account yet.': 'Aún no he hecho nada en tu cuenta.',
+  'I’m sorry, that sounds stressful. I can’t freeze cards or reverse charges. {brand} only tracks numbers you enter, so no real money moved here. For fraud or a disputed charge on a real card or account, contact your bank right away: they can freeze the card and investigate.':
+    'Lo siento, suena estresante. No puedo bloquear tarjetas ni revertir cargos. {brand} solo registra cifras que tú introduces, así que aquí no se movió dinero real. Ante un fraude o un cargo en disputa en una tarjeta o cuenta real, contacta con tu banco cuanto antes: pueden bloquear la tarjeta e investigar.',
+  'If one is a mistake, fix it in Transactions. For a real card charge you don’t recognise, call your bank.':
+    'Si alguno es un error, corrígelo en Transacciones. Si no reconoces un cargo real en tu tarjeta, llama a tu banco.',
+  'in {month}': 'en {month}',
+  'in {n} days': 'en {n} días',
+  'in the past {n} days': 'en los últimos {n} días',
+  mo: 'mes',
+  'mostly {what} ({amount})': 'sobre todo {what} ({amount})',
+  'Move **{amount}** from {from} to **{to}**?': '¿Muevo **{amount}** de {from} a **{to}**?',
+  'Moved ✅ {amount} is now in {to}.': 'Movido ✅ {amount} ya está en {to}.',
+  'No transactions{when}{what}{size}.': 'No hay transacciones{when}{what}{size}.',
+  'Not comfortably. **{cost}**{by} would leave you about **{short}** short.': 'No con holgura. **{cost}**{by} te dejaría unos **{short}** cortos.',
+  'Nothing unusual. No duplicate charges, odd spikes or price rises that I can see.':
+    'Nada raro. No veo cargos duplicados, picos extraños ni subidas de precio.',
+  'Nothing yet': 'Nada todavía',
+  'on {name}': 'en {name}',
+  'over {amount}': 'de más de {amount}',
+  'Pausing your goal contributions ({amount} a month) would also help.': 'Pausar tus aportes a metas ({amount} al mes) también ayudaría.',
+  'Please don’t share passwords, PINs, codes or full card numbers here, not even with me. I’ll never ask for them. If you think someone else has them, change your password and call your bank.':
+    'Por favor, no compartas contraseñas, PIN, códigos ni números completos de tarjeta aquí, ni siquiera conmigo. Nunca te los pediré. Si crees que alguien los tiene, cambia tu contraseña y llama a tu banco.',
+  'Savings goal': 'Meta de ahorro',
+  'See all activity': 'Ver toda la actividad',
+  'Speak to {name}': 'Hablar con {name}',
+  'Stop listening': 'Dejar de escuchar',
+  'That counts {free} you have free now, {bills} in bills still due, and about {surplus} a month you usually keep.':
+    'Eso cuenta {free} libres ahora, {bills} en facturas pendientes y unos {surplus} al mes que sueles ahorrar.',
+  'That’s below zero, so trim spending or move money from a pot.': 'Eso queda por debajo de cero, así que recorta gastos o mueve dinero de un bote.',
+  'The last thing I did was **{action}** ({detail}), {when}.\nWhy: {reason}':
+    'Lo último que hice fue **{action}** ({detail}), el {when}.\nPor qué: {reason}',
+  'Then I’ll tell you what’s left.': 'Luego te diré lo que queda.',
+  'There’s no spending this month or last month to compare yet.': 'Aún no hay gastos de este mes ni del anterior para comparar.',
+  'To make it, set aside about **{perMonth}** a month until then.': 'Para lograrlo, aparta unos **{perMonth}** al mes hasta entonces.',
+  'To save **{target}** by **{when}**, put aside **{weekly}** a week ({monthly} a month) for {weeks} weeks.':
+    'Para ahorrar **{target}** para **{when}**, aparta **{weekly}** a la semana ({monthly} al mes) durante {weeks} semanas.',
+  tomorrow: 'mañana',
+  'under {amount}': 'de menos de {amount}',
+  'Use **Forgot password?** on the login screen and we’ll email you a reset link. If the email doesn’t arrive, check your spam folder.':
+    'Usa **¿Olvidaste tu contraseña?** en la pantalla de inicio de sesión y te enviaremos un enlace. Si no llega, revisa la carpeta de spam.',
+  'What did I spend last week?': '¿Qué gasté la semana pasada?',
+  'What’s left: **{balance}** in total, **{free}** unassigned.': 'Lo que queda: **{balance}** en total, **{free}** sin asignar.',
+  'What’s left: **{balance}**.': 'Lo que queda: **{balance}**.',
+  'Yes, you can afford **{cost}**{by}. You’d still have about **{left}** after it.':
+    'Sí, puedes permitirte **{cost}**{by}. Te quedarían unos **{left}** después.',
+  'You asked': 'Pediste',
+  'You asked “{request}”, so I did it straight away (it doesn’t move money).': 'Pediste “{request}”, así que lo hice al momento (no mueve dinero).',
+  'You asked “{request}”. I read that as: {action} ({detail}), and you confirmed it.':
+    'Pediste “{request}”. Lo entendí como: {action} ({detail}), y lo confirmaste.',
+  'You could wait a month or two, or move money from a pot.': 'Podrías esperar un mes o dos, o mover dinero de un bote.',
+  'You have **{n}** subscriptions and repeat charges costing about **{monthly}** a month (**{yearly}** a year).':
+    'Tienes **{n}** suscripciones y cargos repetidos que cuestan unos **{monthly}** al mes (**{yearly}** al año).',
+  'You usually keep about {spare} a month, so that fits.': 'Sueles ahorrar unos {spare} al mes, así que encaja.',
+  'You usually keep about {spare} a month, so you’re about {gap} a month short.':
+    'Sueles ahorrar unos {spare} al mes, así que te faltan unos {gap} al mes.',
+  'You’ve actually spent **{amount}** less than this time last month ({now} vs {before}).':
+    'En realidad has gastado **{amount}** menos que a estas alturas del mes pasado ({now} frente a {before}).',
+  'You’ve spent **{amount}** more than this time last month ({now} vs {before}).':
+    'Has gastado **{amount}** más que a estas alturas del mes pasado ({now} frente a {before}).',
+  'Your spending is the same as this time last month ({now}).': 'Tu gasto es igual que a estas alturas del mes pasado ({now}).',
+  'Plan to save {amount}': 'Planear ahorrar {amount}',
+  'Open Transactions': 'Abrir transacciones',
+  'Open Dashboard': 'Abrir panel',
+  'Open Transfer': 'Abrir transferencias',
+  'Go to **Dashboard › Transactions** and press **Export CSV** at the top right. Reports have their own **CSV** button on each card.':
+    'Ve a **Panel › Transacciones** y pulsa **Exportar CSV** arriba a la derecha. Los informes tienen su propio botón **CSV** en cada tarjeta.',
+  'Press **Add money** on the balance card or the Wallet page, type the amount and where it came from, and pick a pot for it if you like. No bank needed.':
+    'Pulsa **Añadir dinero** en la tarjeta de saldo o en la página Cartera, escribe el importe y de dónde viene, y elige un bote si quieres. Sin banco.',
+  'Pots split your money by what it’s for, like Rent or Savings. On the **Wallet** page press **New pot**, then use the arrows on a pot to move money in or out.':
+    'Los botes reparten tu dinero según su uso, como Alquiler o Ahorros. En la página **Cartera** pulsa **Nuevo bote** y usa las flechas de cada bote para meter o sacar dinero.',
+  '**Unassigned** is money you have that isn’t in any pot yet. Move it into pots on the Wallet page.':
+    '**Sin asignar** es el dinero que tienes y que aún no está en ningún bote. Muévelo a botes en la página Cartera.',
+  'On the Dashboard, press **Add Goal** on the My Savings Goals card. Give it a name and target, and top it up any time.':
+    'En el Panel, pulsa **Añadir meta** en la tarjeta Mis metas de ahorro. Ponle nombre y objetivo, y aporta cuando quieras.',
+  'Press **+** on the **Upcoming Bills** card (Dashboard or Wallet), then enter the name, amount and due date.':
+    'Pulsa **+** en la tarjeta **Próximas facturas** (Panel o Cartera) e introduce el nombre, el importe y la fecha de vencimiento.',
+  'Press **Add contact** on the Quick Transfer card, or **New** on the Transfer page.':
+    'Pulsa **Añadir contacto** en la tarjeta Transferencia rápida, o **Nuevo** en la página Transferir.',
+  'Press the language button (it shows **EN**, **ES** and so on) at the top right and pick a language.':
+    'Pulsa el botón de idioma (muestra **EN**, **ES**, etc.) arriba a la derecha y elige uno.',
+  'Open **Settings** (the gear at the top right) to pick light or dark and an accent colour. Or just tell me, like “make it blue”.':
+    'Abre **Ajustes** (el engranaje arriba a la derecha) para elegir claro u oscuro y un color de acento. O dímelo, por ejemplo “ponlo en azul”.',
+  'On the **Budget** page, drag the **Monthly limit** slider on any category. Or tell me, like “set food budget to $500”.':
+    'En la página **Presupuesto**, arrastra el control **Límite mensual** de cualquier categoría. O dímelo, por ejemplo “fija el presupuesto de comida en 500 $”.',
+  'Open the account menu (your picture or initials, top right) and choose **Clear my data**, then click again to confirm. That empties your dashboard.':
+    'Abre el menú de la cuenta (tu foto o iniciales, arriba a la derecha), elige **Borrar mis datos** y vuelve a pulsar para confirmar. Eso vacía tu panel.',
+  'Press **Add transaction** on the Transactions tab, or just tell me, like “I spent $20 on lunch”.':
+    'Pulsa **Añadir transacción** en la pestaña Transacciones, o dímelo, por ejemplo “gasté 20 $ en el almuerzo”.',
+  'Press **Send Money** on the balance card, pick a contact and an amount. Or tell me, like “send $50 to Nikhil”.':
+    'Pulsa **Enviar dinero** en la tarjeta de saldo y elige un contacto y un importe. O dímelo, por ejemplo “envía 50 $ a Nikhil”.',
+  'A **fee** is a charge for a service, like a monthly account fee or an ATM fee. Fees show up as expenses.':
+    'Una **comisión** es un cargo por un servicio, como la cuota mensual de la cuenta o la de un cajero. Aparecen como gastos.',
+  'An **overdraft** is when you spend more than you have and your balance goes below zero. Banks often charge a fee or interest for it.':
+    'Un **descubierto** es cuando gastas más de lo que tienes y tu saldo baja de cero. Los bancos suelen cobrar comisión o intereses por ello.',
+  '**Interest** is the cost of borrowing money (or what you earn on savings). **APR** is that cost over a whole year, including fees, so you can compare offers.':
+    'El **interés** es el coste de pedir dinero prestado (o lo que ganas con tus ahorros). La **TAE** es ese coste en un año completo, con comisiones, para comparar ofertas.',
+  'A **pending** transaction has started but isn’t finished yet, like a request someone hasn’t paid. It doesn’t count in your totals until it’s completed.':
+    'Una transacción **pendiente** ha empezado pero aún no ha terminado, como una solicitud que alguien no ha pagado. No cuenta en tus totales hasta completarse.',
+  'A **refund** is money given back for something you returned or were overcharged for. Add it with **Add money** and pick **Refund**.':
+    'Un **reembolso** es dinero devuelto por algo que devolviste o que te cobraron de más. Añádelo con **Añadir dinero** y elige **Reembolso**.',
+  'A **chargeback** is when your bank reverses a card payment after you dispute it, for example for fraud or an item that never arrived.':
+    'Un **contracargo** es cuando tu banco revierte un pago con tarjeta tras una reclamación, por ejemplo por fraude o un artículo que nunca llegó.',
+  '**Autopay** (a direct debit) lets a company take a bill from your account automatically each time it’s due.':
+    'El **pago automático** (domiciliación) permite que una empresa cobre una factura de tu cuenta automáticamente cada vez que vence.',
+  '**Net profit** is your income minus your expenses for the period. Positive means you kept money; negative means you spent more than came in.':
+    'El **beneficio neto** son tus ingresos menos tus gastos del periodo. Positivo significa que ahorraste; negativo, que gastaste más de lo que entró.',
+  'Your **savings rate** is the share of your income you didn’t spend: net profit ÷ income. 20% means you kept $20 of every $100.':
+    'Tu **tasa de ahorro** es la parte de tus ingresos que no gastaste: beneficio neto ÷ ingresos. Un 20% significa que guardaste 20 $ de cada 100 $.',
+  '**Cash flow** is money coming in versus money going out over time. The Cash Flow chart shows both lines for the last 6 or 12 months.':
+    'El **flujo de caja** es el dinero que entra frente al que sale con el tiempo. El gráfico Flujo de caja muestra ambas líneas de los últimos 6 o 12 meses.',
+  'An **emergency fund** is money set aside for surprises, like a repair or losing income. A common aim is 3 to 6 months of expenses.':
+    'Un **fondo de emergencia** es dinero apartado para imprevistos, como una reparación o perder ingresos. Lo habitual es apuntar a 3 a 6 meses de gastos.',
+  'A **budget** is a limit you set for a category each month. The bar shows how much of it you’ve used.':
+    'Un **presupuesto** es un límite que fijas para una categoría cada mes. La barra muestra cuánto has usado.',
+  'A **subscription** is a regular charge for an ongoing service, like streaming or a gym. They’re easy to forget, so ask me to list yours.':
+    'Una **suscripción** es un cargo periódico por un servicio continuo, como streaming o gimnasio. Es fácil olvidarlas, así que pídeme que te las liste.',
+  'Your **balance** is all the money you’ve recorded: everything added minus everything spent.':
+    'Tu **saldo** es todo el dinero que has registrado: todo lo añadido menos todo lo gastado.',
 }

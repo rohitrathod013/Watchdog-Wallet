@@ -3,10 +3,10 @@ import Icon from './Icon'
 import BuddyArt from './BuddyArt'
 import { MerchantLogo } from './Brand'
 import { useApp } from '../lib/store'
-import { respond, starters } from '../lib/assistant'
+import { greetingAlerts, respond, starters } from '../lib/assistant'
 import { signed, uid } from '../lib/format'
 import { ASSISTANT, BRAND } from '../config'
-import { t, tName } from '../lib/i18n'
+import { getLocale, LOCALES, t, tName } from '../lib/i18n'
 
 /* "**bold**", newlines and "• " bullets, cut off after `limit` visible characters */
 const plainLength = (text) => text.replace(/\*\*/g, '').replace(/^• /gm, '').length
@@ -34,6 +34,18 @@ function Rich({ text, limit = Infinity }) {
   }
   return out
 }
+
+/* never echo long digit runs (card numbers, codes) back on screen */
+const maskDigits = (s) => s.replace(/(?:\d[ -]?){8,}/g, (m) => `•••• ${m.replace(/\D/g, '').slice(-4)}`)
+
+/* first sentence of a reply, without the bold markers: a short label for the activity log */
+const gist = (text) =>
+  text
+    .replace(/\*\*/g, '')
+    .split(/(?<=[.!?])\s|\n/)[0]
+    .slice(0, 120)
+
+const Speech = typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null
 
 function Card({ card }) {
   if (card.type === 'stats') {
@@ -168,6 +180,10 @@ export default function Assistant({ open, onClose }) {
   const [hop, setHop] = useState(0)
   const [text, setText] = useState('')
   const [chat, setChat] = useState(0)
+  // what Grace remembers within this conversation ("and last month?", "make it $80")
+  const memory = useRef({})
+  const [listening, setListening] = useState(false)
+  const recognizer = useRef(null)
 
   useEffect(() => {
     appRef.current = app
@@ -193,10 +209,11 @@ export default function Assistant({ open, onClose }) {
       hello = window.setTimeout(
         () =>
           pushBot({
-            text: t(
-              'Hi {name}! 👋 I’m **{assistant}**, your {brand} money buddy. I can answer questions about your accounts and do things for you: send money, pay bills, top up goals, change the theme and more. What would you like to do?',
-              { name: appRef.current.user.first, assistant: ASSISTANT.name, brand: BRAND.name },
-            ),
+            text:
+              t(
+                'Hi {name}! 👋 I’m **{assistant}**, your {brand} money buddy. I can answer questions about your accounts and do things for you: send money, pay bills, top up goals, change the theme and more. What would you like to do?',
+                { name: appRef.current.user.first, assistant: ASSISTANT.name, brand: BRAND.name },
+              ) + (greetingAlerts(appRef.current) ? `\n${greetingAlerts(appRef.current)}` : ''),
             mood: 'happy',
             chips: starters().filter((c) => ['Give me a summary', 'What’s my balance?', 'Any bills due?'].includes(c.q)),
           }),
@@ -242,15 +259,28 @@ export default function Assistant({ open, onClose }) {
     const question = q.trim()
     if (!question || thinking) return
     setText('')
-    setMsgs((list) => [...list, { id: uid(), from: 'me', text: label.trim() }])
+    const mine = uid()
+    setMsgs((list) => [...list, { id: mine, from: 'me', text: maskDigits(label.trim()) }])
     setThinking(true)
     setMood('think')
     window.setTimeout(
       () => {
-        const r = respond(question, brain())
+        const r = respond(question, brain(), memory.current)
+        memory.current = r.memory ?? {}
         setThinking(false)
-        pushBot(r)
-        if (r.run) window.setTimeout(r.run, 300)
+        // something private was typed: don't keep it on screen
+        if (r.mask) setMsgs((list) => list.map((x) => (x.id === mine ? { ...x, text: '••••••••' } : x)))
+        pushBot({ ...r, request: r.mask ? '••••••••' : maskDigits(question) })
+        if (r.run)
+          window.setTimeout(() => {
+            r.run()
+            appRef.current.logActivity?.({
+              request: maskDigits(question),
+              action: gist(r.text),
+              detail: '',
+              reason: t('You asked “{request}”, so I did it straight away (it doesn’t move money).', { request: maskDigits(question) }),
+            })
+          }, 300)
       },
       520 + Math.min(700, question.length * 14),
     )
@@ -266,15 +296,54 @@ export default function Assistant({ open, onClose }) {
 
   const onConfirm = (m) => {
     m.confirm.run()
+    const steps = m.confirm.steps ?? [m.confirm]
+    for (const st of steps)
+      app.logActivity?.({
+        request: m.request ?? '',
+        action: st.label,
+        detail: st.note,
+        reason: t('You asked “{request}”. I read that as: {action} ({detail}), and you confirmed it.', {
+          request: m.request ?? '',
+          action: st.label,
+          detail: st.note,
+        }),
+      })
     setMsgs((list) => list.map((x) => (x.id === m.id ? { ...x, status: 'done' } : x)))
-    window.setTimeout(() => pushBot({ text: m.confirm.done, mood: 'happy' }), 380)
+    const done = typeof m.confirm.done === 'function' ? m.confirm.done() : m.confirm.done
+    window.setTimeout(() => pushBot({ text: done, mood: 'happy' }), 380)
   }
   const onCancel = (m) => {
     setMsgs((list) => list.map((x) => (x.id === m.id ? { ...x, status: 'cancelled' } : x)))
     window.setTimeout(() => pushBot({ text: t('No worries, cancelled. Anything else?') }), 300)
   }
 
+  /* voice: the browser's own speech recognition, in the current language */
+  const listen = () => {
+    if (!Speech) return
+    if (listening) {
+      recognizer.current?.stop()
+      return
+    }
+    const rec = new Speech()
+    rec.lang = LOCALES[getLocale()]?.tag ?? 'en'
+    rec.interimResults = true
+    rec.onresult = (e) => {
+      const said = [...e.results].map((x) => x[0].transcript).join(' ')
+      setText(said)
+      if (e.results[e.results.length - 1].isFinal) {
+        rec.stop()
+        ask(said)
+      }
+    }
+    rec.onend = () => setListening(false)
+    rec.onerror = () => setListening(false)
+    recognizer.current = rec
+    setListening(true)
+    rec.start()
+  }
+
   const reset = () => {
+    memory.current = {}
     setMsgs([])
     setMood('idle')
     setChat((c) => c + 1)
@@ -358,6 +427,18 @@ export default function Assistant({ open, onClose }) {
             placeholder={t('Ask {name} anything…', { name: ASSISTANT.name })}
             aria-label={t('Message {name}', { name: ASSISTANT.name })}
           />
+          {Speech ? (
+            <button
+              type="button"
+              className={`ai-mic ${listening ? 'on' : ''}`}
+              onClick={listen}
+              aria-label={listening ? t('Stop listening') : t('Speak to {name}', { name: ASSISTANT.name })}
+              aria-pressed={listening}
+              title={listening ? t('Stop listening') : t('Speak to {name}', { name: ASSISTANT.name })}
+            >
+              <Icon name="mic" size={18} />
+            </button>
+          ) : null}
           <button type="submit" className="ai-send" disabled={!text.trim() || thinking} aria-label={t('Send')}>
             <Icon name="arrowUp" size={18} stroke={2.4} />
           </button>

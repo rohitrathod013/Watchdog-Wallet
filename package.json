@@ -19,7 +19,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "format": "prettier --write \"src/**/*.{js,jsx,css}\""
+    "format": "prettier --write \"src/**/*.{js,jsx,css}\"",
+    "test": "vitest run"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",
@@ -37,6 +38,7 @@
     "eslint-plugin-react-refresh": "^0.5.7",
     "globals": "^17.13.0",
     "prettier": "^3.9.10",
-    "vite": "^8.3.5"
+    "vite": "^8.3.5",
+    "vitest": "4.1.12"
   }
 }

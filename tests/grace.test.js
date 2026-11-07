@@ -1,0 +1,552 @@
+/* ------------------------------------------------------------------
+   Grace's test set: every line is a message and what Grace must do with
+   it. Run with `npm test`. GitHub runs it before every deploy, so a
+   change that breaks an answer never reaches the live site.
+   ------------------------------------------------------------------ */
+import { describe, expect, it } from 'vitest'
+import { respond } from '../src/lib/assistant'
+import { demoStats, computeStats, DEFAULT_BUDGETS } from '../src/lib/stats'
+import * as seed from '../src/data/seed'
+
+/* ---------------- fake accounts ---------------- */
+function makeApp(base) {
+  const calls = []
+  const spy =
+    (name) =>
+    (...args) =>
+      calls.push({ name, args })
+  const pots = base.pots ?? []
+  const inPots = pots.reduce((s, p) => s + p.amount, 0)
+  const app = {
+    user: { first: 'Rohit', name: 'Rohit Rathod' },
+    period: 'month',
+    currency: 'USD',
+    theme: 'light',
+    contacts: [],
+    goals: [],
+    bills: [],
+    transactions: [],
+    activity: [],
+    ...base,
+    pots,
+    inPots,
+    unassigned: (base.balance ?? 0) - inPots,
+    calls,
+  }
+  for (const f of [
+    'sendMoney',
+    'requestMoney',
+    'payBill',
+    'fundGoal',
+    'setBudgetLimit',
+    'addTransaction',
+    'addMoney',
+    'moveMoney',
+    'addGoal',
+    'openModal',
+    'go',
+    'switchTheme',
+    'setAccent',
+    'setLive',
+    'setCurrency',
+    'setPeriod',
+    'logActivity',
+  ])
+    app[f] = spy(f)
+  if (!app.stats) app.stats = computeStats(app.transactions, app.budgets ?? [], app.now)
+  app.budgets = app.stats.budgets ?? app.budgets
+  return app
+}
+
+const demo = () =>
+  makeApp({
+    balance: seed.BALANCE_USD,
+    transactions: seed.TRANSACTIONS,
+    goals: seed.GOALS,
+    budgets: seed.BUDGETS,
+    bills: seed.BILLS,
+    contacts: seed.CONTACTS,
+    pots: seed.POTS,
+    stats: demoStats(seed.BUDGETS),
+    now: new Date(2026, 9, 28, 18),
+  })
+
+const tx = (id, date, name, amount, category, extra = {}) => ({
+  id,
+  date,
+  name,
+  amount,
+  category,
+  kind: 'transfer',
+  method: 'Cash',
+  status: 'Completed',
+  ...extra,
+})
+const RICH_NOW = new Date(2026, 9, 20, 12)
+const rich = () =>
+  makeApp({
+    now: RICH_NOW,
+    balance: 2400,
+    contacts: [
+      { id: 'c1', name: 'Nikhil Sharma', hue: 1 },
+      { id: 'c2', name: 'Ayush Kumar', hue: 2 },
+    ],
+    goals: [{ id: 'g1', name: 'New Laptop', icon: 'laptop', saved: 400, target: 1500, monthly: 150, due: 'Mar 2027' }],
+    bills: [
+      { id: 'b1', name: 'Electricity', amount: 80, dueDate: '2026-10-24', kind: 'fuel', paid: false },
+      { id: 'b2', name: 'Rent', amount: 1200, dueDate: '2026-10-30', kind: 'home', paid: false },
+    ],
+    pots: [
+      { id: 'p1', name: 'Savings', icon: 'safe', amount: 600 },
+      { id: 'p2', name: 'Travel', icon: 'plane', amount: 300 },
+    ],
+    budgets: DEFAULT_BUDGETS,
+    transactions: [
+      tx('a1', '2026-08-01T09:00', 'Salary', 3000, 'Salary'),
+      tx('a2', '2026-08-05T19:00', 'Dinner', -60, 'Food & Dining'),
+      tx('a3', '2026-08-12T09:00', 'Netflix', -12.99, 'Entertainment', { kind: 'stream' }),
+      tx('b1', '2026-09-01T09:00', 'Salary', 3000, 'Salary'),
+      tx('b2', '2026-09-08T19:00', 'Groceries', -90, 'Food & Dining'),
+      tx('b3', '2026-09-12T09:00', 'Netflix', -12.99, 'Entertainment', { kind: 'stream' }),
+      tx('b4', '2026-09-14T10:00', 'Uber', -25, 'Transport'),
+      tx('c1', '2026-10-01T09:00', 'Salary', 3000, 'Salary'),
+      tx('c2', '2026-10-06T20:00', 'Dinner', -300, 'Food & Dining'),
+      tx('c3', '2026-10-12T09:00', 'Netflix', -15.49, 'Entertainment', { kind: 'stream' }),
+      tx('c4', '2026-10-13T08:00', 'Uber', -22, 'Transport'),
+      tx('c5', '2026-10-14T08:05', 'Uber', -22, 'Transport'),
+      tx('c6', '2026-10-15T15:00', 'Headphones', -240, 'Shopping'),
+      tx('c7', '2026-10-17T12:00', 'Client project', 800, 'Freelance'),
+      tx('c8', '2026-10-19T13:00', 'Lunch', -18, 'Food & Dining'),
+    ],
+  })
+
+const empty = () => makeApp({ balance: 0, budgets: DEFAULT_BUDGETS, now: new Date(2026, 10, 6, 12) })
+
+/* ---------------- helpers ---------------- */
+const plain = (r) => (r.text ?? '').replace(/\*\*/g, '')
+const ask = (app, text, memory) => respond(text, app, memory)
+const confirmAndRun = (app, r) => {
+  expect(r.confirm, `expected a confirm step for: ${plain(r)}`).toBeTruthy()
+  r.confirm.run()
+  return app.calls
+}
+
+/* ================================================================== */
+describe('safety', () => {
+  const cases = [
+    'my password is hunter2',
+    'my pin is 4321',
+    'here is my card 4111 1111 1111 1111',
+    'cvv 123',
+    'the otp is 993812',
+    'my one-time code is 123456',
+  ]
+  for (const c of cases)
+    it(`refuses secrets: "${c}"`, () => {
+      const r = ask(demo(), c)
+      expect(r.mask).toBe(true)
+      expect(plain(r)).toMatch(/don’t share passwords/)
+      expect(r.confirm).toBeFalsy()
+    })
+
+  it('does not treat "change my password please" as sharing one', () => {
+    const r = ask(demo(), 'how do I change my password please')
+    expect(r.mask).toBeFalsy()
+  })
+  for (const c of ['I think this is fraud', 'my card was stolen', 'I want to dispute a charge', 'someone used my account', 'I got scammed'])
+    it(`hands off fraud and disputes: "${c}"`, () => {
+      const r = ask(demo(), c)
+      expect(plain(r)).toMatch(/contact your bank/)
+      expect(r.confirm).toBeFalsy()
+    })
+  for (const c of ['should I buy bitcoin', 'which stocks should I invest in', 'is tesla a good investment', 'best crypto to buy'])
+    it(`gives information, not investment advice: "${c}"`, () => {
+      const r = ask(demo(), c)
+      expect(plain(r)).toMatch(/can’t give investment advice/)
+      expect(r.confirm).toBeFalsy()
+    })
+  it('points locked-out users to password reset', () => {
+    expect(plain(ask(demo(), 'I forgot my password'))).toMatch(/Forgot password/)
+  })
+})
+
+/* ================================================================== */
+describe('never acts on ambiguous requests', () => {
+  for (const c of ['send money', 'send $50', 'request money', 'pay', 'move money'])
+    it(`asks first: "${c}"`, () => {
+      const app = demo()
+      const r = ask(app, c)
+      expect(r.confirm).toBeFalsy()
+      expect(app.calls.filter((x) => !['openModal', 'go'].includes(x.name))).toHaveLength(0)
+    })
+})
+
+/* ================================================================== */
+describe('answers about your own data', () => {
+  const cases = [
+    ['what’s my balance?', /total balance is \$128,430\.50/],
+    ['give me a summary', /snapshot/],
+    ['where did my money go?', /You spent \$5,000\.00/],
+    ['how much did I earn this month', /came in|You earned/],
+    ['am I over budget?', /Shopping is over the limit/],
+    ['how are my goals?', /saving for 3 goals/],
+    ['any bills due?', /bills coming up/],
+    ['how much is in my pots?', /in 5 pots/],
+    ['what is my net profit', /net profit is/],
+    ['how much did I spend on food?', /Food & Dining/],
+  ]
+  for (const [q, want] of cases)
+    it(q, () => {
+      expect(plain(ask(demo(), q))).toMatch(want)
+    })
+})
+
+/* ================================================================== */
+describe('finding transactions', () => {
+  const cases = [
+    ['what did I spend on food this month', /Found 2 transactions/, (r) => r.card?.type === 'tx'],
+    ['what did I spend on food last week', /No transactions last week/],
+    ['show uber charges this month', /2 transactions/],
+    ['find transactions over $200', /over \$200/],
+    ['what did I spend yesterday', /Found|No transactions/],
+    ['show my spending in september', /Found 3 transactions/],
+    ['how much did I spend on transport last month', /\$25\.00 went out/],
+    ['show netflix payments', /3 transactions/],
+    ['list purchases under $20', /under \$20/],
+    ['how much did I earn this month', /You earned|came in/],
+    ['what did I buy in august', /Found 2 transactions/],
+  ]
+  for (const [q, want, extra] of cases)
+    it(q, () => {
+      const r = ask(rich(), q)
+      expect(plain(r)).toMatch(want)
+      if (extra) expect(extra(r)).toBe(true)
+    })
+
+  it('remembers the search for "and last month?"', () => {
+    const app = rich()
+    const r1 = ask(app, 'show uber charges this month')
+    const r2 = ask(app, 'and last month?', r1.memory)
+    expect(plain(r2)).toMatch(/1 transaction/)
+  })
+  it('remembers the search for "what about food"', () => {
+    const app = rich()
+    const r1 = ask(app, 'what did I spend this month')
+    const r2 = ask(app, 'what about food', r1.memory)
+    expect(plain(r2)).toMatch(/on Food & Dining/)
+  })
+  it('does not treat a command after a search as a follow-up', () => {
+    const app = rich()
+    const r1 = ask(app, 'what did I spend this month')
+    const r2 = ask(app, 'pay rent', r1.memory)
+    expect(r2.confirm?.label).toMatch(/Pay/)
+  })
+})
+
+/* ================================================================== */
+describe('why is my spending up?', () => {
+  it('compares with last month and names the biggest changes', () => {
+    const t = plain(ask(rich(), 'why is my spending up this month?'))
+    expect(t).toMatch(/more than this time last month/)
+    expect(t).toMatch(/Food & Dining up/)
+    expect(t).toMatch(/Dinner/)
+  })
+  it('works on an empty account', () => {
+    expect(plain(ask(empty(), 'why is my spending up'))).toMatch(/no spending/)
+  })
+})
+
+/* ================================================================== */
+describe('alerts, forecast, unusual charges, subscriptions', () => {
+  it('lists heads-ups', () => {
+    const t = plain(ask(rich(), 'any alerts?'))
+    expect(t).toMatch(/Electricity/)
+    expect(t).toMatch(/charged twice/)
+  })
+  it('warns when a bill can’t be covered', () => {
+    const app = rich()
+    app.unassigned = 50
+    expect(plain(ask(app, 'anything I should know?'))).toMatch(/short/)
+  })
+  it('is quiet on an empty account', () => {
+    expect(plain(ask(empty(), 'any alerts'))).toMatch(/All quiet/)
+  })
+  it('forecasts the end of the month', () => {
+    const t = plain(ask(rich(), 'what will my balance be at the end of the month?'))
+    expect(t).toMatch(/By October 31/)
+    expect(t).toMatch(/\$1,280\.00 in bills/)
+  })
+  it('forecast handles an empty account', () => {
+    expect(plain(ask(empty(), 'forecast my month'))).toMatch(/\$0\.00/)
+  })
+  it('spots a duplicate charge', () => {
+    expect(plain(ask(rich(), 'any unusual charges?'))).toMatch(/Uber was charged twice/)
+  })
+  it('spots a big one-off spend', () => {
+    expect(plain(ask(rich(), 'anything unusual?'))).toMatch(/Headphones|Dinner/)
+  })
+  it('spots a subscription price rise', () => {
+    expect(plain(ask(rich(), 'show my subscriptions'))).toMatch(/Netflix went up from \$12\.99 to \$15\.49/)
+  })
+  it('totals subscriptions per month and year', () => {
+    expect(plain(ask(rich(), 'what am I paying for every month?'))).toMatch(/a month \(\$186 a year\)/)
+  })
+  it('says it can’t cancel subscriptions', () => {
+    expect(plain(ask(rich(), 'list my subscriptions'))).toMatch(/can’t cancel/)
+  })
+  it('nothing unusual on the demo apart from what is there', () => {
+    expect(plain(ask(demo(), 'any duplicate charges?'))).toBeTruthy()
+  })
+})
+
+/* ================================================================== */
+describe('can I afford it?', () => {
+  it('yes for something small', () => {
+    expect(plain(ask(rich(), 'can I afford $150?'))).toMatch(/^Yes/)
+  })
+  it('no, with the trade-off, for something too big right now', () => {
+    const t = plain(ask(rich(), 'can I afford $5000 this month?'))
+    expect(t).toMatch(/Not comfortably/)
+    expect(t).toMatch(/short/)
+  })
+  it('counts future months for a later date', () => {
+    const t = plain(ask(rich(), 'can I afford a $1,200 trip in March?'))
+    expect(t).toMatch(/by March/)
+  })
+  it('mentions pausing goals when short', () => {
+    expect(plain(ask(rich(), 'can I afford $9000 next month'))).toMatch(/goal contributions/)
+  })
+  it('works on an empty account', () => {
+    expect(plain(ask(empty(), 'can I afford $100'))).toMatch(/Not comfortably/)
+  })
+})
+
+/* ================================================================== */
+describe('goal planning', () => {
+  it('gives a weekly amount and offers to create the goal', () => {
+    const app = rich()
+    const r = ask(app, 'save $5k by June for a car')
+    expect(plain(r)).toMatch(/a week/)
+    expect(r.confirm.label).toMatch(/Create this goal/)
+    confirmAndRun(app, r)
+    expect(app.calls.find((c) => c.name === 'addGoal').args[0]).toMatchObject({ target: 5000 })
+  })
+  it('suggests a budget to trim when short', () => {
+    const app = rich()
+    const r = ask(app, 'I need to save $10000 by december')
+    expect(plain(r)).toMatch(/short/)
+  })
+  it('names the goal from the sentence', () => {
+    const r = ask(rich(), 'save $2000 by march for a holiday')
+    expect(r.confirm.note).toMatch(/Holiday/)
+  })
+})
+
+/* ================================================================== */
+describe('actions with a confirm step', () => {
+  const cases = [
+    ['send $50 to Nikhil', 'sendMoney', (a) => a[0].amount === 50 && a[0].to === 'Nikhil Sharma'],
+    ['request $20 from Ayush', 'requestMoney', (a) => a[0].amount === 20],
+    ['pay the electric bill', 'payBill', (a) => a[0] === 'b1'],
+    ['pay rent', 'payBill', (a) => a[0] === 'b2'],
+    ['pay all my bills', 'payBill', (a) => a.length === 2],
+    ['add $100 to New Laptop', 'fundGoal', (a) => a[0] === 'g1' && a[1] === 100],
+    ['set food budget to $500', 'setBudgetLimit', (a) => a[1] === 500],
+    ['move $200 to savings', 'moveMoney', (a) => a[0].to === 'p1' && a[0].amount === 200 && a[0].from === 'unassigned'],
+    ['put $50 into travel', 'moveMoney', (a) => a[0].to === 'p2'],
+    ['take $100 out of travel', 'moveMoney', (a) => a[0].from === 'p2' && a[0].to === 'unassigned'],
+    ['move $100 from savings to travel', 'moveMoney', (a) => a[0].from === 'p1' && a[0].to === 'p2'],
+    ['I spent $300 for dinner', 'addTransaction', (a) => a[0].amount === -300 && a[0].category === 'Food & Dining'],
+    ['spent 45 on an uber yesterday', 'addTransaction', (a) => a[0].category === 'Transport'],
+    ['paid $12 for netflix', 'addTransaction', (a) => a[0].category === 'Entertainment'],
+    ['bought new shoes for $90', 'addTransaction', (a) => a[0].name === 'Shoes' && a[0].category === 'Shopping'],
+    ['I got paid $2000', 'addMoney', (a) => a[0].amount === 2000 && a[0].category === 'Salary'],
+    ['received $150 from a freelance client', 'addMoney', (a) => a[0].category === 'Freelance'],
+    ['got $50 as a birthday gift', 'addMoney', (a) => a[0].category === 'Gift'],
+    ['spent $30 on groceries from my travel pot', 'addTransaction', (a) => a[0].potId === 'p2'],
+  ]
+  for (const [q, fn, check] of cases)
+    it(`${q} → ${fn}`, () => {
+      const app = rich()
+      const r = ask(app, q)
+      confirmAndRun(app, r)
+      const call = app.calls.filter((c) => c.name === fn)
+      expect(call.length, `no ${fn} call`).toBeGreaterThan(0)
+      expect(check(fn === 'payBill' && q.includes('all') ? call : call[0].args)).toBe(true)
+    })
+
+  it('nothing moves before you confirm', () => {
+    const app = rich()
+    ask(app, 'send $50 to Nikhil')
+    expect(app.calls).toHaveLength(0)
+  })
+  it('won’t move more than a pot has', () => {
+    const r = ask(rich(), 'move $900 from travel to savings')
+    expect(r.confirm).toBeFalsy()
+    expect(plain(r)).toMatch(/only has \$300\.00/)
+  })
+  it('won’t send more than the balance', () => {
+    const r = ask(rich(), 'send $99999 to Nikhil')
+    expect(r.confirm).toBeFalsy()
+  })
+  it('shows the amount and recipient in the confirm', () => {
+    const r = ask(rich(), 'send $75 to Ayush')
+    expect(r.confirm.label).toMatch(/\$75\.00/)
+    expect(r.confirm.note).toMatch(/Ayush Kumar/)
+  })
+  it('"make it $80" redoes the last action with a new amount', () => {
+    const app = rich()
+    const r1 = ask(app, 'send $50 to Nikhil')
+    const r2 = ask(app, 'make it $80', r1.memory)
+    confirmAndRun(app, r2)
+    expect(app.calls.find((c) => c.name === 'sendMoney').args[0].amount).toBe(80)
+  })
+  it('"actually 25" also changes the amount', () => {
+    const app = rich()
+    const r1 = ask(app, 'I spent $300 for dinner')
+    const r2 = ask(app, 'actually 25', r1.memory)
+    confirmAndRun(app, r2)
+    expect(app.calls.find((c) => c.name === 'addTransaction').args[0].amount).toBe(-25)
+  })
+})
+
+/* ================================================================== */
+describe('several steps in one message', () => {
+  it('moves, pays and reports what’s left', () => {
+    const app = rich()
+    const r = ask(app, 'Move $200 to savings, then pay the electric bill, then tell me what’s left')
+    expect(r.confirm.label).toMatch(/Do all 2/)
+    expect(plain(r)).toMatch(/1\. Move \$200\.00/)
+    expect(plain(r)).toMatch(/2\. Pay \$80\.00/)
+    r.confirm.run()
+    expect(app.calls.map((c) => c.name)).toEqual(['moveMoney', 'payBill'])
+    expect(r.confirm.done.replace(/\*\*/g, '')).toMatch(/What’s left: \$2,320\.00 in total, \$1,220\.00 unassigned/)
+  })
+  it('logs spending and sends money in one go', () => {
+    const app = rich()
+    const r = ask(app, 'I spent $20 on lunch and then send $10 to Ayush')
+    r.confirm.run()
+    expect(app.calls.map((c) => c.name)).toEqual(['addTransaction', 'sendMoney'])
+  })
+  it('refuses the whole plan when one step is unclear', () => {
+    const app = rich()
+    const r = ask(app, 'pay rent then do the thing with the stuff for $40')
+    expect(r.confirm).toBeFalsy()
+    expect(plain(r)).toMatch(/didn’t understand step 2/)
+  })
+  it('does not split "lunch then coffee" into steps', () => {
+    const r = ask(rich(), 'I spent $20 on lunch then coffee')
+    expect(r.confirm.label).toMatch(/Add expense/)
+  })
+})
+
+/* ================================================================== */
+describe('help with the site and what words mean', () => {
+  const cases = [
+    ['where do I export a CSV?', /Export CSV/],
+    ['how do I add money', /Add money/],
+    ['how do I create a pot', /New pot/],
+    ['what is unassigned', /isn’t in any pot/],
+    ['how do I add a bill', /Upcoming Bills/],
+    ['how can I add a contact', /Add contact/],
+    ['how do I change the language', /language button/],
+    ['how do I change the theme', /Settings/],
+    ['how do I change my budget', /Monthly limit/],
+    ['how do I delete my data', /Clear my data/],
+    ['how do I add an expense', /Add transaction/],
+    ['what is a fee', /charge for a service/],
+    ['what is an overdraft', /below zero/],
+    ['what does pending mean', /isn’t finished/],
+    ['what is apr', /whole year/],
+    ['what is a chargeback', /reverses a card payment/],
+    ['what is autopay', /automatically/],
+    ['what is net profit', /income minus your expenses/],
+    ['what is a savings rate', /didn’t spend/],
+    ['explain cash flow', /coming in versus/],
+    ['what is an emergency fund', /surprises/],
+    ['what can you do', /Find transactions|Find/],
+  ]
+  for (const [q, want] of cases)
+    it(q, () => {
+      expect(plain(ask(demo(), q))).toMatch(want)
+    })
+  it('a definition question about "my budget" gives the status, not a definition', () => {
+    expect(plain(ask(demo(), "what's my budget"))).not.toMatch(/a limit you set/)
+  })
+})
+
+/* ================================================================== */
+describe('audit trail', () => {
+  it('explains the last action', () => {
+    const app = rich()
+    app.activity = [
+      {
+        id: 'x',
+        at: '2026-10-20T10:00:00Z',
+        action: 'Send $50.00',
+        detail: 'To Nikhil Sharma',
+        reason: 'You asked “send $50 to Nikhil”.',
+        request: 'send $50 to Nikhil',
+      },
+    ]
+    const t = plain(ask(app, 'why did you do that?'))
+    expect(t).toMatch(/Send \$50\.00/)
+    expect(t).toMatch(/Why: You asked/)
+  })
+  it('says so when nothing has been done', () => {
+    expect(plain(ask(empty(), 'what did you do?'))).toMatch(/haven’t done anything/)
+  })
+})
+
+/* ================================================================== */
+describe('everything else still works', () => {
+  const cases = [
+    ['hi', /Great to see you/],
+    ['switch to dark mode', /dark mode/],
+    ['make it blue', /blue/],
+    ['show it in euros', /in EUR/],
+    ['open analytics', /Analytics/],
+    ['tell me a joke', /./],
+    ['give me a saving tip', /ideas/],
+    ['who are you', /Grace/],
+    ['thank you', /Anytime/],
+    ['pause live updates', /Paused/],
+    ['blah blah nonsense', /not sure/],
+  ]
+  for (const [q, want] of cases)
+    it(q, () => {
+      expect(plain(ask(demo(), q))).toMatch(want)
+    })
+})
+
+/* ================================================================== */
+describe('empty accounts never crash', () => {
+  const qs = [
+    'what’s my balance?',
+    'give me a summary',
+    'where did my money go?',
+    'am I over budget?',
+    'how are my goals?',
+    'any bills due?',
+    'how much is in my pots?',
+    'what did I spend last week',
+    'any alerts?',
+    'forecast my month',
+    'any unusual charges?',
+    'show my subscriptions',
+    'can I afford $50',
+    'save $1000 by june',
+    'send $10 to Maya',
+    'move $10 to savings',
+    'why is my spending up',
+    'I spent $5 on coffee',
+    'what is a fee',
+  ]
+  for (const q of qs)
+    it(q, () => {
+      const r = ask(empty(), q)
+      expect(typeof r.text).toBe('string')
+      expect(r.text.length).toBeGreaterThan(0)
+      expect(r.text).not.toMatch(/NaN|undefined|Infinity/)
+    })
+})

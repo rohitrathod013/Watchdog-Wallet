@@ -7,7 +7,7 @@
    { q, label }: the label is shown translated, while q is the English
    command sent back in, so a tapped chip works in every language.
 
-   respond(text, app) → {
+   respond(text, app, memory) → {
      text,                 // **bold**, newlines and "• " bullets
      mood?,                // 'happy' | 'idle'
      card?,                // { type: 'bars' | 'stats' | 'tx', … }
@@ -19,6 +19,20 @@
    ------------------------------------------------------------------ */
 import { isoDay, localIso, money, whole } from './format'
 import { t } from './i18n'
+import { billDue } from './stats'
+import {
+  afford,
+  alerts,
+  anomalies,
+  compareMonths,
+  findTransactions,
+  forecast,
+  nowFor,
+  parseRange,
+  parseTarget,
+  planGoal,
+  subscriptions,
+} from './insights'
 import { ASSISTANT, BRAND } from '../config'
 import { CAT_COLORS, CURRENCIES } from '../data/seed'
 
@@ -72,7 +86,9 @@ const findBudget = (s, list) =>
   (/\b(groceries|grocery|restaurants?|coffee|khana)\b/.test(s) ? list.find((b) => b.id === 'food') : null) ??
   (/\b(rent|house|ghar)\b/.test(s) ? list.find((b) => b.id === 'housing') : null) ??
   (/\b(uber|fuel|gas|car|travel)\b/.test(s) ? list.find((b) => b.id === 'transport') : null)
-const findBill = (s, list) => list.find((b) => named(s, b.name))
+const findBill = (s, list) =>
+  list.find((b) => named(s, b.name)) ??
+  list.find((b) => words(b.name).some((w) => s.split(/[^a-z]+/).some((x) => x.length >= 4 && (w.startsWith(x) || x.startsWith(w)))))
 
 const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0)
 const signedPct = (v) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}%`
@@ -103,7 +119,7 @@ const EXPENSE_WORDS = [
   ['Transport', /\b(uber|lyft|taxi|cab|fuel|gas|petrol|diesel|bus|train|metro|subway|parking|toll|ride|auto)\b/],
   ['Housing', /\b(rent|mortgage|landlord)\b/],
   ['Bills', /\b(electricity|electric|internet|wifi|phone bill|mobile bill|water bill|bill|subscription|recharge)\b/],
-  ['Entertainment', /\b(movie|movies|cinema|netflix|spotify|concert|game|games|gaming|party|show|tickets?|club)\b/],
+  ['Entertainment', /\b(movie|movies|cinema|netflix|spotify|concert|game|games|gaming|party|tickets?|club)\b/],
   ['Health', /\b(doctor|medicine|medicines|pharmacy|chemist|gym|hospital|dentist|clinic)\b/],
   ['Travel', /\b(hotel|flight|flights|airbnb|trip|vacation|holiday|travel)\b/],
   ['Shopping', /\b(clothes|shoes|shirt|dress|shopping|amazon|mall|gadget|phone|laptop|gift|present)\b/],
@@ -161,7 +177,7 @@ export function parseLogged(raw, s, amount, pots) {
   }
 }
 
-export function respond(raw, app) {
+function core(raw, app) {
   const s = norm(raw)
   const me = app.user.first
   const { periods: PERIODS, incomeSources: INCOME_SOURCES, cashflow: CASHFLOW } = app.stats
@@ -217,7 +233,7 @@ export function respond(raw, app) {
   if (/(joke|make me laugh|funny)/.test(s)) {
     return { text: t(JOKES[Math.floor(Math.random() * JOKES.length)]), mood: 'happy', chips: [chip('Another one'), chip('Give me a saving tip')] }
   }
-  if (/^another one$/.test(s)) return respond('joke', app)
+  if (/^another one$/.test(s)) return core('joke', app)
   if (/(dance|jump|celebrate|party|be happy|khush)/.test(s)) {
     return { text: t('Wheee! 🎉 Every dollar saved deserves a little dance.'), mood: 'happy' }
   }
@@ -303,6 +319,7 @@ export function respond(raw, app) {
           note: logged.pot
             ? t('{category} · from {pot}', { category: cat, pot: t(logged.pot.name) })
             : t('{category} · from your balance', { category: cat }),
+          effect: { balance: -logged.amount, free: logged.potId ? 0 : -logged.amount },
           run: () =>
             app.addTransaction({
               name: logged.name,
@@ -333,6 +350,7 @@ export function respond(raw, app) {
         note: logged.pot
           ? t('{category} · into {pot}', { category: cat, pot: t(logged.pot.name) })
           : t('{category} · into unassigned', { category: cat }),
+        effect: { balance: logged.amount, free: logged.potId ? 0 : logged.amount },
         run: () =>
           app.addMoney({
             amount: logged.amount,
@@ -355,6 +373,7 @@ export function respond(raw, app) {
         confirm: {
           label: t('Request {amount}', { amount: money(amount) }),
           note: t('From {name} · arrives instantly', { name: contact.name }),
+          effect: { balance: 0, free: 0 },
           run: () => app.requestMoney({ from: contact.name, amount, note: t('Sent by {name}', { name: ASSISTANT.name }) }),
           done: t('Request sent ✅ {name} will see it right away.', { name: firstName(contact.name) }),
         },
@@ -396,6 +415,7 @@ export function respond(raw, app) {
       confirm: {
         label: t('Add {amount}', { amount: money(add, '$', 0) }),
         note: t('To {name} · from your balance', { name: gName }),
+        effect: { balance: -add, free: -add },
         run: () => app.fundGoal(goal.id, add),
         done:
           goal.saved + add >= goal.target
@@ -416,6 +436,7 @@ export function respond(raw, app) {
       confirm: {
         label: t('Set to {amount}', { amount: whole(amount) }),
         note: t('Was {amount}', { amount: whole(budget.limit) }),
+        effect: { balance: 0, free: 0 },
         run: () => app.setBudgetLimit(budget.id, amount),
         done: t('Updated ✅ {name} now has a {amount} monthly limit.', { name: bName, amount: whole(amount) }),
       },
@@ -433,6 +454,7 @@ export function respond(raw, app) {
         confirm: {
           label: t('Pay {amount}', { amount: money(total) }),
           note: t('{n} bills · from your balance', { n: unpaid.length }),
+          effect: { balance: -total, free: -total },
           run: () => unpaid.forEach((b) => app.payBill(b.id)),
           done: t('All paid ✅ Nothing due for the next three weeks.'),
         },
@@ -440,13 +462,14 @@ export function respond(raw, app) {
     }
     if (bill) {
       const name = t(bill.name)
-      const due = tDue(bill.due)
+      const due = tDue(billDue(bill).due)
       if (bill.paid) return { text: t('{name} is already paid for {date} ✅', { name, date: due }) }
       return {
         text: t('{name} is **{amount}**, due {date} (in {n} days). Pay it now?', { name, amount: money(bill.amount), date: due, n: bill.days }),
         confirm: {
           label: t('Pay {amount}', { amount: money(bill.amount) }),
           note: t('{name} · autopay account', { name }),
+          effect: { balance: -bill.amount, free: -bill.amount },
           run: () => app.payBill(bill.id),
           done: t('Paid ✅ {name} is settled ahead of {date}.', { name, date: due }),
         },
@@ -465,6 +488,7 @@ export function respond(raw, app) {
         confirm: {
           label: t('Send {amount}', { amount: money(amount) }),
           note: t('To {name} · instant · free', { name: contact.name }),
+          effect: { balance: -amount, free: -amount },
           run: () => app.sendMoney({ to: contact.name, amount, note: t('Sent by {name}', { name: ASSISTANT.name }) }),
           done: t('Sent ✅ {amount} is on its way to {name}.', { amount: money(amount), name: firstName(contact.name) }),
         },
@@ -770,12 +794,12 @@ export function respond(raw, app) {
         n: unpaid.length,
         amount: money(total),
         name: t(unpaid[0].name),
-        date: tDue(unpaid[0].due),
+        date: tDue(billDue(unpaid[0]).due),
       }),
       card: {
         type: 'bars',
         rows: unpaid.map((b, k) => ({
-          label: `${t(b.name)} · ${tDue(b.due)}`,
+          label: `${t(b.name)} · ${tDue(billDue(b).due)}`,
           value: money(b.amount),
           p: Math.max(8, 100 - b.days * 5),
           c: b.days <= 5 ? 'var(--red)' : 'var(--accent)',
@@ -813,4 +837,741 @@ export function respond(raw, app) {
 }
 
 /* bill due dates are stored as "Nov 4" */
-const tDue = (d) => d.replace(/^([A-Z][a-z]{2})/, (m) => t(m))
+const tDue = (d) => (d ?? '').replace(/^([A-Z][a-z]{2})/, (m) => t(m))
+
+/* ==================================================================
+   The front layer: safety first, then multi-step requests, follow-ups
+   within the conversation and the smarter answers (search, alerts,
+   forecasts, "can I afford it?", goal plans, pots), then everything
+   above in core(). `memory` is per conversation, kept by the chat panel.
+   ================================================================== */
+
+const AMOUNT_TOKEN = /(?:\$|usd\s?)?\d[\d,]*(?:\.\d+)?\s?k?\b/i
+const monthName = (d) =>
+  t(['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][d.getMonth()])
+const rangeLabel = (r) =>
+  r.label.startsWith('past ')
+    ? t('in the past {n} days', { n: r.label.split(' ')[1] })
+    : /^[A-Z]/.test(r.label)
+      ? t('in {month}', { month: t(r.label) })
+      : t(r.label)
+const whenWord = (days) => (days <= 0 ? t('today') : days === 1 ? t('tomorrow') : t('in {n} days', { n: days }))
+
+/* ---------------- safety ---------------- */
+function safety(raw, s) {
+  const digits = raw.replace(/[\s-]/g, '')
+  const secret =
+    /\b(password|passcode|pin|cvv|cvc|otp|one[- ]time (code|password)|security code|login code)\b\s*(is|:|=)\s*\S/.test(s) ||
+    /\b(pin|cvv|cvc|otp|code)\b\s*\d{3,}/.test(s) ||
+    /\d{13,19}/.test(digits)
+  if (secret)
+    return {
+      text: t(
+        'Please don’t share passwords, PINs, codes or full card numbers here, not even with me. I’ll never ask for them. If you think someone else has them, change your password and call your bank.',
+      ),
+      mask: true,
+    }
+  if (
+    !/^(what('?s| is| are| does)|explain|define|meaning)\b/.test(s) &&
+    /\b(fraud|scam(med)?|stolen|hacked|unauthori[sz]ed|dispute|chargeback|someone (used|took|stole)|i didn'?t (make|do) (this|that)|identity theft)\b/.test(
+      s,
+    )
+  )
+    return {
+      text: t(
+        'I’m sorry, that sounds stressful. I can’t freeze cards or reverse charges. {brand} only tracks numbers you enter, so no real money moved here. For fraud or a disputed charge on a real card or account, contact your bank right away: they can freeze the card and investigate.',
+        { brand: BRAND.name },
+      ),
+    }
+  if (/\b(locked out|can'?t (log|sign) ?in|lost access|forgot (my )?password|reset (my )?password)\b/.test(s))
+    return {
+      text: t('Use **Forgot password?** on the login screen and we’ll email you a reset link. If the email doesn’t arrive, check your spam folder.'),
+    }
+  if (
+    /\b(should i (buy|sell|invest|short)|which (stocks?|shares?|crypto|coins?|funds?|etfs?)|best (stocks?|crypto|investments?|funds?)|invest (in|my)|buy (bitcoin|btc|crypto|stocks?|shares?|eth|gold|etfs?)|stock tips?|good investment|price prediction)\b/.test(
+      s,
+    )
+  )
+    return {
+      text: t(
+        'I can’t give investment advice or tell you what to buy. I can share information, like how much you could set aside each month, but for investing decisions please talk to a licensed financial adviser.',
+      ),
+      chips: [chip('How much do I keep each month?'), chip('Give me a saving tip')],
+    }
+  return null
+}
+
+/* ---------------- help with the site, and what words mean ---------------- */
+export const HELP = [
+  [
+    /(export|download).*(csv|transactions|spreadsheet|excel|statement)|where.*\bcsv\b/,
+    'Go to **Dashboard › Transactions** and press **Export CSV** at the top right. Reports have their own **CSV** button on each card.',
+    ['dashboard', { tab: 'transactions' }],
+    'Open Transactions',
+  ],
+  [
+    /how (do|can|to) (i )?(add|put( in)?|record) (some )?money|how.*add money/,
+    'Press **Add money** on the balance card or the Wallet page, type the amount and where it came from, and pick a pot for it if you like. No bank needed.',
+    ['wallet'],
+    'Open Wallet',
+  ],
+  [
+    /how (do|can|to) (i )?(make|create|use|set up) (a )?pots?|what (is|are) (a )?pots?\b/,
+    'Pots split your money by what it’s for, like Rent or Savings. On the **Wallet** page press **New pot**, then use the arrows on a pot to move money in or out.',
+    ['wallet'],
+    'Open Wallet',
+  ],
+  [
+    /what (is|does|'?s) unassigned|unassigned mean/,
+    '**Unassigned** is money you have that isn’t in any pot yet. Move it into pots on the Wallet page.',
+    ['wallet'],
+    'Open Wallet',
+  ],
+  [
+    /how (do|can|to) (i )?(make|create|add|set( up)?|start) (a )?(new )?(savings )?goal/,
+    'On the Dashboard, press **Add Goal** on the My Savings Goals card. Give it a name and target, and top it up any time.',
+    ['dashboard', { tab: 'overview' }],
+    'Open Dashboard',
+  ],
+  [
+    /how (do|can|to) (i )?add (a )?bill/,
+    'Press **+** on the **Upcoming Bills** card (Dashboard or Wallet), then enter the name, amount and due date.',
+    ['wallet'],
+    'Open Wallet',
+  ],
+  [
+    /how (do|can|to) (i )?add (a )?(contact|person|friend|someone)/,
+    'Press **Add contact** on the Quick Transfer card, or **New** on the Transfer page.',
+    ['transfer'],
+    'Open Transfer',
+  ],
+  [
+    /(change|switch|set).*\blanguage\b|how.*\blanguage\b/,
+    'Press the language button (it shows **EN**, **ES** and so on) at the top right and pick a language.',
+    null,
+    null,
+  ],
+  [
+    /how (do|can|to) (i )?(change|switch) (the )?(theme|colou?r|accent|look)/,
+    'Open **Settings** (the gear at the top right) to pick light or dark and an accent colour. Or just tell me, like “make it blue”.',
+    null,
+    null,
+  ],
+  [
+    /how (do|can|to) (i )?(change|set|edit|raise|lower) (a |my )?budgets?/,
+    'On the **Budget** page, drag the **Monthly limit** slider on any category. Or tell me, like “set food budget to $500”.',
+    ['budget'],
+    'Open Budget',
+  ],
+  [
+    /(delete|clear|erase|wipe|reset) (all )?(of )?(my )?(data|account|everything)|start (over|fresh|again)/,
+    'Open the account menu (your picture or initials, top right) and choose **Clear my data**, then click again to confirm. That empties your dashboard.',
+    null,
+    null,
+  ],
+  [
+    /how (do|can|to) (i )?(add|record|log|enter) (an? )?(expense|spending|purchase|transaction|income)/,
+    'Press **Add transaction** on the Transactions tab, or just tell me, like “I spent $20 on lunch”.',
+    ['dashboard', { tab: 'transactions' }],
+    'Open Transactions',
+  ],
+  [
+    /how (do|can|to) (i )?(send|transfer) money/,
+    'Press **Send Money** on the balance card, pick a contact and an amount. Or tell me, like “send $50 to Nikhil”.',
+    null,
+    null,
+  ],
+]
+
+export const TERMS = [
+  [/\b(fees?)\b/, 'A **fee** is a charge for a service, like a monthly account fee or an ATM fee. Fees show up as expenses.'],
+  [
+    /\b(overdraft|overdrawn)\b/,
+    'An **overdraft** is when you spend more than you have and your balance goes below zero. Banks often charge a fee or interest for it.',
+  ],
+  [
+    /\b(apr|interest rate|interest)\b/,
+    '**Interest** is the cost of borrowing money (or what you earn on savings). **APR** is that cost over a whole year, including fees, so you can compare offers.',
+  ],
+  [
+    /\bpending\b/,
+    'A **pending** transaction has started but isn’t finished yet, like a request someone hasn’t paid. It doesn’t count in your totals until it’s completed.',
+  ],
+  [
+    /\b(refunds?)\b/,
+    'A **refund** is money given back for something you returned or were overcharged for. Add it with **Add money** and pick **Refund**.',
+  ],
+  [
+    /\b(chargebacks?)\b/,
+    'A **chargeback** is when your bank reverses a card payment after you dispute it, for example for fraud or an item that never arrived.',
+  ],
+  [
+    /\b(autopay|direct debit|standing order)\b/,
+    '**Autopay** (a direct debit) lets a company take a bill from your account automatically each time it’s due.',
+  ],
+  [
+    /\b(net profit|net income)\b/,
+    '**Net profit** is your income minus your expenses for the period. Positive means you kept money; negative means you spent more than came in.',
+  ],
+  [
+    /\b(savings rate)\b/,
+    'Your **savings rate** is the share of your income you didn’t spend: net profit ÷ income. 20% means you kept $20 of every $100.',
+  ],
+  [
+    /\b(cash ?flow)\b/,
+    '**Cash flow** is money coming in versus money going out over time. The Cash Flow chart shows both lines for the last 6 or 12 months.',
+  ],
+  [
+    /\b(emergency fund)\b/,
+    'An **emergency fund** is money set aside for surprises, like a repair or losing income. A common aim is 3 to 6 months of expenses.',
+  ],
+  [/\b(budget)\b/, 'A **budget** is a limit you set for a category each month. The bar shows how much of it you’ve used.'],
+  [
+    /\b(subscriptions?)\b/,
+    'A **subscription** is a regular charge for an ongoing service, like streaming or a gym. They’re easy to forget, so ask me to list yours.',
+  ],
+  [/\b(balance)\b/, 'Your **balance** is all the money you’ve recorded: everything added minus everything spent.'],
+]
+
+function siteHelp(s, app) {
+  for (const [re, text, to, label] of HELP) {
+    if (re.test(s)) return { text: t(text), links: to ? [{ label: t(label), run: () => app.go(...to) }] : undefined }
+  }
+  if (/^(what('?s| is| are| does)|meaning of|define|explain|what do you mean by)\b/.test(s) && !/\b(my|i|me)\b/.test(s)) {
+    const hit = TERMS.find(([re]) => re.test(s))
+    if (hit) return { text: t(hit[1]) }
+  }
+  return null
+}
+
+/* ---------------- finding transactions ---------------- */
+const FIND_VERB =
+  /\b(show|find|list|search|see|look up|what did i (spend|buy|pay|earn)|how much (did|have) i (spend|spent|pay|paid|earn|earned|make|made)|did i (spend|buy|pay)|transactions?|purchases?|charges?|payments?|spending on|spent on|paid for)\b/
+
+function filterFrom(s, app, now) {
+  const range = parseRange(s, now)
+  const dir = /\b(earn|earned|made|income|received|got paid)\b/.test(s)
+    ? 'in'
+    : /\b(spend|spending|spent|buy|bought|pay|paid|purchases?|charges?|cost|costs|expenses?)\b/.test(s)
+      ? 'out'
+      : undefined
+  const category = app.budgets.find((b) => s.includes(b.name.toLowerCase()))?.name ?? EXPENSE_WORDS.find(([, re]) => re.test(s))?.[0] ?? null
+  const names = [...new Set(app.transactions.flatMap((x) => x.name.toLowerCase().split(/[^a-z]+/)).filter((w) => w.length >= 4))]
+  const words = names.filter((w) => new RegExp(`\\b${w}\\b`).test(s) && !['transfer', 'request', 'payment', 'salary', 'from'].includes(w))
+  const min = s.match(/\b(?:over|above|more than|bigger than|greater than)\s*\$?(\d[\d,]*)/)
+  const max = s.match(/\b(?:under|below|less than|smaller than)\s*\$?(\d[\d,]*)/)
+  return {
+    range,
+    dir,
+    category: words.length ? null : category,
+    words,
+    min: min ? Number(min[1].replace(/,/g, '')) : null,
+    max: max ? Number(max[1].replace(/,/g, '')) : null,
+  }
+}
+
+function finderReply(filter, app) {
+  const { rows } = findTransactions(app.transactions, filter)
+  const when = filter.range ? ` ${rangeLabel(filter.range)}` : ''
+  const what = filter.words?.length
+    ? ` ${t('for {name}', { name: filter.words.map((w) => w[0].toUpperCase() + w.slice(1)).join(', ') })}`
+    : filter.category
+      ? ` ${t('on {name}', { name: t(filter.category) })}`
+      : ''
+  const size =
+    filter.min != null
+      ? ` ${t('over {amount}', { amount: whole(filter.min) })}`
+      : filter.max != null
+        ? ` ${t('under {amount}', { amount: whole(filter.max) })}`
+        : ''
+  const memory = { lastFilter: filter }
+  const chips = [chip('and last month', 'And last month?'), chip('and this month', 'And this month?')].filter(
+    (c) => !filter.range || !filter.range.label.includes(c.q.replace('and ', '')),
+  )
+  if (!rows.length) return { text: t('No transactions{when}{what}{size}.', { when, what, size }), memory, chips }
+  const out = rows.filter((x) => x.amount < 0).reduce((s, x) => s - x.amount, 0)
+  const inn = rows.filter((x) => x.amount > 0).reduce((s, x) => s + x.amount, 0)
+  const sum =
+    filter.dir === 'in' || (!out && inn)
+      ? t('**{amount}** came in', { amount: money(inn) })
+      : filter.dir === 'out' || !inn
+        ? t('**{amount}** went out', { amount: money(out) })
+        : t('**{out}** went out and **{in}** came in', { out: money(out), in: money(inn) })
+  return {
+    text:
+      rows.length === 1
+        ? t('Found **1 transaction**{when}{what}{size}: {sum}.', { when, what, size, sum })
+        : t('Found **{n} transactions**{when}{what}{size}: {sum}.', { n: rows.length, when, what, size, sum }),
+    card: { type: 'tx', rows: rows.slice(0, 5) },
+    links: rows.length > 5 ? [{ label: t('See all transactions'), run: () => app.go('dashboard', { tab: 'transactions' }) }] : undefined,
+    memory,
+    chips,
+  }
+}
+
+/* ---------------- moving money between pots ---------------- */
+function findPot(text, pots) {
+  if (!text) return null
+  return (
+    pots.find((p) => text.includes(p.name.toLowerCase())) ?? pots.find((p) => words(p.name).some((w) => new RegExp(`\\b${w}\\b`).test(text))) ?? null
+  )
+}
+
+function potMove(s, amount, app) {
+  if (!amount || !app.pots?.length) return null
+  if (!/\b(move|put|transfer|shift|add|take|pull|withdraw|top ?up)\b/.test(s)) return null
+  const fromText = s.match(/\b(?:from|out of)\s+(?:my\s+|the\s+)?([a-z][a-z ]{1,30}?)(?:\s+(?:pot|to|into|and)\b|$)/)?.[1]
+  const toText = s.match(/\b(?:to|into|in)\s+(?:my\s+|the\s+)?([a-z][a-z ]{1,30}?)(?:\s+(?:pot|from)\b|$)/)?.[1]
+  const fromPot = findPot(fromText, app.pots)
+  const toPot = findPot(toText, app.pots)
+  const goal = findGoal(s, app.goals)
+  // "add $100 to Emergency Fund" is a goal; only treat it as a pot when clearly about pots
+  if (!fromPot && !toPot) return null
+  if (goal && !/\b(move|shift|transfer|pot)\b/.test(s)) return null
+  const from = fromPot ? fromPot.id : 'unassigned'
+  const to = toPot ? toPot.id : 'unassigned'
+  if (from === to) return null
+  const label = (id) => (id === 'unassigned' ? t('Unassigned') : t(app.pots.find((p) => p.id === id).name))
+  const have = from === 'unassigned' ? Math.max(0, app.unassigned) : fromPot.amount
+  if (amount > have)
+    return { text: t('{name} only has {amount}, so I can’t move {want}.', { name: label(from), amount: money(have), want: money(amount) }) }
+  return {
+    text: t('Move **{amount}** from {from} to **{to}**?', { amount: money(amount), from: label(from), to: label(to) }),
+    confirm: {
+      label: t('Move {amount}', { amount: money(amount) }),
+      note: t('{from} → {to}', { from: label(from), to: label(to) }),
+      effect: { balance: 0, free: from === 'unassigned' ? -amount : to === 'unassigned' ? amount : 0 },
+      run: () => app.moveMoney({ from, to, amount }),
+      done: t('Moved ✅ {amount} is now in {to}.', { amount: money(amount), to: label(to) }),
+    },
+  }
+}
+
+/* ---------------- the smarter answers ---------------- */
+function smart(raw, s, app) {
+  const now = nowFor(app)
+  const amount = parseAmount(s)
+
+  // what Grace did, and why
+  if (
+    /(why did you (do|make|send|pay|add|move|that)|what did you (just )?do|your (activity|history|log)|grace'?s (activity|history|log)|what have you done)/.test(
+      s,
+    )
+  ) {
+    const last = app.activity?.[0]
+    if (!last) return { text: t('I haven’t done anything on your account yet.') }
+    return {
+      text: t('The last thing I did was **{action}** ({detail}), {when}.\nWhy: {reason}', {
+        action: last.action,
+        detail: last.detail,
+        when: new Date(last.at).toLocaleString(),
+        reason: last.reason,
+      }),
+      links: [{ label: t('See all activity'), run: () => app.openModal('activity') }],
+    }
+  }
+
+  const help = siteHelp(s, app)
+  if (help) return help
+
+  if (/(what can you do|what else can you do|^help\b|how (do|can) you help|madad|kya kar sakt)/.test(s)) {
+    return {
+      text: t(
+        'Here’s what I can do:\n• **Answer** about your balance, spending, budgets, goals, bills and pots\n• **Find** transactions, like “what did I spend on food last week”\n• **Warn** you about bills, budgets and unusual charges, and forecast your month\n• **Plan**: “can I afford $1,200 in March?” or “save $5k by June”\n• **Do things**: record spending, send or request money, pay bills, move money between pots, top up goals, several in a row\nJust ask like you would a friend 🙂',
+      ),
+      chips: [chip('Any alerts?'), chip('What did I spend last week?'), chip('Can I afford $500?'), chip('I spent $25 on lunch')],
+    }
+  }
+
+  // heads-ups
+  if (
+    /(any (alerts?|warnings?|heads ?ups?|news)|anything i should know|what should i know|insights?\b|how am i (looking|tracking))/.test(s) &&
+    !/\b(open|go to|take me|page)\b/.test(s)
+  ) {
+    const list = alerts(app, now)
+    if (!list.length) return { text: t('All quiet 👍 No bills you can’t cover, no budgets near the limit and nothing unusual.'), mood: 'happy' }
+    return {
+      text: `${t('Here’s what I’d keep an eye on:')}\n${list.map((a) => `• ${alertText(a)}`).join('\n')}`,
+      chips: [chip('Forecast my month'), chip('Any unusual charges?')],
+    }
+  }
+
+  // unusual charges
+  if (
+    /(unusual|suspicious|weird|strange|odd|duplicate|double)\b.*\b(charges?|transactions?|payments?|spend\w*|activity)|charged twice|any duplicates?|anything (unusual|weird|odd|strange|suspicious)/.test(
+      s,
+    )
+  ) {
+    const list = anomalies(app.transactions)
+    if (!list.length) return { text: t('Nothing unusual. No duplicate charges, odd spikes or price rises that I can see.'), mood: 'happy' }
+    return {
+      text: `${t('A few things stand out:')}\n${list
+        .slice(0, 5)
+        .map((a) => `• ${anomalyText(a)}`)
+        .join('\n')}\n${t('If one is a mistake, fix it in Transactions. For a real card charge you don’t recognise, call your bank.')}`,
+      card: {
+        type: 'tx',
+        rows: list
+          .filter((a) => a.tx)
+          .slice(0, 3)
+          .map((a) => a.tx),
+      },
+    }
+  }
+
+  // subscriptions
+  if (/(subscriptions?|recurring|repeat(ing)? (charges|payments)|paying (for )?every month|forgotten (charges|subscriptions))/.test(s)) {
+    const subs = subscriptions(app.transactions, app.bills)
+    if (!subs.items.length) return { text: t('I don’t see any subscriptions or repeat charges yet.') }
+    const hikes = subs.items.filter((i) => i.previous != null && i.amount > i.previous + 0.009)
+    return {
+      text:
+        t('You have **{n}** subscriptions and repeat charges costing about **{monthly}** a month (**{yearly}** a year).', {
+          n: subs.items.length,
+          monthly: money(subs.monthly),
+          yearly: whole(subs.yearly),
+        }) +
+        (hikes.length
+          ? `\n${hikes.map((h) => `• ${t('**{name}** went up from {from} to {to}.', { name: h.name, from: money(h.previous), to: money(h.amount) })}`).join('\n')}`
+          : '') +
+        `\n${t('I can’t cancel them for you. If you don’t use one, cancel it with the company directly.')}`,
+      card: {
+        type: 'bars',
+        rows: subs.items.slice(0, 6).map((i, k) => ({
+          label: i.name,
+          value: `${money(i.amount)}/${t('mo')}`,
+          p: Math.round((i.amount / Math.max(...subs.items.map((x) => x.amount))) * 100),
+          c: CAT_COLORS[k % CAT_COLORS.length],
+          k,
+        })),
+      },
+    }
+  }
+
+  // can I afford it?
+  if (/(can i afford|afford|is it ok(ay)? (to|if i) (spend|buy)|can i (spend|buy|get))/.test(s) && amount) {
+    const until = parseTarget(s, now)
+    const a = afford(app, amount, until, now)
+    const by = until ? ` ${t('by {month}', { month: monthName(until) })}` : ''
+    const basis = t('That counts {free} you have free now, {bills} in bills still due, and about {surplus} a month you usually keep.', {
+      free: money(a.free),
+      bills: money(a.billTotal),
+      surplus: money(Math.max(0, a.avg.surplus - a.goalMonthly)),
+    })
+    if (a.ok)
+      return {
+        text: `${t('Yes, you can afford **{cost}**{by}. You’d still have about **{left}** after it.', { cost: money(amount), by, left: money(a.after) })}\n${basis}`,
+        mood: 'happy',
+        chips: [chip(`I spent $${amount}`, 'I bought it'), chip('Forecast my month')],
+      }
+    return {
+      text:
+        `${t('Not comfortably. **{cost}**{by} would leave you about **{short}** short.', { cost: money(amount), by, short: money(a.shortBy) })}\n${basis}\n` +
+        (a.months
+          ? t('To make it, set aside about **{perMonth}** a month until then.', { perMonth: money(a.perMonth) })
+          : t('You could wait a month or two, or move money from a pot.')) +
+        (a.goalMonthly ? ` ${t('Pausing your goal contributions ({amount} a month) would also help.', { amount: money(a.goalMonthly) })}` : ''),
+      chips: until
+        ? [
+            chip(
+              `save $${amount} by ${['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'][until.getMonth()]}`,
+              'Plan to save {amount}',
+              { amount: money(amount) },
+            ),
+          ]
+        : [],
+    }
+  }
+
+  // plan a goal: "save $5k by June"
+  if (amount && /\b(save|saving|put aside|set aside|need|plan)\b/.test(s) && parseTarget(s, now) && !parseLogged(raw, s, amount, app.pots ?? [])) {
+    const until = parseTarget(s, now)
+    const plan = planGoal(app, amount, until, now)
+    const name =
+      describe(
+        raw.replace(
+          /\b(by|in|before|until)\s+(next\s+\w+|\d{1,2}\s+(months?|weeks?)|jan\w*|feb\w*|mar\w*|apr\w*|may|jun\w*|jul\w*|aug\w*|sep\w*|oct\w*|nov\w*|dec\w*)\b/i,
+          '',
+        ),
+      ) ?? t('Savings goal')
+    const fit =
+      plan.spare >= plan.monthly
+        ? t('You usually keep about {spare} a month, so that fits.', { spare: money(plan.spare) })
+        : t('You usually keep about {spare} a month, so you’re about {gap} a month short.', { spare: money(plan.spare), gap: money(plan.gap) }) +
+          (plan.trim
+            ? ` ${t('Cutting **{name}** by {amount} a month would close most of the gap.', { name: t(plan.trim.budget.name), amount: money(plan.trim.cut) })}`
+            : '')
+    return {
+      text: `${t('To save **{target}** by **{when}**, put aside **{weekly}** a week ({monthly} a month) for {weeks} weeks.', {
+        target: money(amount),
+        when: monthName(plan.when),
+        weekly: money(plan.weekly),
+        monthly: money(plan.monthly),
+        weeks: plan.weeks,
+      })}\n${fit}`,
+      confirm: {
+        label: t('Create this goal'),
+        note: t('{name} · {amount} a month', { name, amount: money(plan.monthly) }),
+        effect: { balance: 0, free: 0 },
+        run: () =>
+          app.addGoal({
+            name,
+            target: amount,
+            saved: 0,
+            icon: 'sack',
+            monthly: plan.monthly,
+            due: `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][plan.when.getMonth()]} ${plan.when.getFullYear()}`,
+          }),
+        done: t('Goal created ✅ I’ll track {name} for you.', { name }),
+      },
+    }
+  }
+
+  // end-of-month forecast
+  if (/(forecast|end of (the )?month|month end|by (the )?end of|will i (have|run out|be short|make it)|how much will i have|predict)/.test(s)) {
+    const fc = forecast(app, now)
+    const lines = [
+      t('**{amount}** in bills still due', { amount: money(fc.billTotal) }),
+      t('about **{daily}** a day of everyday spending ({total} over {n} days)', {
+        daily: money(fc.daily),
+        total: money(fc.everyday),
+        n: fc.daysLeft,
+      }),
+    ]
+    return {
+      text:
+        `${t('By {date} I expect your balance to be about **{amount}**.', { date: `${monthName(fc.end)} ${fc.end.getDate()}`, amount: money(fc.endBalance) })}\n${lines.map((l) => `• ${l}`).join('\n')}` +
+        (fc.endBalance < 0 ? `\n${t('That’s below zero, so trim spending or move money from a pot.')}` : ''),
+      mood: fc.endBalance >= 0 ? 'happy' : undefined,
+      card: fc.bills.length
+        ? {
+            type: 'bars',
+            rows: fc.bills.map((b, k) => ({
+              label: `${t(b.name)} · ${whenWord(b.days)}`,
+              value: money(b.amount),
+              p: Math.max(8, 100 - b.days * 4),
+              c: 'var(--accent)',
+              k,
+            })),
+          }
+        : undefined,
+    }
+  }
+
+  // why is spending up?
+  if (
+    /(why (is|are|did|has|was) (my )?(spending|expenses?|costs?|bills?)|spending (is |went |gone )?(up|higher)|spent more|more than last month|compared? (to|with) last month|vs\.? last month|spending change)/.test(
+      s,
+    )
+  ) {
+    const cmp = compareMonths(app.transactions, now)
+    if (!cmp.total.now && !cmp.total.before) return { text: t('There’s no spending this month or last month to compare yet.') }
+    const head =
+      cmp.change > 0
+        ? t('You’ve spent **{amount}** more than this time last month ({now} vs {before}).', {
+            amount: money(cmp.change),
+            now: money(cmp.total.now),
+            before: money(cmp.total.before),
+          })
+        : cmp.change < 0
+          ? t('You’ve actually spent **{amount}** less than this time last month ({now} vs {before}).', {
+              amount: money(-cmp.change),
+              now: money(cmp.total.now),
+              before: money(cmp.total.before),
+            })
+          : t('Your spending is the same as this time last month ({now}).', { now: money(cmp.total.now) })
+    const lines = cmp.rows
+      .filter((r) => r.change)
+      .slice(0, 3)
+      .map((r) =>
+        r.change > 0
+          ? t('**{name}** up {amount}', { name: t(r.category), amount: money(r.change) }) +
+            (r.biggest ? `, ${t('mostly {what} ({amount})', { what: r.biggest.name, amount: money(-r.biggest.amount) })}` : '')
+          : t('**{name}** down {amount}', { name: t(r.category), amount: money(-r.change) }),
+      )
+    return {
+      text: `${head}${lines.length ? `\n${lines.map((l) => `• ${l}`).join('\n')}` : ''}`,
+      card: {
+        type: 'bars',
+        rows: cmp.rows
+          .filter((r) => r.now)
+          .slice(0, 5)
+          .map((r, k) => ({
+            label: t(r.category),
+            value: money(r.now),
+            p: Math.round((r.now / Math.max(...cmp.rows.map((x) => x.now), 1)) * 100),
+            c: r.change > 0 ? 'var(--red)' : 'var(--green)',
+            k,
+          })),
+      },
+    }
+  }
+
+  // move money between pots
+  const move = potMove(s, amount, app)
+  if (move) return move
+
+  // find transactions
+  if (FIND_VERB.test(s) && !parseLogged(raw, s, amount, app.pots ?? [])) {
+    const filter = filterFrom(s, app, now)
+    const narrowed =
+      filter.range || filter.words.length || filter.min != null || filter.max != null || (filter.category && /\b(show|find|list|search)\b/.test(s))
+    if (narrowed) return finderReply(filter, app)
+  }
+  return null
+}
+
+function alertText(a) {
+  if (a.kind === 'short')
+    return t('**{bill}** ({amount}) is due {when} and you’ll be **{short}** short.', {
+      bill: t(a.bill.name),
+      amount: money(a.bill.amount),
+      when: whenWord(a.bill.days),
+      short: money(a.short),
+    })
+  if (a.kind === 'due')
+    return t('**{bill}** ({amount}) is due {when}.', { bill: t(a.bill.name), amount: money(a.bill.amount), when: whenWord(a.bill.days) })
+  if (a.kind === 'overdue') return t('**{bill}** is overdue ({amount}).', { bill: t(a.bill.name), amount: money(a.bill.amount) })
+  if (a.kind === 'over') return t('**{name}** is {amount} over budget.', { name: t(a.budget.name), amount: money(a.by) })
+  if (a.kind === 'near') return t('**{name}** is at {pct}% of its budget.', { name: t(a.budget.name), pct: a.pct })
+  if (a.kind === 'odd') return anomalyText(a.anomaly)
+  if (a.kind === 'forecast') return t('At this pace you’ll end the month at **{amount}**.', { amount: money(a.forecast.endBalance) })
+  return ''
+}
+
+function anomalyText(a) {
+  if (a.type === 'duplicate') return t('**{name}** was charged twice ({amount}). Worth checking.', { name: a.tx.name, amount: money(-a.tx.amount) })
+  if (a.type === 'big')
+    return t('**{name}** ({amount}) is much bigger than your usual {typical}.', {
+      name: a.tx.name,
+      amount: money(-a.tx.amount),
+      typical: money(a.typical),
+    })
+  if (a.type === 'hike') return t('**{name}** went up from {from} to {to}.', { name: a.name, from: money(a.from), to: money(a.to) })
+  return ''
+}
+
+/** Heads-ups for the chat's hello message (empty when there's nothing to say). */
+export function greetingAlerts(app) {
+  const list = alerts(app, nowFor(app))
+  return list.length ? `${t('Heads up:')}\n${list.map((a) => `• ${alertText(a)}`).join('\n')}` : ''
+}
+
+/* ---------------- several requests in one message ---------------- */
+const STEP_SPLIT = /\s*(?:[,;.]\s*)?(?:\band then\b|\bthen\b|\bafter that\b|\bafterwards\b|;)\s*/i
+const IS_QUERY = /(what'?s left|how much (is |do i have )?left|what remains|tell me (my |the )?(balance|what)|my balance|show (me )?(the )?balance)/
+
+function multi(parts, app) {
+  const steps = []
+  let wantsLeft = false
+  for (const [i, part] of parts.entries()) {
+    const ps = norm(part)
+    if (IS_QUERY.test(ps)) {
+      wantsLeft = true
+      continue
+    }
+    const r = smart(part, ps, app) ?? core(part, app)
+    if (!r.confirm) {
+      // "lunch then coffee": not really two requests, so read the message as one
+      if (!/\d/.test(part) && part.trim().split(/\s+/).length <= 3) return null
+      return {
+        text: t('I can do several things in a row, but I didn’t understand step {n}: “{text}”. Could you say that step another way?', {
+          n: i + 1,
+          text: part.trim(),
+        }),
+      }
+    }
+    steps.push({ part: part.trim(), r })
+  }
+  if (!steps.length) return null
+  if (steps.length === 1 && !wantsLeft) return steps[0].r
+  const effect = steps.reduce(
+    (e, x) => ({ balance: e.balance + (x.r.confirm.effect?.balance ?? 0), free: e.free + (x.r.confirm.effect?.free ?? 0) }),
+    { balance: 0, free: 0 },
+  )
+  const balanceAfter = app.balance + effect.balance
+  const freeAfter = (app.pots?.length ? app.unassigned : app.balance) + effect.free
+  return {
+    text:
+      `${t('Here’s the plan, in this order:')}\n${steps.map((x, k) => `• ${k + 1}. ${x.r.confirm.label}: ${x.r.confirm.note}`).join('\n')}` +
+      (wantsLeft ? `\n${t('Then I’ll tell you what’s left.')}` : ''),
+    confirm: {
+      label: t('Do all {n}', { n: steps.length }),
+      note: t('{n} steps, one after another', { n: steps.length }),
+      effect,
+      steps: steps.map((x) => x.r.confirm),
+      run: () => steps.forEach((x) => x.r.confirm.run()),
+      done:
+        `${t('All done ✅')}\n${steps.map((x) => `• ${typeof x.r.confirm.done === 'function' ? x.r.confirm.done() : x.r.confirm.done}`).join('\n')}` +
+        (wantsLeft
+          ? `\n${app.pots?.length ? t('What’s left: **{balance}** in total, **{free}** unassigned.', { balance: money(balanceAfter), free: money(freeAfter) }) : t('What’s left: **{balance}**.', { balance: money(balanceAfter) })}`
+          : ''),
+    },
+  }
+}
+
+/* ---------------- follow-ups that lean on the conversation ---------------- */
+function followUp(raw, s, app, memory) {
+  // "make it $80" / "actually 80" after an action
+  if (
+    memory.lastCommand &&
+    (/^(make it|change (it|that) to|actually|no,? (make it|i meant)|instead|i meant)\b/.test(s) || /^\$?\d[\d,]*(\.\d+)?k?$/.test(s))
+  ) {
+    const token = raw.match(AMOUNT_TOKEN)?.[0]
+    if (token)
+      return respond(memory.lastCommand.replace('{amount}', token.trim().startsWith('$') ? token.trim() : `$${token.trim()}`), app, {
+        ...memory,
+        lastCommand: null,
+      })
+  }
+  // "and last month?" / "what about transport" after a search
+  if (
+    memory.lastFilter &&
+    (/^(and|what about|how about|same for|now|and for|ok and)\b/.test(s) ||
+      (s.split(' ').length <= 3 &&
+        !/\b(pay|send|request|move|add|set|make|switch|open|go|put|transfer|create|delete|clear|spent|bought|paid|dark|light)\b/.test(s)))
+  ) {
+    const now = nowFor(app)
+    const range = parseRange(s, now)
+    const fresh = filterFrom(s, app, now)
+    const category = fresh.category
+    if (range || category || fresh.words.length) {
+      const next = { ...memory.lastFilter }
+      if (range) next.range = range
+      if (category) {
+        next.category = category
+        next.words = []
+      }
+      if (fresh.words.length) {
+        next.words = fresh.words
+        next.category = null
+      }
+      return finderReply(next, app)
+    }
+  }
+  return null
+}
+
+/** Grace's reply to a message. `memory` carries context between messages in one chat. */
+export function respond(raw, app, memory = {}) {
+  const s = norm(raw)
+  const keep = (r, extra = {}) => ({ ...r, memory: { ...memory, ...extra, ...(r.memory ?? {}) } })
+
+  const safe = safety(raw, s)
+  if (safe) return keep(safe)
+
+  const parts = raw.split(STEP_SPLIT).filter((x) => x.trim())
+  if (parts.length > 1) {
+    const r = multi(parts, app)
+    if (r) return keep(r, { lastCommand: null })
+  }
+
+  const f = followUp(raw, s, app, memory)
+  if (f) return keep(f)
+
+  const r = smart(raw, s, app) ?? core(raw, app)
+  // remember an action with an amount, so "make it $80" can redo it
+  const token = raw.match(AMOUNT_TOKEN)?.[0]
+  const lastCommand = r.confirm && token && !r.confirm.steps ? raw.replace(token, '{amount}') : memory.lastCommand
+  return keep(r, { lastCommand, lastFilter: r.memory?.lastFilter ?? (r.confirm ? null : memory.lastFilter) })
+}

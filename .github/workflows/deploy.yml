@@ -24,6 +24,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Grace's test set: a failing answer stops the deploy
+      - run: npm test
       - run: npm run build
         env:
           # Settings > Secrets and variables > Actions > Variables. Leave unset to deploy the no-login demo.

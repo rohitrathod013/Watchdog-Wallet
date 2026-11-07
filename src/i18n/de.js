@@ -718,4 +718,184 @@ export default {
   today: 'heute',
   yesterday: 'gestern',
   'I spent $25 on lunch': 'Ich habe 25 $ fürs Mittagessen ausgegeben',
+
+  // ---------------- Grace: smarter answers ----------------
+  '{from} → {to}': '{from} → {to}',
+  '{n} steps, one after another': '{n} Schritte nacheinander',
+  '{name} · {amount} a month': '{name} · {amount} pro Monat',
+  '{name} only has {amount}, so I can’t move {want}.': '{name} hat nur {amount}, daher kann ich {want} nicht verschieben.',
+  '**{amount}** came in': '**{amount}** kamen rein',
+  '**{amount}** in bills still due': '**{amount}** an offenen Rechnungen',
+  '**{amount}** went out': '**{amount}** gingen raus',
+  '**{bill}** ({amount}) is due {when} and you’ll be **{short}** short.': '**{bill}** ({amount}) ist {when} fällig und dir fehlen **{short}**.',
+  '**{bill}** ({amount}) is due {when}.': '**{bill}** ({amount}) ist {when} fällig.',
+  '**{bill}** is overdue ({amount}).': '**{bill}** ist überfällig ({amount}).',
+  '**{name}** ({amount}) is much bigger than your usual {typical}.': '**{name}** ({amount}) ist viel höher als deine üblichen {typical}.',
+  '**{name}** down {amount}': '**{name}** {amount} weniger',
+  '**{name}** is {amount} over budget.': '**{name}** liegt {amount} über dem Budget.',
+  '**{name}** is at {pct}% of its budget.': '**{name}** liegt bei {pct} % des Budgets.',
+  '**{name}** up {amount}': '**{name}** {amount} mehr',
+  '**{name}** was charged twice ({amount}). Worth checking.': '**{name}** wurde doppelt abgebucht ({amount}). Bitte prüfen.',
+  '**{name}** went up from {from} to {to}.': '**{name}** ist von {from} auf {to} gestiegen.',
+  '**{out}** went out and **{in}** came in': '**{out}** gingen raus und **{in}** kamen rein',
+  'A few things stand out:': 'Ein paar Dinge fallen auf:',
+  'about **{daily}** a day of everyday spending ({total} over {n} days)': 'etwa **{daily}** pro Tag an Alltagsausgaben ({total} in {n} Tagen)',
+  'All done ✅': 'Alles erledigt ✅',
+  'All quiet 👍 No bills you can’t cover, no budgets near the limit and nothing unusual.':
+    'Alles ruhig 👍 Keine Rechnung, die du nicht decken kannst, kein Budget am Limit und nichts Ungewöhnliches.',
+  'And last month?': 'Und letzten Monat?',
+  'And this month?': 'Und diesen Monat?',
+  'Any alerts?': 'Gibt es Warnungen?',
+  'Any unusual charges?': 'Ungewöhnliche Abbuchungen?',
+  'At this pace you’ll end the month at **{amount}**.': 'Bei diesem Tempo endest du den Monat bei **{amount}**.',
+  'By {date} I expect your balance to be about **{amount}**.': 'Bis zum {date} erwarte ich etwa **{amount}** Saldo.',
+  'by {month}': 'bis {month}',
+  'Can I afford $500?': 'Kann ich mir 500 $ leisten?',
+  'Create this goal': 'Dieses Ziel erstellen',
+  'Cutting **{name}** by {amount} a month would close most of the gap.':
+    'Wenn du **{name}** um {amount} pro Monat kürzt, schließt sich die Lücke größtenteils.',
+  'Do all {n}': 'Alle {n} ausführen',
+  'Every time Grace changes something for you, it’s listed here with what you asked and why.':
+    'Jedes Mal, wenn Grace etwas für dich ändert, steht es hier mit deiner Frage und dem Grund.',
+  'Everything Grace has done on your account, newest first': 'Alles, was Grace in deinem Konto getan hat, neueste zuerst',
+  'for {name}': 'für {name}',
+  'Forecast my month': 'Prognose für meinen Monat',
+  'Found **{n} transactions**{when}{what}{size}: {sum}.': '**{n} Umsätze** gefunden{when}{what}{size}: {sum}.',
+  'Found **1 transaction**{when}{what}{size}: {sum}.': '**1 Umsatz** gefunden{when}{what}{size}: {sum}.',
+  'Goal created ✅ I’ll track {name} for you.': 'Ziel erstellt ✅ Ich behalte {name} für dich im Blick.',
+  'Grace’s activity': 'Graces Aktivität',
+  'Heads up:': 'Achtung:',
+  'Here’s the plan, in this order:': 'Hier ist der Plan, in dieser Reihenfolge:',
+  'Here’s what I can do:\n• **Answer** about your balance, spending, budgets, goals, bills and pots\n• **Find** transactions, like “what did I spend on food last week”\n• **Warn** you about bills, budgets and unusual charges, and forecast your month\n• **Plan**: “can I afford $1,200 in March?” or “save $5k by June”\n• **Do things**: record spending, send or request money, pay bills, move money between pots, top up goals, several in a row\nJust ask like you would a friend 🙂':
+    'Das kann ich:\n• **Antworten** zu Saldo, Ausgaben, Budgets, Zielen, Rechnungen und Töpfen\n• **Umsätze finden**, z. B. „was habe ich letzte Woche für Essen ausgegeben“\n• **Warnen** bei Rechnungen, Budgets und ungewöhnlichen Abbuchungen, und deinen Monat vorhersagen\n• **Planen**: „kann ich mir im März 1.200 $ leisten?“ oder „bis Juni 5.000 $ sparen“\n• **Erledigen**: Ausgaben eintragen, Geld senden oder anfordern, Rechnungen zahlen, Geld zwischen Töpfen verschieben, Ziele aufstocken, mehreres nacheinander\nFrag einfach wie bei einer Freundin 🙂',
+  'Here’s what I’d keep an eye on:': 'Darauf würde ich achten:',
+  'How much do I keep each month?': 'Wie viel bleibt mir jeden Monat?',
+  'I bought it': 'Ich habe es gekauft',
+  'I can do several things in a row, but I didn’t understand step {n}: “{text}”. Could you say that step another way?':
+    'Ich kann mehreres nacheinander erledigen, aber Schritt {n} habe ich nicht verstanden: „{text}“. Kannst du ihn anders formulieren?',
+  'I can’t cancel them for you. If you don’t use one, cancel it with the company directly.':
+    'Ich kann sie nicht für dich kündigen. Wenn du eines nicht nutzt, kündige direkt beim Anbieter.',
+  'I can’t give investment advice or tell you what to buy. I can share information, like how much you could set aside each month, but for investing decisions please talk to a licensed financial adviser.':
+    'Ich kann keine Anlageberatung geben oder dir sagen, was du kaufen sollst. Ich kann informieren, etwa wie viel du monatlich zurücklegen könntest, aber für Anlageentscheidungen sprich bitte mit einer zugelassenen Finanzberatung.',
+  'I don’t see any subscriptions or repeat charges yet.': 'Ich sehe noch keine Abos oder wiederkehrenden Abbuchungen.',
+  'I haven’t done anything on your account yet.': 'Ich habe in deinem Konto noch nichts getan.',
+  'I’m sorry, that sounds stressful. I can’t freeze cards or reverse charges. {brand} only tracks numbers you enter, so no real money moved here. For fraud or a disputed charge on a real card or account, contact your bank right away: they can freeze the card and investigate.':
+    'Das tut mir leid, das klingt belastend. Ich kann keine Karten sperren oder Abbuchungen zurückholen. {brand} erfasst nur Zahlen, die du eingibst, hier wurde also kein echtes Geld bewegt. Bei Betrug oder einer strittigen Abbuchung auf einer echten Karte oder einem Konto wende dich sofort an deine Bank: Sie kann die Karte sperren und den Fall prüfen.',
+  'If one is a mistake, fix it in Transactions. For a real card charge you don’t recognise, call your bank.':
+    'Ist etwas ein Fehler, korrigiere es unter Umsätze. Bei einer echten Kartenabbuchung, die du nicht kennst, ruf deine Bank an.',
+  'in {month}': 'im {month}',
+  'in {n} days': 'in {n} Tagen',
+  'in the past {n} days': 'in den letzten {n} Tagen',
+  mo: 'Monat',
+  'mostly {what} ({amount})': 'vor allem {what} ({amount})',
+  'Move **{amount}** from {from} to **{to}**?': '**{amount}** von {from} nach **{to}** verschieben?',
+  'Moved ✅ {amount} is now in {to}.': 'Verschoben ✅ {amount} sind jetzt in {to}.',
+  'No transactions{when}{what}{size}.': 'Keine Umsätze{when}{what}{size}.',
+  'Not comfortably. **{cost}**{by} would leave you about **{short}** short.':
+    'Nicht entspannt. **{cost}**{by} würde dir etwa **{short}** fehlen lassen.',
+  'Nothing unusual. No duplicate charges, odd spikes or price rises that I can see.':
+    'Nichts Ungewöhnliches. Keine doppelten Abbuchungen, keine Ausreißer und keine Preiserhöhungen.',
+  'Nothing yet': 'Noch nichts',
+  'on {name}': 'für {name}',
+  'over {amount}': 'über {amount}',
+  'Pausing your goal contributions ({amount} a month) would also help.': 'Deine Zielbeiträge ({amount} pro Monat) zu pausieren, würde auch helfen.',
+  'Please don’t share passwords, PINs, codes or full card numbers here, not even with me. I’ll never ask for them. If you think someone else has them, change your password and call your bank.':
+    'Bitte teile hier keine Passwörter, PINs, Codes oder vollständigen Kartennummern, auch nicht mit mir. Ich frage nie danach. Wenn jemand anderes sie haben könnte, ändere dein Passwort und ruf deine Bank an.',
+  'Savings goal': 'Sparziel',
+  'See all activity': 'Alle Aktivitäten ansehen',
+  'Speak to {name}': 'Mit {name} sprechen',
+  'Stop listening': 'Zuhören beenden',
+  'That counts {free} you have free now, {bills} in bills still due, and about {surplus} a month you usually keep.':
+    'Gerechnet mit {free}, die jetzt frei sind, {bills} an offenen Rechnungen und etwa {surplus} pro Monat, die dir meist bleiben.',
+  'That’s below zero, so trim spending or move money from a pot.': 'Das ist unter null, also spare etwas ein oder nimm Geld aus einem Topf.',
+  'The last thing I did was **{action}** ({detail}), {when}.\nWhy: {reason}':
+    'Zuletzt habe ich **{action}** ({detail}) erledigt, am {when}.\nWarum: {reason}',
+  'Then I’ll tell you what’s left.': 'Danach sage ich dir, was übrig bleibt.',
+  'There’s no spending this month or last month to compare yet.': 'Es gibt noch keine Ausgaben in diesem oder im letzten Monat zum Vergleichen.',
+  'To make it, set aside about **{perMonth}** a month until then.': 'Lege dafür bis dahin etwa **{perMonth}** pro Monat zurück.',
+  'To save **{target}** by **{when}**, put aside **{weekly}** a week ({monthly} a month) for {weeks} weeks.':
+    'Um bis **{when}** **{target}** zu sparen, lege {weeks} Wochen lang **{weekly}** pro Woche ({monthly} pro Monat) zurück.',
+  tomorrow: 'morgen',
+  'under {amount}': 'unter {amount}',
+  'Use **Forgot password?** on the login screen and we’ll email you a reset link. If the email doesn’t arrive, check your spam folder.':
+    'Nutze **Passwort vergessen?** auf dem Anmeldebildschirm, dann schicken wir dir einen Link. Kommt keine E-Mail, sieh im Spam-Ordner nach.',
+  'What did I spend last week?': 'Was habe ich letzte Woche ausgegeben?',
+  'What’s left: **{balance}** in total, **{free}** unassigned.': 'Übrig: **{balance}** insgesamt, **{free}** nicht zugeordnet.',
+  'What’s left: **{balance}**.': 'Übrig: **{balance}**.',
+  'Yes, you can afford **{cost}**{by}. You’d still have about **{left}** after it.':
+    'Ja, du kannst dir **{cost}**{by} leisten. Danach blieben dir etwa **{left}**.',
+  'You asked': 'Deine Frage',
+  'You asked “{request}”, so I did it straight away (it doesn’t move money).':
+    'Du hast „{request}“ gefragt, also habe ich es sofort erledigt (es bewegt kein Geld).',
+  'You asked “{request}”. I read that as: {action} ({detail}), and you confirmed it.':
+    'Du hast „{request}“ gefragt. Ich habe das als {action} ({detail}) verstanden, und du hast bestätigt.',
+  'You could wait a month or two, or move money from a pot.': 'Du könntest ein, zwei Monate warten oder Geld aus einem Topf nehmen.',
+  'You have **{n}** subscriptions and repeat charges costing about **{monthly}** a month (**{yearly}** a year).':
+    'Du hast **{n}** Abos und wiederkehrende Abbuchungen für etwa **{monthly}** pro Monat (**{yearly}** pro Jahr).',
+  'You usually keep about {spare} a month, so that fits.': 'Dir bleiben meist etwa {spare} pro Monat, das passt also.',
+  'You usually keep about {spare} a month, so you’re about {gap} a month short.':
+    'Dir bleiben meist etwa {spare} pro Monat, dir fehlen also etwa {gap} pro Monat.',
+  'You’ve actually spent **{amount}** less than this time last month ({now} vs {before}).':
+    'Du hast sogar **{amount}** weniger ausgegeben als zur gleichen Zeit letzten Monat ({now} statt {before}).',
+  'You’ve spent **{amount}** more than this time last month ({now} vs {before}).':
+    'Du hast **{amount}** mehr ausgegeben als zur gleichen Zeit letzten Monat ({now} statt {before}).',
+  'Your spending is the same as this time last month ({now}).': 'Deine Ausgaben sind gleich wie zur gleichen Zeit letzten Monat ({now}).',
+  'Plan to save {amount}': 'Sparen planen: {amount}',
+  'Open Transactions': 'Umsätze öffnen',
+  'Open Dashboard': 'Übersicht öffnen',
+  'Open Transfer': 'Überweisen öffnen',
+  'Go to **Dashboard › Transactions** and press **Export CSV** at the top right. Reports have their own **CSV** button on each card.':
+    'Geh zu **Übersicht › Umsätze** und tippe oben rechts auf **CSV exportieren**. Berichte haben auf jeder Karte einen eigenen **CSV**-Knopf.',
+  'Press **Add money** on the balance card or the Wallet page, type the amount and where it came from, and pick a pot for it if you like. No bank needed.':
+    'Tippe auf **Geld hinzufügen** auf der Saldo-Karte oder der Geldbörse, gib Betrag und Herkunft ein und wähle bei Bedarf einen Topf. Keine Bank nötig.',
+  'Pots split your money by what it’s for, like Rent or Savings. On the **Wallet** page press **New pot**, then use the arrows on a pot to move money in or out.':
+    'Töpfe teilen dein Geld nach Zweck auf, etwa Miete oder Sparen. Tippe auf der Seite **Geldbörse** auf **Neuer Topf** und nutze die Pfeile, um Geld hinein- oder herauszunehmen.',
+  '**Unassigned** is money you have that isn’t in any pot yet. Move it into pots on the Wallet page.':
+    '**Nicht zugeordnet** ist Geld, das noch in keinem Topf ist. Verteile es auf der Seite Geldbörse.',
+  'On the Dashboard, press **Add Goal** on the My Savings Goals card. Give it a name and target, and top it up any time.':
+    'Tippe in der Übersicht auf **Ziel hinzufügen** auf der Karte Meine Sparziele. Gib Name und Betrag ein und stock es jederzeit auf.',
+  'Press **+** on the **Upcoming Bills** card (Dashboard or Wallet), then enter the name, amount and due date.':
+    'Tippe auf **+** auf der Karte **Anstehende Rechnungen** (Übersicht oder Geldbörse) und gib Name, Betrag und Fälligkeit ein.',
+  'Press **Add contact** on the Quick Transfer card, or **New** on the Transfer page.':
+    'Tippe auf **Kontakt hinzufügen** auf der Karte Schnellüberweisung oder auf **Neu** auf der Seite Überweisen.',
+  'Press the language button (it shows **EN**, **ES** and so on) at the top right and pick a language.':
+    'Tippe oben rechts auf den Sprachknopf (zeigt **EN**, **ES** usw.) und wähle eine Sprache.',
+  'Open **Settings** (the gear at the top right) to pick light or dark and an accent colour. Or just tell me, like “make it blue”.':
+    'Öffne **Einstellungen** (das Zahnrad oben rechts), um Hell oder Dunkel und eine Akzentfarbe zu wählen. Oder sag es mir, z. B. „mach es blau“.',
+  'On the **Budget** page, drag the **Monthly limit** slider on any category. Or tell me, like “set food budget to $500”.':
+    'Zieh auf der Seite **Budget** den Regler **Monatslimit** einer Kategorie. Oder sag es mir, z. B. „Essensbudget auf 500 $ setzen“.',
+  'Open the account menu (your picture or initials, top right) and choose **Clear my data**, then click again to confirm. That empties your dashboard.':
+    'Öffne das Kontomenü (dein Bild oder deine Initialen oben rechts), wähle **Meine Daten löschen** und klicke zur Bestätigung erneut. Das leert deine Übersicht.',
+  'Press **Add transaction** on the Transactions tab, or just tell me, like “I spent $20 on lunch”.':
+    'Tippe im Tab Umsätze auf **Umsatz hinzufügen** oder sag es mir, z. B. „ich habe 20 $ fürs Mittagessen ausgegeben“.',
+  'Press **Send Money** on the balance card, pick a contact and an amount. Or tell me, like “send $50 to Nikhil”.':
+    'Tippe auf der Saldo-Karte auf **Geld senden** und wähle Kontakt und Betrag. Oder sag es mir, z. B. „sende 50 $ an Nikhil“.',
+  'A **fee** is a charge for a service, like a monthly account fee or an ATM fee. Fees show up as expenses.':
+    'Eine **Gebühr** ist ein Entgelt für eine Leistung, etwa eine Kontoführungs- oder Automatengebühr. Gebühren erscheinen als Ausgaben.',
+  'An **overdraft** is when you spend more than you have and your balance goes below zero. Banks often charge a fee or interest for it.':
+    'Eine **Überziehung** liegt vor, wenn du mehr ausgibst, als du hast, und dein Saldo unter null fällt. Banken verlangen dafür oft Gebühren oder Zinsen.',
+  '**Interest** is the cost of borrowing money (or what you earn on savings). **APR** is that cost over a whole year, including fees, so you can compare offers.':
+    '**Zinsen** sind die Kosten fürs Leihen von Geld (oder was Ersparnisse einbringen). Der **effektive Jahreszins** sind diese Kosten über ein ganzes Jahr inklusive Gebühren, damit du Angebote vergleichen kannst.',
+  'A **pending** transaction has started but isn’t finished yet, like a request someone hasn’t paid. It doesn’t count in your totals until it’s completed.':
+    'Ein **ausstehender** Umsatz hat begonnen, ist aber noch nicht abgeschlossen, etwa eine noch unbezahlte Anforderung. Er zählt erst nach Abschluss in deinen Summen.',
+  'A **refund** is money given back for something you returned or were overcharged for. Add it with **Add money** and pick **Refund**.':
+    'Eine **Erstattung** ist Geld, das du für eine Rückgabe oder Überzahlung zurückbekommst. Trag sie mit **Geld hinzufügen** ein und wähle **Erstattung**.',
+  'A **chargeback** is when your bank reverses a card payment after you dispute it, for example for fraud or an item that never arrived.':
+    'Eine **Rückbuchung** ist, wenn deine Bank eine Kartenzahlung nach einem Einspruch rückgängig macht, etwa bei Betrug oder einer nie gelieferten Ware.',
+  '**Autopay** (a direct debit) lets a company take a bill from your account automatically each time it’s due.':
+    'Mit **Lastschrift** darf ein Unternehmen eine Rechnung bei Fälligkeit automatisch von deinem Konto abbuchen.',
+  '**Net profit** is your income minus your expenses for the period. Positive means you kept money; negative means you spent more than came in.':
+    'Der **Nettogewinn** sind deine Einnahmen minus Ausgaben im Zeitraum. Positiv heißt, dir blieb Geld; negativ heißt, du hast mehr ausgegeben, als reinkam.',
+  'Your **savings rate** is the share of your income you didn’t spend: net profit ÷ income. 20% means you kept $20 of every $100.':
+    'Deine **Sparquote** ist der Anteil deines Einkommens, den du nicht ausgegeben hast: Nettogewinn ÷ Einnahmen. 20 % heißt, dir blieben 20 $ von 100 $.',
+  '**Cash flow** is money coming in versus money going out over time. The Cash Flow chart shows both lines for the last 6 or 12 months.':
+    'Der **Cashflow** ist eingehendes gegenüber ausgehendem Geld über die Zeit. Das Cashflow-Diagramm zeigt beide Linien für die letzten 6 oder 12 Monate.',
+  'An **emergency fund** is money set aside for surprises, like a repair or losing income. A common aim is 3 to 6 months of expenses.':
+    'Ein **Notgroschen** ist Geld für Überraschungen, etwa eine Reparatur oder Einkommensausfall. Üblich sind 3 bis 6 Monatsausgaben.',
+  'A **budget** is a limit you set for a category each month. The bar shows how much of it you’ve used.':
+    'Ein **Budget** ist ein monatliches Limit für eine Kategorie. Der Balken zeigt, wie viel davon verbraucht ist.',
+  'A **subscription** is a regular charge for an ongoing service, like streaming or a gym. They’re easy to forget, so ask me to list yours.':
+    'Ein **Abo** ist eine regelmäßige Abbuchung für einen laufenden Dienst, etwa Streaming oder Fitnessstudio. Man vergisst sie leicht, also frag mich nach deiner Liste.',
+  'Your **balance** is all the money you’ve recorded: everything added minus everything spent.':
+    'Dein **Saldo** ist alles erfasste Geld: alles Hinzugefügte minus alles Ausgegebene.',
 }

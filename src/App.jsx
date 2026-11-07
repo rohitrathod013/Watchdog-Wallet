@@ -13,6 +13,7 @@ import {
   RequestModal,
   SendModal,
   TransactionModal,
+  ActivityModal,
 } from './components/Modals'
 import { Toasts } from './components/ui'
 import { Logo } from './components/Brand'
@@ -59,6 +60,7 @@ const freshState = () => ({
   bills: [],
   contacts: [],
   pots: [],
+  activity: [],
   notifications: [
     {
       id: 'welcome',
@@ -73,6 +75,8 @@ const freshState = () => ({
   ],
 })
 
+const DEMO_NOW = new Date(2026, 9, 28, 18, 0)
+
 /* The demo: the full sample dashboard, never saved anywhere. */
 const demoState = () => ({
   balance: seed.BALANCE_USD,
@@ -83,6 +87,7 @@ const demoState = () => ({
   contacts: seed.CONTACTS,
   notifications: seed.NOTIFICATIONS,
   pots: seed.POTS,
+  activity: [],
 })
 
 /** Shown while checking the session or loading an account's data. */
@@ -205,6 +210,8 @@ export default function App() {
   const [contacts, setContacts] = useState(seed.CONTACTS)
   // the balance split into pots by what it's for; whatever is left is unassigned
   const [pots, setPots] = useState(seed.POTS)
+  // everything Grace has done, newest first: the audit trail behind "why did you do that?"
+  const [activity, setActivity] = useState([])
   const [sentToday, setSentToday] = useState(0)
 
   /* ---------- accounts (Supabase) ----------
@@ -229,6 +236,7 @@ export default function App() {
     setNotifications(data.notifications ?? [])
     setContacts(data.contacts ?? [])
     setPots(data.pots ?? [])
+    setActivity(data.activity ?? [])
     setDrift(0)
     setSentToday(0)
   }, [])
@@ -272,8 +280,8 @@ export default function App() {
 
   // save the dashboard back to the account a moment after anything changes
   const saved = useMemo(
-    () => ({ balance, transactions, goals, budgets, bills, notifications, contacts, pots }),
-    [balance, transactions, goals, budgets, bills, notifications, contacts, pots],
+    () => ({ balance, transactions, goals, budgets, bills, notifications, contacts, pots, activity }),
+    [balance, transactions, goals, budgets, bills, notifications, contacts, pots, activity],
   )
   const [saveFailed, setSaveFailed] = useState(false)
   useEffect(() => {
@@ -391,11 +399,11 @@ export default function App() {
   )
 
   const addGoal = useCallback(
-    ({ name, target, saved, icon }) => {
-      const monthly = Math.max(50, Math.round(target / 24 / 10) * 10)
+    ({ name, target, saved, icon, monthly: planned, due: plannedDue }) => {
+      const monthly = planned ? Math.round(planned) : Math.max(50, Math.round(target / 24 / 10) * 10)
       const at = new Date()
       at.setMonth(at.getMonth() + Math.max(1, Math.ceil((target - saved) / monthly)))
-      setGoals((g) => [...g, { id: uid(), name, target, saved, icon, monthly, due: `${MONTHS[at.getMonth()]} ${at.getFullYear()}` }])
+      setGoals((g) => [...g, { id: uid(), name, target, saved, icon, monthly, due: plannedDue ?? `${MONTHS[at.getMonth()]} ${at.getFullYear()}` }])
       toast(t('Goal created'), t('{name}: {amount} target. You’ve got this!', { name, amount: money(target, '$', 0) }), { icon: 'target' })
     },
     [toast],
@@ -530,6 +538,12 @@ export default function App() {
     [pots, toast],
   )
 
+  /** Record something Grace did, with what was asked and why (kept to the last 200). */
+  const logActivity = useCallback(
+    (entry) => setActivity((list) => [{ id: uid(), at: new Date().toISOString(), ...entry }, ...list].slice(0, 200)),
+    [],
+  )
+
   /** Wipe this account back to a fresh, empty dashboard. */
   const clearData = useCallback(() => {
     applyState(freshState())
@@ -612,6 +626,10 @@ export default function App() {
       addBill,
       clearData,
       leaveDemo,
+      activity,
+      logActivity,
+      // the demo's sample data ends on Oct 28 2026, so Grace treats that as today there
+      now: isDemo ? DEMO_NOW : undefined,
       pots,
       unassigned,
       inPots,
@@ -669,6 +687,8 @@ export default function App() {
       addBill,
       clearData,
       leaveDemo,
+      activity,
+      logActivity,
       pots,
       unassigned,
       inPots,
@@ -777,6 +797,7 @@ export default function App() {
       <AddMoneyModal open={modal?.type === 'addMoney'} payload={modal?.payload} onClose={closeModal} />
       <MoveMoneyModal open={modal?.type === 'move'} payload={modal?.payload} onClose={closeModal} />
       <PotModal open={modal?.type === 'pot'} onClose={closeModal} />
+      <ActivityModal open={modal?.type === 'activity'} onClose={closeModal} />
       {accountsEnabled && demo ? (
         <div className="demo-bar" role="status">
           <span className="demo-long">{t('You’re exploring the demo. Nothing here is saved.')}</span>

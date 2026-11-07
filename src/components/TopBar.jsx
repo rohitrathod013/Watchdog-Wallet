@@ -254,6 +254,9 @@ export default function TopBar() {
             <MenuItem icon="replay" i={2} onClick={() => (close(), app.replayIntro())}>
               {t('Replay intro animation')}
             </MenuItem>
+            <MenuItem icon="shield" i={3} onClick={() => (close(), app.openModal('activity'))}>
+              {t('Grace’s activity')}
+            </MenuItem>
             <hr />
             {app.demo ? null : (
               <MenuItem

@@ -995,3 +995,72 @@ html:not([lang='en']) .bal-actions .btn.xl {
   white-space: normal;
   text-align: center;
 }
+
+/* Grace's activity log */
+.activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+}
+.activity-list li {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--soft);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.activity-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+.activity-top time {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.activity-list small {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.activity-list p {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.activity-list p span {
+  font-weight: 600;
+}
+
+/* microphone in the chat input */
+.ai-mic {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  flex-shrink: 0;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+.ai-mic:hover {
+  background: var(--soft);
+}
+.ai-mic.on {
+  background: var(--red);
+  color: #fff;
+  animation: micPulse 1.2s ease-in-out infinite;
+}
+@keyframes micPulse {
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--red) 25%, transparent);
+  }
+}

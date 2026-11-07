@@ -41,11 +41,19 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 
 ### Grace, the assistant
 
-- Flies in when the page loads, then sits in the corner, blinks, follows the pointer and waves.
-- Answers questions about your balance, income, spending, budgets, goals and bills, using your own numbers.
-- Takes actions: send or request money, pay bills, top up goals, change budget limits, switch theme, colour, currency or period, and open pages. Money actions always ask you to confirm first.
-- Understands some Roman Urdu, such as "balance kitna hai" and "dark karo".
-- Press **/** anywhere to open the chat.
+- Flies in when the page loads, then sits in the corner, blinks, follows the pointer and waves. Press **/** anywhere to open the chat, or tap the microphone to speak.
+- **Answers from your own data**: balance, income, spending, budgets, goals, bills and pots.
+- **Finds transactions**: "what did I spend on food last week", "show Uber charges this month", "anything over $100". Follow-ups like "and last month?" keep the context.
+- **Explains changes**: "why is my spending up?" compares with last month and names the categories and purchases behind it.
+- **Warns before you ask**: bills you can't cover, budgets near the limit, duplicate charges and subscription price rises show up when the chat opens.
+- **Forecasts** your end-of-month balance from bills still due and your usual daily spending, and lists your **subscriptions** with monthly and yearly totals.
+- **Plans**: "can I afford a $1,200 trip in March?" answers with the trade-off; "save $5k by June" gives a weekly amount, which budget to trim, and can create the goal.
+- **Takes actions with a confirm step**: record spending or income from a sentence ("I spent $300 on dinner"), send or request money, pay bills, move money between pots, top up goals and change budgets. Several in a row work too ("move $200 to savings, then pay the electric bill, then tell me what's left"), and "make it $80" changes the last amount.
+- **Helps with the site** ("where do I export a CSV?") and explains terms like fees, overdrafts, APR, pending or chargebacks.
+- **Stays safe**: it never asks for or keeps passwords, PINs or card numbers (they're hidden on screen), gives information rather than investment advice, and points fraud, disputes and locked accounts to the bank or password reset.
+- **Keeps an audit trail**: every change Grace makes is saved in **Grace's activity** (account menu) with what you asked and why, and "why did you do that?" explains the last one.
+- Understands some Roman Urdu, such as "balance kitna hai" and "kal 300 ka khana kharch kiya".
+- **Tested**: `npm test` runs 150+ example questions with expected answers (`tests/grace.test.js`), and GitHub runs them before every deploy.
 
 ### Languages
 
@@ -158,6 +166,7 @@ src/
   lib/
     supabase.js        Supabase client, loading and saving each user's data
     stats.js           charts and totals worked out from transactions
+    insights.js        search, forecasts, unusual charges, subscriptions, afford and goal plans
     assistant.js       Grace's intent engine
     i18n.js            translation helper
     format.js          money and date helpers
@@ -166,6 +175,7 @@ src/
   data/seed.js         demo data
   styles/              base (tokens), shell, dashboard, pages, assistant, auth, mobile
 supabase/schema.sql    database table and security rules
+tests/grace.test.js    Grace's test set
 ```
 
 ## Scripts
@@ -175,6 +185,7 @@ supabase/schema.sql    database table and security rules
 | `npm run dev` | Start the dev server with hot reload |
 | `npm run build` | Production build into `dist/` |
 | `npm run preview` | Serve the production build at `/Watchdog-Wallet/`, like the live site |
+| `npm test` | Grace's test set (150+ questions) |
 | `npm run lint` | ESLint |
 | `npm run format` | Prettier |
 

@@ -762,3 +762,42 @@ export function PotModal({ open, onClose }) {
     </Modal>
   )
 }
+
+/* ---------------- Grace's activity: the audit trail ---------------- */
+function ActivityBody() {
+  const { activity } = useApp()
+  if (!activity.length)
+    return (
+      <div className="card-empty">
+        <span>
+          <Icon name="shield" size={20} />
+        </span>
+        <strong>{t('Nothing yet')}</strong>
+        <p>{t('Every time Grace changes something for you, it’s listed here with what you asked and why.')}</p>
+      </div>
+    )
+  return (
+    <ol className="activity-list">
+      {activity.map((a) => (
+        <li key={a.id}>
+          <div className="activity-top">
+            <b>{a.action}</b>
+            <time dateTime={a.at}>{new Date(a.at).toLocaleString()}</time>
+          </div>
+          {a.detail ? <small>{a.detail}</small> : null}
+          <p>
+            <span>{t('You asked')}</span> “{a.request}”
+          </p>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+export function ActivityModal({ open, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose} title={t('Grace’s activity')} sub={t('Everything Grace has done on your account, newest first')} width={520}>
+      {open ? <ActivityBody /> : null}
+    </Modal>
+  )
+}
