@@ -1045,4 +1045,5 @@ export default {
   '{qty} {symbol} for {amount}.': '{qty} {symbol} pour {amount}.',
   Investment: 'Investissement',
   Invested: 'Investi',
+  'All rights reserved.': 'Tous droits réservés.',
 }

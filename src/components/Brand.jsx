@@ -1,8 +1,21 @@
 import { useId } from 'react'
 import Icon from './Icon'
 import { initials } from '../lib/format'
+import { BRAND, COPYRIGHT } from '../config'
+import { t } from '../lib/i18n'
 
-/** The Watchdog Wallet mark — a chunky rounded "W". */
+/** "© 2026 Rohit Rathod · Watchdog Wallet. All rights reserved." (the year range grows on its own) */
+export function Copyright({ className = '' }) {
+  const year = new Date().getFullYear()
+  const years = year > COPYRIGHT.since ? `${COPYRIGHT.since}-${year}` : `${year}`
+  return (
+    <footer className={`copyright ${className}`}>
+      © {years} {COPYRIGHT.owner} · {BRAND.name}. {t('All rights reserved.')}
+    </footer>
+  )
+}
+
+/** The Watchdog Wallet mark: a chunky rounded "W". */
 export function Logo({ size = 52 }) {
   const id = useId()
   return (

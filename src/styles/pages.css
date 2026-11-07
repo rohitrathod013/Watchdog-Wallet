@@ -1431,7 +1431,7 @@
 }
 
 /* ============================================================
-   Responsive — content
+   Responsive: content
    ============================================================ */
 @media (max-width: 1280px) {
   .ov-top {
@@ -1487,7 +1487,7 @@
     width: 100%;
     height: 52px;
   }
-  /* twelve month names do not fit — keep the initials */
+  /* twelve month names do not fit: keep the initials */
   .eb-months span {
     font-size: 0;
   }
@@ -1547,7 +1547,7 @@
 }
 
 /* ============================================================
-   Reveal — below-the-fold sections hold their entrance until
+   Reveal: below-the-fold sections hold their entrance until
    they scroll into view, then replay the full stagger.
    (kept last so it outranks the .settled shortcuts)
    ============================================================ */
@@ -1586,7 +1586,7 @@
   height: 46px;
 }
 
-/* quick transfer — compact contacts + delivery details */
+/* quick transfer: compact contacts + delivery details */
 .qt-card:not(.big) .person {
   min-width: 0;
   flex: 1;

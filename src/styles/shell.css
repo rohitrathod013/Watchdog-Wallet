@@ -1,5 +1,5 @@
 /* ============================================================
-   Shell — the rounded frame and the top bar
+   Shell: the rounded frame and the top bar
    ============================================================ */
 .shell {
   --gutter: clamp(20px, 5.4vw, 110px);
@@ -1066,7 +1066,7 @@
 }
 
 /* ============================================================
-   Responsive — shell
+   Responsive: shell
    ============================================================ */
 @media (max-width: 1180px) {
   .topbar {
@@ -1156,4 +1156,23 @@
     right: 12px;
     bottom: 12px;
   }
+}
+
+/* ---------------- copyright footer ---------------- */
+.copyright {
+  margin: 40px 0 8px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+.copyright.on-auth {
+  margin: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+/* in the demo the floating banner sits at the bottom: keep the footer clear of it */
+body:has(.demo-bar) .copyright {
+  margin-bottom: 64px;
 }

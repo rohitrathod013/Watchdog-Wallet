@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Icon from './Icon'
 import BuddyArt from './BuddyArt'
-import { Logo } from './Brand'
+import { Copyright, Logo } from './Brand'
 import { getSupabase, siteUrl } from '../lib/supabase'
 import { t } from '../lib/i18n'
 import { LANGUAGES } from '../data/seed'
@@ -237,6 +237,7 @@ export default function Auth({ initialMode = 'login', lang, setLang, onPasswordU
       ) : null}
 
       <p className="auth-foot">{t('{name} keeps an eye on your money. Your data is private to your account.', { name: ASSISTANT.name })}</p>
+      <Copyright className="on-auth" />
     </div>
   )
 }

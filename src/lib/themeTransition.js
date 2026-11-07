@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
-   Liquid theme switch — the new theme spills out of the toggle as an
+   Liquid theme switch: the new theme spills out of the toggle as an
    organic, wobbling blob (the same reveal as the reference video).
 
    It rides on the View Transitions API: the browser snapshots the old

@@ -1033,4 +1033,5 @@ export default {
   '{qty} {symbol} for {amount}.': '{qty} {symbol} por {amount}.',
   Investment: 'Inversión',
   Invested: 'Invertido',
+  'All rights reserved.': 'Todos los derechos reservados.',
 }

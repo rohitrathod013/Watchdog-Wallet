@@ -1017,4 +1017,5 @@ export default {
   '{qty} {symbol} for {amount}.': '{qty} {symbol} مقابل {amount}.',
   Investment: 'استثمار',
   Invested: 'مُستثمَر',
+  'All rights reserved.': 'جميع الحقوق محفوظة.',
 }

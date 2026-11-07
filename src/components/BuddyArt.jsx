@@ -1,14 +1,14 @@
 import { useId } from 'react'
 
 /* ------------------------------------------------------------------
-   Grace — a German Shepherd puppy, drawn in layers so she can move smoothly:
+   Grace: a German Shepherd puppy, drawn in layers so she can move smoothly:
 
      .codi-shadow   ground shadow (stays put while she jumps)
      .codi-rig      jumps / squashes          ← animated as one bitmap
        .codi-breathe  idle breathing
          body.svg     fur body, head, ears, black saddle, collar
          arm.svg ×2   each front leg is its own layer, rotates at the shoulder
-         face.svg     eyes, nose, blush, mouth — the only part that repaints
+         face.svg     eyes, nose, blush, mouth: the only part that repaints
 
    The fur is an SVG filter: a fine displacement for fluffy edges, a lit
    noise field for fibre relief, and sparse light/dark specks for strands.

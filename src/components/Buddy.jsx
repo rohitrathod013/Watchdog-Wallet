@@ -83,7 +83,7 @@ export default function Buddy({ hidden, onOpen }) {
         return
       }
 
-      /* 1 · fly in — x and y ride different springs, which draws a soft arc.
+      /* 1 · fly in: x and y ride different springs, which draws a soft arc.
              y lands on time (no bounce) so the hops start the moment he touches down */
       go(wrap, { x: m.vw + 40, y: -H - 90, scale: m.cs * 0.55, rotate: 32, opacity: 1 }, { duration: 0 })
       await wait(500)
@@ -93,7 +93,7 @@ export default function Buddy({ hidden, onOpen }) {
       await go(wrap, { y: m.cy }, { duration: 0.95, ease: [0.3, 0.6, 0.45, 1] })
       if (dead) return
 
-      /* 2 · celebrate — a single happy hop */
+      /* 2 · celebrate: a single happy hop */
       setPhase('happy')
       setStage({ x: m.cx + W / 2, y: m.headTop - JUMP * m.cs - 18, by: m.cy + H / 2 - 12 })
       for (let i = 0; i < 1; i++) {

@@ -1,5 +1,5 @@
 /* ============================================================
-   codexr — design tokens
+   Watchdog Wallet: design tokens
    Light is the reference design. Dark and the accent variants
    are swapped in through data-* attributes on <html>.
    ============================================================ */
@@ -192,7 +192,7 @@ svg {
 }
 
 /* ============================================================
-   Motion — entrance choreography (from Dashboard v14)
+   Motion: entrance choreography (from Dashboard v14)
    Cards land first as blank surfaces, then their content
    rises in. --base is the intro offset, --d the card's slot,
    --i the item's order inside the card.
@@ -496,7 +496,7 @@ html.theme-fade *::after {
   font-variant-numeric: tabular-nums;
 }
 
-/* change pill — (↗) +12.4% vs Last Week */
+/* change pill: (↗) +12.4% vs Last Week */
 .chg {
   display: inline-flex;
   align-items: center;
@@ -570,7 +570,7 @@ html.theme-fade *::after {
   color: var(--accent);
 }
 
-/* status — • Completed */
+/* status: • Completed */
 .status {
   display: inline-flex;
   align-items: center;

@@ -214,14 +214,14 @@ tests/grace.test.js    Grace's test set
 
 ## Scripts
 
-| Command | What it does |
-| --- | --- |
-| `npm run dev` | Start the dev server with hot reload |
-| `npm run build` | Production build into `dist/` |
+| Command           | What it does                                                          |
+| ----------------- | --------------------------------------------------------------------- |
+| `npm run dev`     | Start the dev server with hot reload                                  |
+| `npm run build`   | Production build into `dist/`                                         |
 | `npm run preview` | Serve the production build at `/Watchdog-Wallet/`, like the live site |
-| `npm test` | Grace's test set (220+ questions) |
-| `npm run lint` | ESLint |
-| `npm run format` | Prettier |
+| `npm test`        | Grace's test set (220+ questions)                                     |
+| `npm run lint`    | ESLint                                                                |
+| `npm run format`  | Prettier                                                              |
 
 ## Deploying
 
@@ -249,3 +249,9 @@ The latest Chrome, Edge, Safari and Firefox, on desktop and mobile. The liquid t
 - Crypto prices: [CoinGecko](https://www.coingecko.com)
 - Stock prices: [Finnhub](https://finnhub.io)
 - Public holidays: [Nager.Date](https://date.nager.at)
+
+## Copyright
+
+© 2026 Rohit Rathod · Watchdog Wallet. All rights reserved.
+
+The owner shown in the site footer is set in `COPYRIGHT` in `src/config.js`.

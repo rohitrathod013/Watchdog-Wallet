@@ -104,7 +104,7 @@ export function CountUp({ value, format = (n) => Math.round(n).toLocaleString('e
   return <span ref={ref} className={className} />
 }
 
-/* ---------------- Change pill — (↗) +12.4% vs Last Week ---------------- */
+/* ---------------- Change pill: (↗) +12.4% vs Last Week ---------------- */
 export function Chg({ value, note, size, className = '', style }) {
   const up = value >= 0
   return (
@@ -227,7 +227,7 @@ export function MenuItem({ icon, children, onClick, tone, on = false, i = 0 }) {
   )
 }
 
-/* ---------------- Dropdown — a pill that opens a short option list ---------------- */
+/* ---------------- Dropdown: a pill that opens a short option list ---------------- */
 export function Dropdown({ value, options, onChange, icon, small = false, anchor = 'right', label }) {
   const [open, setOpen] = useState(false)
   const current = options.find((o) => o.value === value)
@@ -335,7 +335,7 @@ export function Ring({ value, size = 96, stroke = 9, color = 'var(--accent)', tr
   )
 }
 
-/* ---------------- Page header — words blur up one by one ---------------- */
+/* ---------------- Page header: words blur up one by one ---------------- */
 export function PageHead({ title, sub, children }) {
   const words = title.split(' ')
   return (

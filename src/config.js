@@ -1,5 +1,5 @@
 /* ==================================================================
-   Template settings — rebrand the whole dashboard from this one file.
+   Template settings: rebrand the whole dashboard from this one file.
    Colours live in src/styles/base.css (:root tokens), demo data in
    src/data/seed.js, and the logo mark in src/components/Brand.jsx.
    ================================================================== */
@@ -9,6 +9,12 @@ export const BRAND = {
   name: 'Watchdog Wallet',
   /** Domain used for the demo payment link and the user's email. */
   domain: 'watchdogwallet.io',
+}
+
+/** The copyright line in the footer of every page and the login screen. */
+export const COPYRIGHT = {
+  owner: 'Rohit Rathod',
+  since: 2026,
 }
 
 /** The demo profile, used when accounts (Supabase below) are not set up. */
@@ -31,7 +37,7 @@ export const SUPABASE = {
 }
 
 export const THEME = {
-  /** 'light' | 'dark' — first visit only; the choice is remembered after that. */
+  /** 'light' | 'dark': first visit only; the choice is remembered after that. */
   defaultTheme: 'light',
   /** 'orange' | 'blue' | 'green' | 'violet' | 'rose' */
   defaultAccent: 'orange',

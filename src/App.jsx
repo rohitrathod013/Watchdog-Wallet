@@ -18,7 +18,7 @@ import {
   SellModal,
 } from './components/Modals'
 import { Toasts } from './components/ui'
-import { Logo } from './components/Brand'
+import { Copyright, Logo } from './components/Brand'
 
 import Dashboard from './pages/Dashboard'
 
@@ -129,7 +129,7 @@ const store = (key, value) => {
   try {
     localStorage.setItem(key, value)
   } catch {
-    /* private mode — preferences just will not persist */
+    /* private mode: preferences just will not persist */
   }
 }
 
@@ -904,6 +904,7 @@ export default function App() {
             <Page />
           </Suspense>
         </main>
+        <Copyright />
       </div>
 
       <SendModal open={modal?.type === 'send'} payload={modal?.payload} onClose={closeModal} />
