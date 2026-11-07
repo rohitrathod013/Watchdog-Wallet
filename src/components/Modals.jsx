@@ -7,6 +7,7 @@ import { isoDay, localIso, money } from '../lib/format'
 import { BRAND } from '../config'
 import { t } from '../lib/i18n'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../lib/stats'
+import { useGuardCheck } from './useGuardCheck'
 
 const QUICK = [50, 100, 250, 500]
 
@@ -58,7 +59,7 @@ function AmountField({ value, onChange, bad, hint }) {
 
 /* ---------------- Send money ---------------- */
 function SendBody({ payload, onClose }) {
-  const { contacts, balance, sendMoney } = useApp()
+  const { contacts, balance, sendMoney, transactions } = useApp()
   const [to, setTo] = useState(payload?.to ?? contacts[0]?.id)
   const [amount, setAmount] = useState(payload?.amount ? String(payload.amount) : '')
   const [note, setNote] = useState('')
@@ -66,13 +67,15 @@ function SendBody({ payload, onClose }) {
   const n = Number(amount)
   const over = n > balance
   const person = contacts.find((c) => c.id === to)
+  const firstTime = Boolean(person) && !transactions.some((x) => x.name === `Transfer to ${person.name}`)
+  const [guardNotice, guardOk] = useGuardCheck(n, { payee: person?.name, firstTime })
 
   if (done) return <Success title={t('Money sent')} body={t('{amount} is on its way to {name}.', { amount: money(done.amount), name: done.name })} />
   if (!person) return <NoContacts then="send" />
 
   const submit = (e) => {
     e.preventDefault()
-    if (!n || over) return
+    if (!n || over || !guardOk) return
     sendMoney({ to: person.name, amount: n, note })
     setDone({ amount: n, name: person.name })
     window.setTimeout(onClose, 1500)
@@ -104,7 +107,8 @@ function SendBody({ payload, onClose }) {
         <span>{t('Note (optional)')}</span>
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('Dinner, rent, birthday…')} />
       </label>
-      <button type="submit" className="btn solid lg block" disabled={!n || over}>
+      {guardNotice}
+      <button type="submit" className="btn solid lg block" disabled={!n || over || !guardOk}>
         <Icon name="send" size={18} />
         {n ? t('Send {amount} to {name}', { amount: money(n), name: person.name.split(' ')[0] }) : t('Enter an amount')}
       </button>
@@ -329,7 +333,8 @@ function TransactionBody({ payload, onClose }) {
   const [category, setCategory] = useState(type === 'income' ? 'Salary' : 'Food & Dining')
   const [date, setDate] = useState(isoDay(new Date()))
   const n = Number(amount)
-  const ok = name.trim() && n > 0
+  const [guardNotice, guardOk] = useGuardCheck(type === 'expense' ? n : 0)
+  const ok = name.trim() && n > 0 && guardOk
   const cats = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES
 
   const pickType = (next) => {
@@ -416,6 +421,7 @@ function TransactionBody({ payload, onClose }) {
           <input type="date" value={date} max={isoDay(new Date())} onChange={(e) => setDate(e.target.value || isoDay(new Date()))} />
         </label>
       </div>
+      {guardNotice}
       <button type="submit" className="btn solid lg block" disabled={!ok}>
         <Icon name="plus" size={18} stroke={2} />
         {type === 'income' ? t('Add income') : t('Add expense')}
@@ -818,7 +824,8 @@ function InvestBody({ payload, onClose }) {
   const have = from ? from.amount : Math.max(0, unassigned)
   const over = n > have
   const qty = n > 0 && each > 0 ? n / each : 0
-  const ok = qty > 0 && !over
+  const [guardNotice, guardOk] = useGuardCheck(n)
+  const ok = qty > 0 && !over && guardOk
 
   if (done)
     return (
@@ -886,6 +893,7 @@ function InvestBody({ payload, onClose }) {
           brand: BRAND.name,
         })}
       </p>
+      {guardNotice}
       <button type="submit" className="btn solid lg block" disabled={!ok}>
         <Icon name="trendUp" size={18} stroke={2} />
         {t('Buy {symbol}', { symbol: payload?.symbol ?? '' })}

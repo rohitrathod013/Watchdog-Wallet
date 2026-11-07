@@ -118,6 +118,7 @@ function BotMessage({ m, last, onTyped, onConfirm, onCancel, onAsk }) {
   const total = plainLength(m.text)
   const [n, setN] = useState(m.instant ? total : 0)
   const typed = n >= total
+  const [armed, setArmed] = useState(false)
 
   // type the reply out a few characters at a time
   useEffect(() => {
@@ -149,8 +150,16 @@ function BotMessage({ m, last, onTyped, onConfirm, onCancel, onAsk }) {
             </p>
             {m.status ? null : (
               <div>
-                <button type="button" className="btn solid" onClick={() => onConfirm(m)}>
-                  {m.confirm.label}
+                <button
+                  type="button"
+                  className={`btn solid ${armed ? 'armed' : ''}`}
+                  onClick={() => {
+                    // over the guard limit: the first tap only arms the button
+                    if (m.confirm.guard && !armed) return setArmed(true)
+                    onConfirm(m)
+                  }}
+                >
+                  {armed ? t('Tap again to confirm') : m.confirm.label}
                 </button>
                 <button type="button" className="btn" onClick={() => onCancel(m)}>
                   {t('Cancel')}
@@ -424,7 +433,7 @@ export default function Assistant({ open, onClose, prompt }) {
           <strong>{ASSISTANT.name}</strong>
           <small>
             <i />
-            {thinking ? t('Thinking…') : mood === 'talk' ? t('Typing…') : t('Your {brand} assistant · Online', { brand: BRAND.name })}
+            {thinking ? t('Thinking…') : mood === 'talk' ? t('Typing…') : t('On guard · watching your {brand}', { brand: BRAND.name })}
           </small>
         </div>
         {canSpeak ? (

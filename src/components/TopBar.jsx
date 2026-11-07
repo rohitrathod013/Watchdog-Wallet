@@ -254,8 +254,14 @@ export default function TopBar() {
             <MenuItem icon="replay" i={2} onClick={() => (close(), app.replayIntro())}>
               {t('Replay intro animation')}
             </MenuItem>
-            <MenuItem icon="shield" i={3} onClick={() => (close(), app.openModal('activity'))}>
+            <MenuItem icon="shield" i={3} onClick={() => (close(), app.openModal('guard'))}>
+              {t('Grace’s guard')}
+            </MenuItem>
+            <MenuItem icon="clock" i={3.5} onClick={() => (close(), app.openModal('activity'))}>
               {t('Grace’s activity')}
+            </MenuItem>
+            <MenuItem icon="lock" i={3.7} onClick={() => (close(), app.lockNow('manual'))}>
+              {t('Lock now')}
             </MenuItem>
             <hr />
             {app.demo ? null : (

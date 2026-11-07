@@ -49,6 +49,17 @@ Investing here is **tracked, not traded**: Watchdog Wallet records what you boug
 - **Wallet**: your card, balances by currency and bills.
 - **Budget**: category budgets with a one-tap smart rebalance.
 
+### Grace, the guard dog
+
+Grace wears a guard cap and a gold shield badge, and she guards the account (**Grace's guard** in the account menu, or ask her for a "security check"):
+
+- **Auto-lock**: after a set time with no activity (15 minutes by default) the app locks behind Grace, and unlocking a real account needs its password again. A reload doesn't get past the lock, and Grace's chat is shut while it's locked. **Lock now** is in the account menu, or say "lock the app".
+- **Large payment guard**: payments at or above your limit ($500 by default) need an extra step, a tick box in the payment windows or a second tap on Grace's confirm button.
+- **First payment warning**: before you pay someone for the first time, Grace asks you to check it's really them.
+- **Privacy blur**: optional. Blurs your numbers whenever you switch to another tab or app, for screen sharing.
+- **Scam warnings**: messages like "someone asked me to buy gift cards", "move my money to a safe account" or "install AnyDesk" get a clear warning and what to do.
+- Settings are saved per account, and Grace can change them: "auto-lock after 5 minutes", "set my guard limit to $300", "turn on privacy blur".
+
 ### Grace, the assistant
 
 - Flies in when the page loads, then sits in the corner, blinks, follows the pointer and waves. Press **/** anywhere to open the chat, or tap the microphone to speak.
@@ -71,7 +82,7 @@ Investing here is **tracked, not traded**: Watchdog Wallet records what you boug
 - **Talks back**: the speaker button in the chat header reads every reply aloud, and questions asked with the microphone are always answered out loud.
 - **Forgives typos**: "whats my balnce", "I spnet $30 on dinnr" and "send $50 to varsah" all work. [Fuse.js](https://www.fusejs.io) matches each unknown word against Grace's vocabulary and the names on your account (`src/lib/typos.js`), with strict rules so real words like "tax" or "crash" are never changed.
 - Understands some Roman Urdu, such as "balance kitna hai" and "kal 300 ka khana kharch kiya".
-- **Tested**: `npm test` runs 220+ example questions with expected answers (`tests/grace.test.js`), and GitHub runs them before every deploy.
+- **Tested**: `npm test` runs 240+ example questions with expected answers (`tests/grace.test.js`), and GitHub runs them before every deploy.
 
 ### Languages
 
@@ -191,6 +202,7 @@ src/
     Modals.jsx         send, receive, request, goal, transaction, contact, bill
     TopBar.jsx         navigation, notifications, settings, language, account
     Assistant.jsx      Grace's chat panel
+    Guard.jsx          lock screen and guard settings
     Buddy.jsx          Grace's on-page movement (Framer Motion)
     BuddyArt.jsx       Grace: a German Shepherd puppy in layered SVG
     ui.jsx             CountUp, Stage, Reveal, Modal, Popover, Segmented, Ring…
@@ -200,6 +212,7 @@ src/
     insights.js        search, forecasts, unusual charges, subscriptions, afford and goal plans
     assistant.js       Grace's intent engine
     typos.js           typo correction with Fuse.js
+    guard.js           guard defaults shared by the app and Grace
     live.js            exchange rates, crypto and stock prices, search and holidays, with caching
     i18n.js            translation helper
     format.js          money and date helpers
@@ -219,7 +232,7 @@ tests/grace.test.js    Grace's test set
 | `npm run dev`     | Start the dev server with hot reload                                  |
 | `npm run build`   | Production build into `dist/`                                         |
 | `npm run preview` | Serve the production build at `/Watchdog-Wallet/`, like the live site |
-| `npm test`        | Grace's test set (220+ questions)                                     |
+| `npm test`        | Grace's test set (240+ questions)                                     |
 | `npm run lint`    | ESLint                                                                |
 | `npm run format`  | Prettier                                                              |
 

@@ -1046,4 +1046,78 @@ export default {
   Investment: 'Investissement',
   Invested: 'Investi',
   'All rights reserved.': 'Tous droits réservés.',
+  // ---------------- Grace on guard ----------------
+  'After {n} min': 'Après {n} min',
+  'At or above your {limit} guard limit, so tap twice to confirm.': 'Égal ou supérieur à votre limite de {limit} : touchez deux fois pour confirmer.',
+  'Auto-lock': 'Verrouillage auto',
+  'Auto-lock is off. I won’t lock the app on my own.': 'Le verrouillage auto est désactivé. Je ne verrouillerai pas l’app de moi-même.',
+  'Blurs your numbers when you switch to another tab or app, for screen sharing and shoulder surfers.':
+    'Floute vos chiffres quand vous passez à un autre onglet ou une autre app, pour le partage d’écran et les regards indiscrets.',
+  'Checking…': 'Vérification…',
+  'Done 🛡 I’ll blur your numbers whenever you switch to another tab or app.':
+    'C’est fait 🛡 Je floute vos chiffres dès que vous passez à un autre onglet ou une autre app.',
+  'Done 🛡 I’ll lock the app after {n} minutes with no activity.': 'C’est fait 🛡 Je verrouille l’app après {n} minutes sans activité.',
+  'Done 🛡 I’ll warn you before the first payment to someone new.': 'C’est fait 🛡 Je vous préviens avant le premier paiement à quelqu’un de nouveau.',
+  'Done 🛡 Payments of {amount} or more will need an extra confirm.':
+    'C’est fait 🛡 Les paiements de {amount} ou plus demanderont une confirmation de plus.',
+  'Enter the password for {email} to come back in.': 'Saisissez le mot de passe de {email} pour revenir.',
+  'Enter your password.': 'Saisissez votre mot de passe.',
+  'Every change {name} makes is listed in {name}’s activity.': 'Chaque changement fait par {name} est listé dans l’activité de {name}.',
+  'Everything is guarded. Woof!': 'Tout est protégé. Ouaf !',
+  'First payment warning': 'Alerte premier paiement',
+  'First payment warnings are off.': 'Les alertes de premier paiement sont désactivées.',
+  'Grace’s guard': 'La garde de Grace',
+  'Guard limit': 'Limite de garde',
+  'Hidden by {name} while you’re away': 'Masqué par {name} pendant votre absence',
+  'How {name} protects your account and your money': 'Comment {name} protège votre compte et votre argent',
+  'I locked the app because nobody was using it, so your money stays private.':
+    'J’ai verrouillé l’app car personne ne l’utilisait, pour que votre argent reste privé.',
+  'Large payment guard': 'Garde des gros paiements',
+  'Lock now': 'Verrouiller maintenant',
+  'Locked by {name}': 'Verrouillé par {name}',
+  'Locked 🔒 Your money is safe. Unlock with your password when you’re back.':
+    'Verrouillé 🔒 Votre argent est en sécurité. Déverrouillez avec votre mot de passe à votre retour.',
+  'Locks the app after a while with no activity. Unlocking needs your password.':
+    'Verrouille l’app après un moment sans activité. Le déverrouillage demande votre mot de passe.',
+  'Log out instead': 'Me déconnecter',
+  Off: 'Désactivé',
+  'On guard · watching your {brand}': 'De garde · je surveille votre {brand}',
+  'Open guard settings': 'Ouvrir les réglages de garde',
+  'Passwords, PINs and codes are never stored in chat, and every change I make is logged.':
+    'Les mots de passe, codes PIN et codes ne sont jamais gardés dans le chat, et chaque changement que je fais est enregistré.',
+  'Payments at or above this amount need an extra confirm.': 'Les paiements égaux ou supérieurs à ce montant demandent une confirmation de plus.',
+  'Privacy blur': 'Flou de confidentialité',
+  'Privacy blur is off.': 'Le flou de confidentialité est désactivé.',
+  'Reminds you to double-check before paying someone for the first time.':
+    'Vous rappelle de vérifier avant de payer quelqu’un pour la première fois.',
+  'Security check 🛡 **{n} of {total}** protections are on.': 'Bilan de sécurité 🛡 **{n} sur {total}** protections activées.',
+  'Tap again to confirm': 'Touchez encore pour confirmer',
+  'That password didn’t work. Try again, or log out and use Forgot password.':
+    'Ce mot de passe n’a pas fonctionné. Réessayez, ou déconnectez-vous et utilisez Mot de passe oublié.',
+  'The app is locked, so your money stays private.': 'L’app est verrouillée, pour que votre argent reste privé.',
+  'The large payment guard is off.': 'La garde des gros paiements est désactivée.',
+  'This is the demo, so no password is needed.': 'C’est la démo, aucun mot de passe n’est nécessaire.',
+  'This is your first payment to {payee}. Make sure it’s really them and the details are right.':
+    'C’est votre premier paiement à {payee}. Vérifiez que c’est bien la bonne personne et que les détails sont justes.',
+  'Try the lock screen': 'Essayer l’écran verrouillé',
+  'Turn on the rest and {name} guards everything.': 'Activez le reste et {name} protège tout.',
+  Unlock: 'Déverrouiller',
+  'Yes, I meant {amount}': 'Oui, je voulais bien {amount}',
+  'Your data is private to your account, protected by row level security.':
+    'Vos données sont privées à votre compte, protégées par la sécurité au niveau des lignes.',
+  'after {n} minutes': 'après {n} minutes',
+  'from {amount}': 'à partir de {amount}',
+  off: 'désactivé',
+  '{amount} is at or above your {limit} guard limit.': '{amount} est égal ou supérieur à votre limite de {limit}.',
+  '{name} is on guard': '{name} monte la garde',
+  '{name} never asks for your password, PIN or one-time codes.':
+    '{name} ne demande jamais votre mot de passe, votre code PIN ni vos codes à usage unique.',
+  '{name}’s guard': 'La garde de {name}',
+  '{n} of {total} protections on': '{n} sur {total} protections activées',
+  '🛡 Careful, that sounds like a scam. Real banks, tax offices and delivery companies never ask you to pay with gift cards or crypto, move money to a “safe account”, install remote-access apps, or share codes. Stop, don’t pay, and contact the company on a number you look up yourself. If you’ve already paid, call your bank right away.':
+    '🛡 Attention, cela ressemble à une arnaque. Les banques, les impôts et les transporteurs ne demandent jamais de payer en cartes cadeaux ou en crypto, de virer de l’argent sur un « compte sécurisé », d’installer une app de prise en main à distance ou de partager des codes. Arrêtez, ne payez pas et contactez l’entreprise via un numéro que vous trouvez vous-même. Si vous avez déjà payé, appelez votre banque tout de suite.',
+  'Turn on auto-lock': 'Activer le verrouillage auto',
+  'Turn on large payment guard': 'Activer la garde des gros paiements',
+  'Turn on first payment warnings': 'Activer les alertes de premier paiement',
+  'Turn on privacy blur': 'Activer le flou de confidentialité',
 }

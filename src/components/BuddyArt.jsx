@@ -197,8 +197,52 @@ export default function BuddyArt({ size = 220, mood = 'idle', className = '', ri
               strokeLinecap="round"
               transform="translate(0 3)"
             />
-            <circle cx="110" cy="146" r="6.5" fill="#f2c14e" stroke="#b8860b" strokeWidth="1.2" />
-            <circle cx="108" cy="144" r="1.8" fill="#fff" opacity=".7" />
+            {/* gold shield badge on the collar: she's on duty */}
+            <path
+              d="M110 137.5l8.5 3.4v5.6c0 5.4-3.6 9.2-8.5 11-4.9-1.8-8.5-5.6-8.5-11v-5.6Z"
+              fill={u('gold')}
+              stroke="#a8770a"
+              strokeWidth="1.2"
+              strokeLinejoin="round"
+            />
+            <path d="M110 142.2l1.5 3.1 3.4.4-2.5 2.3.7 3.3-3.1-1.7-3.1 1.7.7-3.3-2.5-2.3 3.4-.4Z" fill="#fff6d6" opacity=".9" />
+
+            {/* ---------------- guard cap ---------------- */}
+            <defs>
+              <linearGradient id={`${id}-gold`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#ffe08a" />
+                <stop offset="1" stopColor="#e0a420" />
+              </linearGradient>
+              <linearGradient id={`${id}-cap`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#34446e" />
+                <stop offset="1" stopColor="#1b2440" />
+              </linearGradient>
+              <linearGradient id={`${id}-visor`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#2b2f3a" />
+                <stop offset="1" stopColor="#07080c" />
+              </linearGradient>
+            </defs>
+            <g className="guard-cap">
+              <ellipse cx="110" cy="50" rx="40" ry="6" fill="#2a1a0e" opacity=".3" filter={u('b3')} />
+              {/* crown */}
+              <path d="M74 42C70 26 86 11 110 11C134 11 150 26 146 42Z" fill={u('cap')} />
+              <path d="M84 22C92 15 101 13.5 110 13.5" fill="none" stroke="#fff" strokeOpacity=".22" strokeWidth="3" strokeLinecap="round" />
+              {/* band with a gold cord */}
+              <path d="M73 38H147V46C147 47.5 146 48.5 144.5 48.5H75.5C74 48.5 73 47.5 73 46Z" fill="#141b31" />
+              <path d="M76 40.5H144" stroke={u('gold')} strokeWidth="1.6" strokeLinecap="round" />
+              {/* visor */}
+              <path d="M71 47.5Q110 44 149 47.5Q151 53 144 55Q110 61 76 55Q69 53 71 47.5Z" fill={u('visor')} />
+              <path d="M80 50Q110 47.5 140 50" fill="none" stroke="#fff" strokeOpacity=".25" strokeWidth="1.4" strokeLinecap="round" />
+              {/* badge */}
+              <path
+                d="M110 17.5l9 3.6v6.2c0 5.8-3.8 9.8-9 11.7-5.2-1.9-9-5.9-9-11.7v-6.2Z"
+                fill={u('gold')}
+                stroke="#a8770a"
+                strokeWidth="1.1"
+                strokeLinejoin="round"
+              />
+              <path d="M110 22.6l1.6 3.3 3.6.5-2.6 2.5.6 3.5-3.2-1.7-3.2 1.7.6-3.5-2.6-2.5 3.6-.5Z" fill="#fff6d6" />
+            </g>
           </svg>
 
           <Arm side="l" id={`${id}-al`} armRef={armLRef} />

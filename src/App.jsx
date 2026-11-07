@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useSt
 import { flushSync } from 'react-dom'
 
 import TopBar from './components/TopBar'
+import Icon from './components/Icon'
 import {
   AddMoneyModal,
   BillModal,
@@ -19,6 +20,8 @@ import {
 } from './components/Modals'
 import { Toasts } from './components/ui'
 import { Copyright, Logo } from './components/Brand'
+import { GuardModal, LockScreen } from './components/Guard'
+import { DEFAULT_GUARD } from './lib/guard'
 
 import Dashboard from './pages/Dashboard'
 
@@ -58,6 +61,9 @@ const PAGE_VIEWS = { dashboard: Dashboard, analytics: Analytics, transfer: Trans
 /* the coins and stocks on the Markets card until the user picks their own */
 const DEFAULT_WATCHLIST = { crypto: ['bitcoin', 'ethereum', 'ripple', 'solana', 'dogecoin'], stocks: ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN'] }
 
+/* Grace's guard settings (see components/Guard.jsx); the demo doesn't auto-lock */
+const DEMO_GUARD = { ...DEFAULT_GUARD, lock: 0 }
+
 const freshState = () => ({
   balance: 0,
   transactions: [],
@@ -69,6 +75,7 @@ const freshState = () => ({
   activity: [],
   watchlist: DEFAULT_WATCHLIST,
   holdings: [],
+  guard: DEFAULT_GUARD,
   notifications: [
     {
       id: 'welcome',
@@ -98,6 +105,7 @@ const demoState = () => ({
   activity: [],
   watchlist: DEFAULT_WATCHLIST,
   holdings: seed.HOLDINGS,
+  guard: DEMO_GUARD,
 })
 
 /** Shown while checking the session or loading an account's data. */
@@ -237,6 +245,9 @@ export default function App() {
   const [watchlist, setWatchlist] = useState(DEFAULT_WATCHLIST)
   // coins and stocks the user has recorded buying: { kind, asset, name, symbol, qty, cost }
   const [holdings, setHoldings] = useState(seed.HOLDINGS)
+  // Grace on guard: auto-lock, large-payment checks, first-payment warnings, privacy blur
+  const [guard, setGuardState] = useState(DEMO_GUARD)
+  const setGuard = useCallback((patch) => setGuardState((g) => ({ ...g, ...patch })), [])
   const [sentToday, setSentToday] = useState(0)
 
   /* ---------- accounts (Supabase) ----------
@@ -249,6 +260,23 @@ export default function App() {
   const [authMode, setAuthMode] = useState('login')
   // exploring the sample dashboard without an account
   const [demo, setDemo] = useState(false)
+  /* locked: null, or why ('idle' | 'manual'). It survives a reload, so refreshing doesn't get past the lock. */
+  const [lock, setLock] = useState(() => {
+    try {
+      return localStorage.getItem('ww-locked') || null
+    } catch {
+      return null
+    }
+  })
+  // a lock only guards a signed-in session: with nobody signed in there's nothing to unlock
+  const clearLock = useCallback(() => {
+    setLock(null)
+    try {
+      localStorage.removeItem('ww-locked')
+    } catch {
+      /* nothing saved */
+    }
+  }, [])
   const isDemo = !accountsEnabled || demo
   const userId = demo ? null : (session?.user?.id ?? null)
 
@@ -264,6 +292,7 @@ export default function App() {
     setActivity(data.activity ?? [])
     setWatchlist(data.watchlist ?? DEFAULT_WATCHLIST)
     setHoldings(data.holdings ?? [])
+    setGuardState({ ...DEFAULT_GUARD, ...(data.guard ?? {}) })
     setDrift(0)
     setSentToday(0)
   }, [])
@@ -274,9 +303,14 @@ export default function App() {
     let alive = true
     getSupabase().then((supabase) => {
       if (!alive) return
-      supabase.auth.getSession().then(({ data }) => alive && setSession(data.session ?? null))
+      supabase.auth.getSession().then(({ data }) => {
+        if (!alive) return
+        setSession(data.session ?? null)
+        if (!data.session) clearLock()
+      })
       const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
         setSession(s ?? null)
+        if (!s) clearLock()
         if (event === 'PASSWORD_RECOVERY') setRecovery(true)
       })
       unsub = () => sub.subscription.unsubscribe()
@@ -285,7 +319,7 @@ export default function App() {
       alive = false
       unsub?.()
     }
-  }, [])
+  }, [clearLock])
 
   // load (or create) the signed-in user's dashboard
   useEffect(() => {
@@ -307,8 +341,8 @@ export default function App() {
 
   // save the dashboard back to the account a moment after anything changes
   const saved = useMemo(
-    () => ({ balance, transactions, goals, budgets, bills, notifications, contacts, pots, activity, watchlist, holdings }),
-    [balance, transactions, goals, budgets, bills, notifications, contacts, pots, activity, watchlist, holdings],
+    () => ({ balance, transactions, goals, budgets, bills, notifications, contacts, pots, activity, watchlist, holdings, guard }),
+    [balance, transactions, goals, budgets, bills, notifications, contacts, pots, activity, watchlist, holdings, guard],
   )
   const [saveFailed, setSaveFailed] = useState(false)
   useEffect(() => {
@@ -354,6 +388,24 @@ export default function App() {
     if (typeof q === 'string') setAiAsk({ q, n: Date.now() })
   }, [])
   const closeAssistant = useCallback(() => setAiOpen(false), [])
+  const lockNow = useCallback((why = 'manual') => {
+    setModal(null)
+    setAiOpen(false)
+    setLock(why)
+    try {
+      localStorage.setItem('ww-locked', why)
+    } catch {
+      /* the lock still holds for this visit */
+    }
+  }, [])
+  const unlock = useCallback(() => {
+    setLock(null)
+    try {
+      localStorage.removeItem('ww-locked')
+    } catch {
+      /* nothing saved */
+    }
+  }, [])
   useLayoutEffect(() => {
     document.documentElement.classList.toggle('ai-open', aiOpen)
   }, [aiOpen])
@@ -656,11 +708,12 @@ export default function App() {
   }, [applyState, toast])
 
   const enterDemo = useCallback(() => {
+    clearLock()
     applyState(demoState())
     setDemo(true)
     window.history.replaceState(null, '', '#/dashboard')
     setRoute({ page: 'dashboard', tab: 'overview' })
-  }, [applyState])
+  }, [applyState, clearLock])
 
   const leaveDemo = useCallback((mode = 'login') => {
     setModal(null)
@@ -672,6 +725,12 @@ export default function App() {
   const signOut = useCallback(() => {
     setModal(null)
     setAiOpen(false)
+    setLock(null)
+    try {
+      localStorage.removeItem('ww-locked')
+    } catch {
+      /* nothing saved */
+    }
     if (accountsEnabled && demo) {
       setDemo(false)
       setAuthMode('login')
@@ -689,6 +748,41 @@ export default function App() {
     setSignedOut(false)
     replayIntro()
   }, [replayIntro])
+
+  // auto-lock after `guard.lock` minutes without any input (only inside the app, never on the login screen)
+  const inApp = !accountsEnabled || isDemo || Boolean(session && loadedFor === userId)
+  useEffect(() => {
+    if (!guard.lock || lock || !inApp) return undefined
+    let timer = 0
+    const arm = () => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => lockNow('idle'), guard.lock * 60 * 1000)
+    }
+    const events = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart']
+    events.forEach((e) => window.addEventListener(e, arm, { passive: true }))
+    arm()
+    return () => {
+      window.clearTimeout(timer)
+      events.forEach((e) => window.removeEventListener(e, arm))
+    }
+  }, [guard.lock, lock, inApp, lockNow])
+
+  // privacy blur: hide the numbers while the window isn't in front
+  const [away, setAway] = useState(false)
+  useEffect(() => {
+    if (!guard.privacy) return undefined
+    const check = () => setAway(document.hidden || !document.hasFocus())
+    window.addEventListener('blur', check)
+    window.addEventListener('focus', check)
+    document.addEventListener('visibilitychange', check)
+    return () => {
+      window.removeEventListener('blur', check)
+      window.removeEventListener('focus', check)
+      document.removeEventListener('visibilitychange', check)
+      setAway(false)
+    }
+  }, [guard.privacy])
+  const hidden = guard.privacy && away
 
   const user = useMemo(() => {
     if (isDemo) return { ...seed.USER, avatar: `${import.meta.env.BASE_URL}avatar.jpg` }
@@ -739,6 +833,9 @@ export default function App() {
       holdings,
       invest,
       sellHolding,
+      guard,
+      setGuard,
+      lockNow,
       // the demo's sample data ends on Oct 28 2026, so Grace treats that as today there
       now: isDemo ? DEMO_NOW : undefined,
       pots,
@@ -807,6 +904,9 @@ export default function App() {
       holdings,
       invest,
       sellHolding,
+      guard,
+      setGuard,
+      lockNow,
       pots,
       unassigned,
       inPots,
@@ -897,7 +997,7 @@ export default function App() {
 
   return (
     <AppContext.Provider value={ctx}>
-      <div className={`shell ${booting ? 'booting' : ''}`} key={bootKey}>
+      <div className={`shell ${booting ? 'booting' : ''} ${hidden || lock ? 'guard-hidden' : ''}`} key={bootKey} inert={lock ? true : undefined}>
         <TopBar />
         <main className="main" key={route.page}>
           <Suspense fallback={null}>
@@ -920,6 +1020,15 @@ export default function App() {
       <ActivityModal open={modal?.type === 'activity'} onClose={closeModal} />
       <InvestModal open={modal?.type === 'invest'} payload={modal?.payload} onClose={closeModal} />
       <SellModal open={modal?.type === 'sell'} payload={modal?.payload} onClose={closeModal} />
+      <GuardModal open={modal?.type === 'guard'} onClose={closeModal} />
+      {hidden && !lock ? (
+        <div className="guard-veil" aria-hidden="true">
+          <span>
+            <Icon name="eyeOff" size={18} /> {t('Hidden by {name} while you’re away', { name: ASSISTANT.name })}
+          </span>
+        </div>
+      ) : null}
+      {lock ? <LockScreen user={user} demo={isDemo} reason={lock} onUnlock={unlock} onSignOut={signOut} /> : null}
       {accountsEnabled && demo ? (
         <div className="demo-bar" role="status">
           <span className="demo-long">{t('You’re exploring the demo. Nothing here is saved.')}</span>
@@ -931,8 +1040,9 @@ export default function App() {
       ) : null}
       {ASSISTANT.enabled ? (
         <Suspense fallback={null}>
-          <Buddy key={`codi-${bootKey}`} hidden={aiOpen} onOpen={openAssistant} />
-          <Assistant open={aiOpen} onClose={closeAssistant} prompt={aiAsk} />
+          {/* while locked, Grace stays out of reach so nothing can be done through the chat */}
+          <Buddy key={`codi-${bootKey}`} hidden={aiOpen || Boolean(lock)} onOpen={openAssistant} />
+          <Assistant open={aiOpen && !lock} onClose={closeAssistant} prompt={lock ? null : aiAsk} />
         </Suspense>
       ) : null}
       {saveFailed ? (

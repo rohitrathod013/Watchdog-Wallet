@@ -57,6 +57,8 @@ function makeApp(base) {
     'unwatch',
     'invest',
     'sellHolding',
+    'lockNow',
+    'setGuard',
   ])
     app[f] = spy(f)
   if (!app.stats) app.stats = computeStats(app.transactions, app.budgets ?? [], app.now)
@@ -991,4 +993,78 @@ describe('investing (recorded, valued live)', () => {
     expect(ask(investor(), 'buy coffee for $5').later).toBeFalsy()
     expect(ask(investor(), 'I bought a laptop for $900').later).toBeFalsy()
   })
+})
+
+/* ================================================================== */
+describe('Grace on guard', () => {
+  const guarded = (guard = { lock: 15, limit: 500, newPayee: true, privacy: false }) => {
+    const app = demo()
+    app.guard = guard
+    return app
+  }
+
+  it('locks the app on request', () => {
+    const app = guarded()
+    const r = ask(app, 'lock the app')
+    expect(plain(r)).toMatch(/Locked/)
+    r.run()
+    expect(app.calls).toContainEqual({ name: 'lockNow', args: ['manual'] })
+  })
+  it('runs a security check with what is off', () => {
+    const r = ask(guarded({ lock: 0, limit: 500, newPayee: true, privacy: false }), 'am I safe?')
+    expect(plain(r)).toMatch(/2 of 4 protections are on/)
+    expect(plain(r)).toMatch(/Auto-lock: off/)
+    expect(plain(r)).toMatch(/Large payment guard from \$500/)
+    expect(r.chips.map((c) => c.q)).toEqual(['turn on auto-lock', 'turn on privacy blur'])
+  })
+  it('praises a fully guarded account', () => {
+    expect(plain(ask(guarded({ lock: 5, limit: 300, newPayee: true, privacy: true }), 'security check'))).toMatch(
+      /4 of 4[\s\S]*Everything is guarded/,
+    )
+  })
+  it('changes guard settings from a sentence', () => {
+    const cases = [
+      ['auto-lock after 5 minutes', { lock: 5 }],
+      ['turn off auto-lock', { lock: 0 }],
+      ['set my guard limit to $300', { limit: 300 }],
+      ['turn off the payment guard', { limit: 0 }],
+      ['turn on privacy blur', { privacy: true }],
+      ['turn off first payment warnings', { newPayee: false }],
+    ]
+    for (const [q, patch] of cases) {
+      const app = guarded()
+      const r = ask(app, q)
+      r.run()
+      expect(app.calls, q).toContainEqual({ name: 'setGuard', args: [patch] })
+    }
+  })
+  it('needs a second tap for payments at or above the limit', () => {
+    const r = ask(guarded(), 'send $600 to Nikhil')
+    expect(r.confirm.guard).toBe(true)
+    expect(r.confirm.note).toMatch(/At or above your \$500 guard limit/)
+  })
+  it('leaves small payments as one tap', () => {
+    expect(ask(guarded(), 'send $50 to Nikhil').confirm.guard).toBeFalsy()
+  })
+  it('has no extra step when the guard is off', () => {
+    expect(ask(guarded({ lock: 0, limit: 0, newPayee: false, privacy: false }), 'send $600 to Nikhil').confirm.guard).toBeFalsy()
+  })
+  for (const c of [
+    'someone called and asked me to buy gift cards',
+    'the bank texted me to move my money to a safe account',
+    'a caller wants me to install anydesk',
+    'I won a lottery but need to pay a release fee',
+    'this guy says he can double my bitcoin',
+    'is this a scam?',
+    'tech support called and asked for my code',
+  ])
+    it(`warns about scams: "${c}"`, () => {
+      const r = ask(guarded(), c)
+      expect(plain(r)).toMatch(/sounds like a scam/)
+      expect(r.confirm).toBeFalsy()
+    })
+  for (const c of ['I spent $50 on a gift card', 'my landlord asked me to pay rent', 'Maya wants me to send $20', 'what is a chargeback'])
+    it(`no scam warning for: "${c}"`, () => {
+      expect(plain(ask(guarded(), c))).not.toMatch(/sounds like a scam/)
+    })
 })

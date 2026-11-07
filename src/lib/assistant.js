@@ -35,6 +35,7 @@ import {
   subscriptions,
 } from './insights'
 import { accountWords, fixTypos } from './typos'
+import { DEFAULT_GUARD, guardState } from './guard'
 import { ASSISTANT, BRAND } from '../config'
 import { CAT_COLORS, CURRENCIES } from '../data/seed'
 
@@ -863,6 +864,8 @@ const rangeLabel = (r) =>
 const whenWord = (days) => (days <= 0 ? t('today') : days === 1 ? t('tomorrow') : t('in {n} days', { n: days }))
 
 /* ---------------- safety ---------------- */
+const QUESTION_ABOUT_TERM = /^(what('?s| is| are| does)|explain|define|meaning)\b/
+
 function safety(raw, s) {
   const digits = raw.replace(/[\s-]/g, '')
   const secret =
@@ -875,6 +878,21 @@ function safety(raw, s) {
         'Please don’t share passwords, PINs, codes or full card numbers here, not even with me. I’ll never ask for them. If you think someone else has them, change your password and call your bank.',
       ),
       mask: true,
+    }
+  // common scam patterns: gift cards, "safe accounts", remote access, prizes, crypto doubling
+  const scam =
+    /\b(gift ?cards?|western union|moneygram|safe account|anydesk|teamviewer|remote access|screen ?share|guaranteed (returns?|profits?)|double (my|your) (money|crypto|bitcoin)|won (a|the) (prize|lottery|giveaway|car)|lottery|inheritance|customs fee|release fee|verify (my|your) (account|identity|card)|suspicious (text|sms|email|call|link|message)|is (this|it) (a )?scam|is this legit)\b/.test(
+      s,
+    ) ||
+    /\b(someone|somebody|a stranger|a caller|unknown number|a man|a woman|the bank|my bank|the police|irs|tax office|amazon|microsoft|apple support|tech support|customer support|a delivery)\b.{0,30}\b(asked|told|wants?|telling|called|texted|emailed|messaged|dm'?d)\b.{0,40}\b(send|pay|transfer|wire|buy|move|share|give|install|code|password|pin)\b/.test(
+      s,
+    )
+  if (scam && !(SPENT.test(s) && parseAmount(s)) && !QUESTION_ABOUT_TERM.test(s))
+    return {
+      text: t(
+        '🛡 Careful, that sounds like a scam. Real banks, tax offices and delivery companies never ask you to pay with gift cards or crypto, move money to a “safe account”, install remote-access apps, or share codes. Stop, don’t pay, and contact the company on a number you look up yourself. If you’ve already paid, call your bank right away.',
+      ),
+      mood: 'idle',
     }
   if (
     !/^(what('?s| is| are| does)|explain|define|meaning)\b/.test(s) &&
@@ -2100,7 +2118,112 @@ function followUp(raw, s, app, memory) {
 }
 
 /** Grace's reply to a message. `memory` carries context between messages in one chat. */
+/* ---------------- Grace on guard ---------------- */
+const GUARD_NAMES = {
+  lock: 'Auto-lock',
+  limit: 'Large payment guard',
+  newPayee: 'First payment warning',
+  privacy: 'Privacy blur',
+}
+const GUARD_ON = {
+  lock: 'turn on auto-lock',
+  limit: 'turn on the large payment guard',
+  newPayee: 'turn on first payment warnings',
+  privacy: 'turn on privacy blur',
+}
+
+function securityCheck(app) {
+  const g = { ...DEFAULT_GUARD, ...(app.guard ?? {}) }
+  const list = guardState(g)
+  const on = list.filter((x) => x.on).length
+  const detail = {
+    lock: g.lock ? t('after {n} minutes', { n: g.lock }) : '',
+    limit: g.limit ? t('from {amount}', { amount: money(g.limit, '$', 0) }) : '',
+    newPayee: '',
+    privacy: '',
+  }
+  const lines = list.map(
+    (x) => `• ${x.on ? '✅' : '⚠️'} **${t(GUARD_NAMES[x.key])}**${x.on ? (detail[x.key] ? ` ${detail[x.key]}` : '') : `: ${t('off')}`}`,
+  )
+  return {
+    text:
+      `${t('Security check 🛡 **{n} of {total}** protections are on.', { n: on, total: list.length })}\n${lines.join('\n')}\n` +
+      `• ✅ ${t('Passwords, PINs and codes are never stored in chat, and every change I make is logged.')}` +
+      (on === list.length ? `\n${t('Everything is guarded. Woof!')}` : ''),
+    mood: on === list.length ? 'happy' : 'idle',
+    links: [{ label: t('Open guard settings'), run: () => app.openModal('guard') }],
+    chips: list.filter((x) => !x.on).map((x) => chip(GUARD_ON[x.key], GUARD_ON[x.key].replace(/^turn on (the )?/, 'Turn on '))),
+  }
+}
+
+function guardIntent(s, app) {
+  if (/^(please )?(lock|lock (it|up|the app|the screen|everything|my account|the dashboard)( now)?|lock now|lock the app now)\s*!?$/.test(s))
+    return { text: t('Locked 🔒 Your money is safe. Unlock with your password when you’re back.'), run: () => app.lockNow?.('manual') }
+
+  if (
+    /\b(security check|safety check|security status|guard status|guard settings|am i (safe|secure|protected)|how (safe|secure|protected) (am i|is my (account|money))|is my (account|money) (safe|secure|protected)|are you (guarding|protecting)|protect (me|my (money|account))|guard (me|everything|my (money|account)))\b/.test(
+      s,
+    )
+  )
+    return securityCheck(app)
+
+  const g = { ...DEFAULT_GUARD, ...(app.guard ?? {}) }
+  const off = /\b(off|disable|stop|no more)\b/.test(s)
+  const on = !off && /\b(on|enable|start|activate)\b/.test(s)
+  const set = (patch, text) => ({ text, run: () => app.setGuard?.(patch), mood: 'happy' })
+
+  // "auto-lock after 5 minutes", "lock the app after 10 min", "turn off auto-lock"
+  const mins = s.match(/\b(?:auto[- ]?lock|lock(?: the app)?)\s+(?:after|in)\s+(\d+)\s*(?:min|mins|minutes?)\b/)
+  if (mins) {
+    const n = Math.min(240, Math.max(1, Number(mins[1])))
+    return set({ lock: n }, t('Done 🛡 I’ll lock the app after {n} minutes with no activity.', { n }))
+  }
+  if (/\bauto[- ]?lock\b/.test(s) && (on || off))
+    return off
+      ? set({ lock: 0 }, t('Auto-lock is off. I won’t lock the app on my own.'))
+      : set({ lock: g.lock || 15 }, t('Done 🛡 I’ll lock the app after {n} minutes with no activity.', { n: g.lock || 15 }))
+
+  // "set my guard limit to $300", "turn off the payment guard"
+  if (/\b(guard limit|payment guard|payment limit|large payments?|big payments?)\b/.test(s)) {
+    const amount = parseAmount(s)
+    if (amount) return set({ limit: amount }, t('Done 🛡 Payments of {amount} or more will need an extra confirm.', { amount: money(amount, '$', 0) }))
+    if (off) return set({ limit: 0 }, t('The large payment guard is off.'))
+    if (on)
+      return set(
+        { limit: g.limit || 500 },
+        t('Done 🛡 Payments of {amount} or more will need an extra confirm.', { amount: money(g.limit || 500, '$', 0) }),
+      )
+  }
+  if (/\b(first[- ]payments?|new payees?|new recipients?)\b/.test(s) && (on || off))
+    return set({ newPayee: !off }, off ? t('First payment warnings are off.') : t('Done 🛡 I’ll warn you before the first payment to someone new.'))
+  if (/\b(privacy (blur|mode)|blur)\b/.test(s) && (on || off))
+    return set({ privacy: !off }, off ? t('Privacy blur is off.') : t('Done 🛡 I’ll blur your numbers whenever you switch to another tab or app.'))
+  return null
+}
+
+/* a payment at or above the guard limit needs a second tap, and says why */
+function guardConfirm(r, app) {
+  const limit = app.guard?.limit
+  if (!limit || !r?.confirm) return r
+  const out = -(r.confirm.effect?.balance ?? 0)
+  if (!(out >= limit)) return r
+  return {
+    ...r,
+    confirm: {
+      ...r.confirm,
+      guard: true,
+      note: `🛡 ${t('At or above your {limit} guard limit, so tap twice to confirm.', { limit: money(limit, '$', 0) })} ${r.confirm.note ?? ''}`.trim(),
+    },
+  }
+}
+
 export function respond(typed, app, memory = {}) {
+  const r = answer(typed, app, memory)
+  if (r.later) return { ...r, later: () => r.later().then((x) => guardConfirm(x, app)) }
+  return guardConfirm(r, app)
+}
+
+function answer(typed, app, memory) {
   // fix typos first (see typos.js); names on the account count as spelled right
   const raw = fixTypos(typed, accountWords(app)).text
   const s = norm(raw)
@@ -2108,6 +2231,9 @@ export function respond(typed, app, memory = {}) {
 
   const safe = safety(raw, s)
   if (safe) return keep(safe)
+
+  const guarded = guardIntent(s, app)
+  if (guarded) return keep(guarded)
 
   const parts = raw.split(STEP_SPLIT).filter((x) => x.trim())
   if (parts.length > 1) {

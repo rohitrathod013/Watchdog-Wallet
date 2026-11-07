@@ -1034,4 +1034,77 @@ export default {
   Investment: 'Inversión',
   Invested: 'Invertido',
   'All rights reserved.': 'Todos los derechos reservados.',
+  // ---------------- Grace on guard ----------------
+  'After {n} min': 'A los {n} min',
+  'At or above your {limit} guard limit, so tap twice to confirm.':
+    'Igual o por encima de tu límite de {limit}, así que toca dos veces para confirmar.',
+  'Auto-lock': 'Bloqueo automático',
+  'Auto-lock is off. I won’t lock the app on my own.': 'El bloqueo automático está desactivado. No bloquearé la app por mi cuenta.',
+  'Blurs your numbers when you switch to another tab or app, for screen sharing and shoulder surfers.':
+    'Difumina tus cifras cuando cambias a otra pestaña o app, para compartir pantalla y miradas indiscretas.',
+  'Checking…': 'Comprobando…',
+  'Done 🛡 I’ll blur your numbers whenever you switch to another tab or app.':
+    'Hecho 🛡 Difuminaré tus cifras cada vez que cambies a otra pestaña o app.',
+  'Done 🛡 I’ll lock the app after {n} minutes with no activity.': 'Hecho 🛡 Bloquearé la app tras {n} minutos sin actividad.',
+  'Done 🛡 I’ll warn you before the first payment to someone new.': 'Hecho 🛡 Te avisaré antes del primer pago a alguien nuevo.',
+  'Done 🛡 Payments of {amount} or more will need an extra confirm.': 'Hecho 🛡 Los pagos de {amount} o más necesitarán una confirmación extra.',
+  'Enter the password for {email} to come back in.': 'Escribe la contraseña de {email} para volver a entrar.',
+  'Enter your password.': 'Escribe tu contraseña.',
+  'Every change {name} makes is listed in {name}’s activity.': 'Cada cambio que hace {name} aparece en la actividad de {name}.',
+  'Everything is guarded. Woof!': 'Todo está protegido. ¡Guau!',
+  'First payment warning': 'Aviso de primer pago',
+  'First payment warnings are off.': 'Los avisos de primer pago están desactivados.',
+  'Grace’s guard': 'La guardia de Grace',
+  'Guard limit': 'Límite de protección',
+  'Hidden by {name} while you’re away': 'Oculto por {name} mientras no estás',
+  'How {name} protects your account and your money': 'Cómo protege {name} tu cuenta y tu dinero',
+  'I locked the app because nobody was using it, so your money stays private.':
+    'Bloqueé la app porque nadie la estaba usando, para que tu dinero siga siendo privado.',
+  'Large payment guard': 'Protección de pagos grandes',
+  'Lock now': 'Bloquear ahora',
+  'Locked by {name}': 'Bloqueado por {name}',
+  'Locked 🔒 Your money is safe. Unlock with your password when you’re back.':
+    'Bloqueado 🔒 Tu dinero está a salvo. Desbloquea con tu contraseña cuando vuelvas.',
+  'Locks the app after a while with no activity. Unlocking needs your password.':
+    'Bloquea la app tras un rato sin actividad. Para desbloquear hace falta tu contraseña.',
+  'Log out instead': 'Cerrar sesión',
+  Off: 'Desactivado',
+  'On guard · watching your {brand}': 'De guardia · vigilando tu {brand}',
+  'Open guard settings': 'Abrir ajustes de protección',
+  'Passwords, PINs and codes are never stored in chat, and every change I make is logged.':
+    'Las contraseñas, PIN y códigos nunca se guardan en el chat, y cada cambio que hago queda registrado.',
+  'Payments at or above this amount need an extra confirm.': 'Los pagos iguales o superiores a este importe necesitan una confirmación extra.',
+  'Privacy blur': 'Difuminado de privacidad',
+  'Privacy blur is off.': 'El difuminado de privacidad está desactivado.',
+  'Reminds you to double-check before paying someone for the first time.':
+    'Te recuerda comprobar dos veces antes de pagar a alguien por primera vez.',
+  'Security check 🛡 **{n} of {total}** protections are on.': 'Revisión de seguridad 🛡 **{n} de {total}** protecciones activadas.',
+  'Tap again to confirm': 'Toca otra vez para confirmar',
+  'That password didn’t work. Try again, or log out and use Forgot password.':
+    'Esa contraseña no funcionó. Inténtalo de nuevo, o cierra sesión y usa ¿Olvidaste tu contraseña?',
+  'The app is locked, so your money stays private.': 'La app está bloqueada, para que tu dinero siga siendo privado.',
+  'The large payment guard is off.': 'La protección de pagos grandes está desactivada.',
+  'This is the demo, so no password is needed.': 'Esto es la demo, así que no hace falta contraseña.',
+  'This is your first payment to {payee}. Make sure it’s really them and the details are right.':
+    'Es tu primer pago a {payee}. Asegúrate de que de verdad es esa persona y de que los datos son correctos.',
+  'Try the lock screen': 'Probar la pantalla de bloqueo',
+  'Turn on the rest and {name} guards everything.': 'Activa el resto y {name} lo protegerá todo.',
+  Unlock: 'Desbloquear',
+  'Yes, I meant {amount}': 'Sí, quería {amount}',
+  'Your data is private to your account, protected by row level security.':
+    'Tus datos son privados de tu cuenta, protegidos por seguridad a nivel de fila.',
+  'after {n} minutes': 'a los {n} minutos',
+  'from {amount}': 'desde {amount}',
+  off: 'desactivado',
+  '{amount} is at or above your {limit} guard limit.': '{amount} es igual o superior a tu límite de {limit}.',
+  '{name} is on guard': '{name} está de guardia',
+  '{name} never asks for your password, PIN or one-time codes.': '{name} nunca te pide la contraseña, el PIN ni códigos de un solo uso.',
+  '{name}’s guard': 'La guardia de {name}',
+  '{n} of {total} protections on': '{n} de {total} protecciones activadas',
+  '🛡 Careful, that sounds like a scam. Real banks, tax offices and delivery companies never ask you to pay with gift cards or crypto, move money to a “safe account”, install remote-access apps, or share codes. Stop, don’t pay, and contact the company on a number you look up yourself. If you’ve already paid, call your bank right away.':
+    '🛡 Cuidado, eso suena a estafa. Los bancos, Hacienda y las empresas de mensajería nunca te piden pagar con tarjetas regalo o cripto, mover dinero a una «cuenta segura», instalar apps de acceso remoto ni compartir códigos. Para, no pagues y contacta con la empresa en un número que busques tú. Si ya pagaste, llama a tu banco de inmediato.',
+  'Turn on auto-lock': 'Activar bloqueo automático',
+  'Turn on large payment guard': 'Activar protección de pagos grandes',
+  'Turn on first payment warnings': 'Activar avisos de primer pago',
+  'Turn on privacy blur': 'Activar difuminado de privacidad',
 }
