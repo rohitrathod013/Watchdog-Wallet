@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Icon from './Icon'
 import { Flag, MerchantLogo, Persona } from './Brand'
-import { Donut, EarningBars, Heatmap, LineChart } from './Charts'
+import { Donut, EarningBars, Heatmap, LineChart, Sparkline } from './Charts'
 import { Chg, CountUp, Dropdown, Popover, Ring, Segmented, Status, Toggle } from './ui'
 import { useApp, useLead } from '../lib/store'
 import { money, signed, stamp, whole } from '../lib/format'
@@ -901,6 +901,184 @@ export function HeatmapCard({ d = 0, className = '' }) {
 /* ============================================================
    Money pots: the balance sorted by what it's for
    ============================================================ */
+/* ---------------- live markets ---------------- */
+const COIN_LOOK = {
+  bitcoin: '#f7931a',
+  ethereum: '#627eea',
+  solana: '#9945ff',
+  ripple: '#0085c0',
+  dogecoin: '#c2a633',
+}
+const MARKET_IDS = Object.keys(COIN_LOOK)
+
+/** Load something from the internet now and every `every` ms, while the page is open. */
+function useLive(load, deps, every) {
+  const [state, setState] = useState({ status: 'loading', data: null })
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    let on = true
+    const run = () =>
+      load()
+        .then((data) => on && setState({ status: data ? 'ready' : 'error', data }))
+        .catch(() => on && setState((s) => (s.data ? s : { status: 'error', data: null })))
+    run()
+    const timer = every ? window.setInterval(() => document.visibilityState === 'visible' && run(), every) : 0
+    return () => {
+      on = false
+      window.clearInterval(timer)
+    }
+    // load is rebuilt each render; deps says when it really changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [...deps, attempt, every])
+  return { ...state, retry: () => setAttempt((a) => a + 1) }
+}
+
+const priceText = (n, code) =>
+  new Intl.NumberFormat(undefined, { style: 'currency', currency: code, maximumFractionDigits: code === 'JPY' ? 0 : n < 1 ? 4 : 2 }).format(n)
+
+function LiveError({ onRetry }) {
+  return (
+    <div className="live-error">
+      <Icon name="refresh" size={18} />
+      <span>{t('Couldn’t load live prices. Check your connection.')}</span>
+      <button type="button" className="btn" onClick={onRetry}>
+        {t('Try again')}
+      </button>
+    </div>
+  )
+}
+
+export function MarketsCard({ d = 0, className = '' }) {
+  const { currency, openAssistant } = useApp()
+  const vs = ['USD', 'EUR', 'GBP', 'JPY'].includes(currency) ? currency : 'USD'
+  const live = useLive(async () => (await import('../lib/live')).loadMarkets(MARKET_IDS, vs.toLowerCase()), [vs], 2 * 60 * 1000)
+  return (
+    <section className={`card markets-card ${className}`} style={slot(d)}>
+      <div className="c-head rv" style={{ '--i': 0 }}>
+        <div>
+          <h2 className="card-h">{t('Crypto Prices')}</h2>
+          <p className="card-sub">
+            <span className="live-dot" /> {t('Live from CoinGecko · updates every 2 minutes')}
+          </p>
+        </div>
+        <button type="button" className="link" onClick={() => openAssistant('Crypto prices')}>
+          {t('Ask Grace')} <Icon name="arrowRight" size={15} />
+        </button>
+      </div>
+      {live.status === 'error' ? (
+        <LiveError onRetry={live.retry} />
+      ) : (
+        <div className="coins">
+          {(live.data ?? MARKET_IDS.map((id) => ({ id, loading: true }))).map((c, r) => (
+            <div key={c.id} className={`coin rv ${c.loading ? 'loading' : ''}`} style={{ '--i': 1 + r * 0.5 }}>
+              <span className="coin-logo" style={{ '--c': COIN_LOOK[c.id] ?? 'var(--accent)' }}>
+                {c.symbol?.[0] ?? ''}
+              </span>
+              <span className="coin-name">
+                <b>{c.name ?? ' '}</b>
+                <small>{c.symbol ?? ' '}</small>
+              </span>
+              <span className="coin-spark">
+                {c.trend?.length > 1 ? <Sparkline values={c.trend} color={c.change >= 0 ? 'var(--green)' : 'var(--red)'} /> : null}
+              </span>
+              <span className="coin-price">
+                <b>{c.loading ? ' ' : priceText(c.price, vs)}</b>
+                {c.loading ? null : <Chg value={c.change} size="sm" />}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="live-note">{t('For information only, not investment advice. 7-day trend shown.')}</p>
+    </section>
+  )
+}
+
+const RATE_CODES = ['USD', 'EUR', 'GBP', 'JPY', 'INR', 'CAD', 'AUD', 'CHF']
+const RATE_NAMES = {
+  USD: 'US Dollar',
+  EUR: 'Euro',
+  GBP: 'British Pound',
+  JPY: 'Japanese Yen',
+  INR: 'Indian Rupee',
+  CAD: 'Canadian Dollar',
+  AUD: 'Australian Dollar',
+  CHF: 'Swiss Franc',
+}
+
+export function RatesCard({ d = 0, className = '' }) {
+  const { currency } = useApp()
+  const live = useLive(async () => (await import('../lib/live')).loadRates(), [], 60 * 60 * 1000)
+  const rates = live.data?.rates
+  const base = rates?.[currency] ? currency : 'USD'
+  const date = live.data?.date ? new Date(`${live.data.date}T12:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'long' }) : ''
+  const [amount, setAmount] = useState('100')
+  const [to, setTo] = useState('EUR')
+  const target = to === base ? RATE_CODES.find((c) => c !== base) : to
+  const converted = rates && Number(amount) >= 0 ? (Number(amount) * rates[target]) / rates[base] : null
+  return (
+    <section className={`card rates-card ${className}`} style={slot(d)}>
+      <div className="c-head rv" style={{ '--i': 0 }}>
+        <div>
+          <h2 className="card-h">{t('Exchange Rates')}</h2>
+          <p className="card-sub">
+            <span className="live-dot" /> {date ? t('1 {code} · European Central Bank, {date}', { code: base, date }) : t('Loading…')}
+          </p>
+        </div>
+      </div>
+      {live.status === 'error' ? (
+        <LiveError onRetry={live.retry} />
+      ) : (
+        <div className="rates">
+          {RATE_CODES.filter((c) => c !== base).map((code, r) => (
+            <div key={code} className={`rate rv ${rates ? '' : 'loading'}`} style={{ '--i': 1 + r * 0.4 }}>
+              {['us', 'eu', 'gb', 'jp'].includes(CURRENCIES[code]?.flag) ? (
+                <Flag code={CURRENCIES[code].flag} size={30} />
+              ) : (
+                <span className="rate-code">{code.slice(0, 2)}</span>
+              )}
+              <span className="coin-name">
+                <b>{code}</b>
+                <small>{t(RATE_NAMES[code])}</small>
+              </span>
+              <b className="rate-val">
+                {rates
+                  ? (rates[code] / rates[base]).toLocaleString(undefined, { maximumFractionDigits: rates[code] / rates[base] >= 100 ? 2 : 4 })
+                  : ' '}
+              </b>
+            </div>
+          ))}
+        </div>
+      )}
+      {rates ? (
+        <form className="converter rv" style={{ '--i': 5 }} onSubmit={(e) => e.preventDefault()}>
+          <label>
+            <small>{t('Convert')}</small>
+            <span className="conv-in">
+              <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ''))} aria-label={t('Amount')} />
+              <b>{base}</b>
+            </span>
+          </label>
+          <Icon name="arrowRight" size={18} />
+          <label>
+            <small>{t('Into')}</small>
+            <span className="conv-in">
+              <b className="conv-out">{converted == null ? '–' : priceText(converted, target)}</b>
+              <select value={target} onChange={(e) => setTo(e.target.value)} aria-label={t('Currency')}>
+                {RATE_CODES.filter((c) => c !== base).map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </span>
+          </label>
+        </form>
+      ) : null}
+    </section>
+  )
+}
+
 export function PotsCard({ d = 0, className = '' }) {
   const { pots, unassigned, inPots, balance, openModal, removePot } = useApp()
   const lead = useLead()

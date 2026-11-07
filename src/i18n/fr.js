@@ -925,4 +925,21 @@ export default {
   'What’s $100 in euros?': 'Combien font 100 $ en euros ?',
   'Bitcoin price': 'Prix du Bitcoin',
   'Any bank holidays soon?': 'Des jours fériés bientôt ?',
+  // ---------------- markets cards ----------------
+  'Couldn’t load live prices. Check your connection.': 'Impossible de charger les prix en direct. Vérifiez votre connexion.',
+  'Crypto Prices': 'Prix des cryptos',
+  'Live from CoinGecko · updates every 2 minutes': 'En direct de CoinGecko · mis à jour toutes les 2 minutes',
+  'Ask Grace': 'Demander à Grace',
+  'For information only, not investment advice. 7-day trend shown.':
+    'À titre d’information uniquement, pas un conseil en investissement. Tendance sur 7 jours.',
+  'Exchange Rates': 'Taux de change',
+  '1 {code} · European Central Bank, {date}': '1 {code} · Banque centrale européenne, {date}',
+  Markets: 'Marchés',
+  'Indian Rupee': 'Roupie indienne',
+  'Canadian Dollar': 'Dollar canadien',
+  'Australian Dollar': 'Dollar australien',
+  'Swiss Franc': 'Franc suisse',
+  Convert: 'Convertir',
+  Into: 'En',
+  Currency: 'Devise',
 }

@@ -332,7 +332,12 @@ export default function App() {
 
   /* ---------- Grace, the assistant ---------- */
   const [aiOpen, setAiOpen] = useState(false)
-  const openAssistant = useCallback(() => setAiOpen(true), [])
+  // openAssistant('crypto prices') opens Grace and asks her straight away
+  const [aiAsk, setAiAsk] = useState(null)
+  const openAssistant = useCallback((q) => {
+    setAiOpen(true)
+    if (typeof q === 'string') setAiAsk({ q, n: Date.now() })
+  }, [])
   const closeAssistant = useCallback(() => setAiOpen(false), [])
   useLayoutEffect(() => {
     document.documentElement.classList.toggle('ai-open', aiOpen)
@@ -824,7 +829,7 @@ export default function App() {
       {ASSISTANT.enabled ? (
         <Suspense fallback={null}>
           <Buddy key={`codi-${bootKey}`} hidden={aiOpen} onOpen={openAssistant} />
-          <Assistant open={aiOpen} onClose={closeAssistant} />
+          <Assistant open={aiOpen} onClose={closeAssistant} prompt={aiAsk} />
         </Suspense>
       ) : null}
       {saveFailed ? (

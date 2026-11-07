@@ -6,7 +6,9 @@ import {
   HealthCard,
   HeatmapCard,
   KpiCard,
+  MarketsCard,
   NetProfitCard,
+  RatesCard,
   QuickTransferCard,
   ReportCard,
   SavingsCard,
@@ -62,6 +64,15 @@ export default function OverviewView() {
       </Reveal>
       <Reveal className="grid-4" after={850}>
         <HeatmapCard className="span-4" d={0} />
+      </Reveal>
+
+      {/* ---------------- live markets ---------------- */}
+      <Reveal>
+        <h3 className="section-label">{t('Markets')}</h3>
+        <div className="grid-4">
+          <MarketsCard className="span-2" d={0} />
+          <RatesCard className="span-2" d={90} />
+        </div>
       </Reveal>
     </>
   )

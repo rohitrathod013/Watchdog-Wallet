@@ -107,6 +107,28 @@ export function loadCoins(ids) {
   )
 }
 
+/** Market data for the dashboard card: price, 24h change and a 7-day trend line, in one currency. */
+export async function loadMarkets(ids, vs = 'usd') {
+  const list = ids.join(',')
+  const rows = await getJSON(
+    `markets:${vs}:${list}`,
+    `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${vs}&ids=${list}&sparkline=true&price_change_percentage=24h`,
+    2 * MIN,
+  )
+  return (rows ?? []).map((c) => {
+    const week = c.sparkline_in_7d?.price ?? []
+    const step = Math.max(1, Math.floor(week.length / 42)) // about 4 points a day is plenty for a sparkline
+    return {
+      id: c.id,
+      name: c.name,
+      symbol: c.symbol.toUpperCase(),
+      price: c.current_price,
+      change: c.price_change_percentage_24h ?? 0,
+      trend: week.filter((_, i) => i % step === 0),
+    }
+  })
+}
+
 /* ---------------- public holidays ---------------- */
 export const COUNTRIES = [
   ['US', /\b(us|usa|america|united states)\b/],

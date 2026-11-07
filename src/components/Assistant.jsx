@@ -183,7 +183,7 @@ function BotMessage({ m, last, onTyped, onConfirm, onCancel, onAsk }) {
   )
 }
 
-export default function Assistant({ open, onClose }) {
+export default function Assistant({ open, onClose, prompt }) {
   const app = useApp()
   const appRef = useRef(app)
   const body = useRef(null)
@@ -332,6 +332,17 @@ export default function Assistant({ open, onClose }) {
       520 + Math.min(700, question.length * 14),
     )
   }
+
+  // a question sent from elsewhere on the page ("Ask Grace" on a card), asked once the hello is out
+  const askRef = useRef(ask)
+  useEffect(() => {
+    askRef.current = ask
+  })
+  useEffect(() => {
+    if (!prompt) return undefined
+    const timer = window.setTimeout(() => askRef.current(prompt.q, t(prompt.label ?? prompt.q)), 1200)
+    return () => window.clearTimeout(timer)
+  }, [prompt])
 
   const onTyped = useCallback(
     (m) => {
