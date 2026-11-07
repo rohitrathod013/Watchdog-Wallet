@@ -1084,4 +1084,48 @@ export default {
   'Turn on large payment guard': 'فعّل حماية الدفعات الكبيرة',
   'Turn on first payment warnings': 'فعّل تنبيهات أول دفعة',
   'Turn on privacy blur': 'فعّل تمويه الخصوصية',
+  // ---------------- account settings ----------------
+  'A copy of everything in your account as a JSON file.': 'نسخة من كل ما في حسابك كملف JSON.',
+  'Account settings': 'إعدادات الحساب',
+  'Couldn’t reactivate': 'تعذّرت إعادة التفعيل',
+  DELETE: 'حذف',
+  Deactivate: 'إلغاء التفعيل',
+  'Deactivate account': 'إلغاء تفعيل الحساب',
+  'Deactivate your account now? You’ll be logged out straight away.': 'هل تلغي تفعيل حسابك الآن؟ سيتم تسجيل خروجك فورًا.',
+  Delete: 'حذف',
+  'Delete account': 'حذف الحساب',
+  'Delete my account': 'احذف حسابي',
+  'Deletes your login and everything in {brand} for good. This can’t be undone.':
+    'يحذف تسجيل دخولك وكل ما في {brand} نهائيًا. لا يمكن التراجع عن ذلك.',
+  'Deleting accounts needs a one-time setup in Supabase: run the latest supabase/schema.sql. Nothing was deleted.':
+    'يحتاج حذف الحسابات إلى إعداد لمرة واحدة في Supabase: شغّل أحدث supabase/schema.sql. لم يُحذف شيء.',
+  'Deleting…': 'جارٍ الحذف…',
+  Download: 'تنزيل',
+  'Download my data': 'نزّل بياناتي',
+  'I can’t delete your account from chat, because it can’t be undone. In **Account settings** you can download your data first, then delete the account with your password.':
+    'لا أستطيع حذف حسابك من المحادثة لأنه لا يمكن التراجع عنه. في **إعدادات الحساب** يمكنك تنزيل بياناتك أولًا، ثم حذف الحساب بكلمة المرور.',
+  'Open account settings': 'افتح إعدادات الحساب',
+  'Pauses your account and logs you out. Your data is kept, and logging in again lets you reactivate it.':
+    'يوقف حسابك مؤقتًا ويسجّل خروجك. تبقى بياناتك محفوظة، ويمكنك إعادة تفعيله عند تسجيل الدخول مجددًا.',
+  'Reactivate my account': 'أعد تفعيل حسابي',
+  'Something went wrong, so nothing was changed. Try again in a minute.': 'حدث خطأ، لذا لم يتغيّر شيء. حاول مرة أخرى بعد دقيقة.',
+  'Something went wrong. Try again in a minute.': 'حدث خطأ. حاول مرة أخرى بعد دقيقة.',
+  'That password didn’t work, so nothing was changed.': 'لم تنجح كلمة المرور، لذا لم يتغيّر شيء.',
+  'This deletes your balance, transactions, pots, goals, bills, contacts, investments and settings. Download your data first if you want a copy.':
+    'سيحذف هذا رصيدك ومعاملاتك وأوعيتك وأهدافك وفواتيرك وجهات اتصالك واستثماراتك وإعداداتك. نزّل بياناتك أولًا إذا أردت نسخة.',
+  'This is the demo, so there’s no account to deactivate or delete. Create an account to manage it here.':
+    'هذا هو العرض التجريبي، لذا لا يوجد حساب لإلغاء تفعيله أو حذفه. أنشئ حسابًا لإدارته هنا.',
+  'Type {word} to confirm': 'اكتب {word} للتأكيد',
+  'Working…': 'جارٍ التنفيذ…',
+  'Yes, deactivate': 'نعم، ألغِ التفعيل',
+  'You can deactivate your account in **Account settings**. It pauses the account and logs you out; your data is kept, and logging in again lets you reactivate it.':
+    'يمكنك إلغاء تفعيل حسابك من **إعدادات الحساب**. يتوقف الحساب مؤقتًا ويتم تسجيل خروجك؛ تبقى بياناتك محفوظة ويمكنك إعادة تفعيله عند تسجيل الدخول مجددًا.',
+  'Your account is deactivated': 'تم إلغاء تفعيل حسابك',
+  'Your account is deactivated. Reactivate it to pick up where you left off: all your data is still here.':
+    'حسابك غير مفعّل. أعد تفعيله لتكمل من حيث توقفت: كل بياناتك ما زالت هنا.',
+  'Your account is deleted': 'تم حذف حسابك',
+  'Your data is kept safe. Log in again any time to reactivate your account.': 'بياناتك محفوظة بأمان. سجّل الدخول في أي وقت لإعادة تفعيل حسابك.',
+  'Your data, and deactivating or deleting your account': 'بياناتك، وإلغاء تفعيل حسابك أو حذفه',
+  'Your login and all your data are gone for good. Thanks for using {brand}.': 'حُذف تسجيل دخولك وكل بياناتك نهائيًا. شكرًا لاستخدامك {brand}.',
+  'Your password': 'كلمة المرور',
 }

@@ -48,6 +48,31 @@ export async function saveUserState(userId, state) {
   if (error) throw error
 }
 
+/** Thrown when the delete_my_account SQL function hasn't been added to the project yet. */
+export class DeletionNotSetUp extends Error {
+  setup = true
+}
+
+/** Check the password of the signed-in user again, before something that can't be undone. */
+export async function confirmPassword(email, password) {
+  const supabase = await getSupabase()
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw error
+}
+
+/** Delete the signed-in user's login and saved data for good (see supabase/schema.sql). */
+export async function deleteMyAccount() {
+  const supabase = await getSupabase()
+  const { error } = await supabase.rpc('delete_my_account')
+  if (error) {
+    // PGRST202: no such function, i.e. the SQL hasn't been run yet
+    if (error.code === 'PGRST202' || /function .*delete_my_account/i.test(error.message ?? '')) throw new DeletionNotSetUp(error.message)
+    throw error
+  }
+  // the session belonged to a user that no longer exists; drop it locally
+  await supabase.auth.signOut({ scope: 'local' }).catch(() => null)
+}
+
 /** Display profile for a signed-in Supabase user. */
 export function profileOf(user) {
   const meta = user?.user_metadata ?? {}

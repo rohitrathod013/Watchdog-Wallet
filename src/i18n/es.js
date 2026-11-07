@@ -1107,4 +1107,51 @@ export default {
   'Turn on large payment guard': 'Activar protección de pagos grandes',
   'Turn on first payment warnings': 'Activar avisos de primer pago',
   'Turn on privacy blur': 'Activar difuminado de privacidad',
+  // ---------------- account settings ----------------
+  'A copy of everything in your account as a JSON file.': 'Una copia de todo lo de tu cuenta en un archivo JSON.',
+  'Account settings': 'Ajustes de la cuenta',
+  'Couldn’t reactivate': 'No se pudo reactivar',
+  DELETE: 'ELIMINAR',
+  Deactivate: 'Desactivar',
+  'Deactivate account': 'Desactivar cuenta',
+  'Deactivate your account now? You’ll be logged out straight away.': '¿Desactivar tu cuenta ahora? Se cerrará tu sesión al momento.',
+  Delete: 'Eliminar',
+  'Delete account': 'Eliminar cuenta',
+  'Delete my account': 'Eliminar mi cuenta',
+  'Deletes your login and everything in {brand} for good. This can’t be undone.':
+    'Elimina tu acceso y todo lo de {brand} para siempre. No se puede deshacer.',
+  'Deleting accounts needs a one-time setup in Supabase: run the latest supabase/schema.sql. Nothing was deleted.':
+    'Eliminar cuentas necesita una configuración única en Supabase: ejecuta el último supabase/schema.sql. No se eliminó nada.',
+  'Deleting…': 'Eliminando…',
+  Download: 'Descargar',
+  'Download my data': 'Descargar mis datos',
+  'I can’t delete your account from chat, because it can’t be undone. In **Account settings** you can download your data first, then delete the account with your password.':
+    'No puedo eliminar tu cuenta desde el chat, porque no se puede deshacer. En **Ajustes de la cuenta** puedes descargar tus datos primero y luego eliminar la cuenta con tu contraseña.',
+  'Open account settings': 'Abrir ajustes de la cuenta',
+  'Pauses your account and logs you out. Your data is kept, and logging in again lets you reactivate it.':
+    'Pausa tu cuenta y cierra tu sesión. Tus datos se guardan y, al volver a entrar, puedes reactivarla.',
+  'Reactivate my account': 'Reactivar mi cuenta',
+  'Something went wrong, so nothing was changed. Try again in a minute.':
+    'Algo salió mal, así que no se cambió nada. Inténtalo de nuevo en un minuto.',
+  'Something went wrong. Try again in a minute.': 'Algo salió mal. Inténtalo de nuevo en un minuto.',
+  'That password didn’t work, so nothing was changed.': 'Esa contraseña no funcionó, así que no se cambió nada.',
+  'This deletes your balance, transactions, pots, goals, bills, contacts, investments and settings. Download your data first if you want a copy.':
+    'Esto elimina tu saldo, movimientos, botes, metas, facturas, contactos, inversiones y ajustes. Descarga tus datos antes si quieres una copia.',
+  'This is the demo, so there’s no account to deactivate or delete. Create an account to manage it here.':
+    'Esto es la demo, así que no hay ninguna cuenta que desactivar o eliminar. Crea una cuenta para gestionarla aquí.',
+  'Type {word} to confirm': 'Escribe {word} para confirmar',
+  'Working…': 'Procesando…',
+  'Yes, deactivate': 'Sí, desactivar',
+  'You can deactivate your account in **Account settings**. It pauses the account and logs you out; your data is kept, and logging in again lets you reactivate it.':
+    'Puedes desactivar tu cuenta en **Ajustes de la cuenta**. Pausa la cuenta y cierra tu sesión; tus datos se guardan y, al volver a entrar, puedes reactivarla.',
+  'Your account is deactivated': 'Tu cuenta está desactivada',
+  'Your account is deactivated. Reactivate it to pick up where you left off: all your data is still here.':
+    'Tu cuenta está desactivada. Reactívala para seguir donde lo dejaste: todos tus datos siguen aquí.',
+  'Your account is deleted': 'Tu cuenta está eliminada',
+  'Your data is kept safe. Log in again any time to reactivate your account.':
+    'Tus datos están a salvo. Vuelve a entrar cuando quieras para reactivar tu cuenta.',
+  'Your data, and deactivating or deleting your account': 'Tus datos, y desactivar o eliminar tu cuenta',
+  'Your login and all your data are gone for good. Thanks for using {brand}.':
+    'Tu acceso y todos tus datos se han eliminado para siempre. Gracias por usar {brand}.',
+  'Your password': 'Tu contraseña',
 }

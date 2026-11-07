@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 
 import TopBar from './components/TopBar'
@@ -32,7 +32,8 @@ import { localIso, MONTHS, money, uid } from './lib/format'
 import { accountCards, billDue, computeStats, DEFAULT_BUDGETS, demoStats, KIND_FOR } from './lib/stats'
 import { LOCALES, setLocale, t, tMonths } from './lib/i18n'
 import { applyRates, loadRates } from './lib/live'
-import { accountsEnabled, getSupabase, loadUserState, profileOf, SAVED_KEYS, saveUserState } from './lib/supabase'
+import { accountsEnabled, confirmPassword, deleteMyAccount, getSupabase, loadUserState, profileOf, SAVED_KEYS, saveUserState } from './lib/supabase'
+import { AccountModal } from './components/Account'
 import * as seed from './data/seed'
 import { ASSISTANT, BRAND, FEATURES, THEME } from './config'
 
@@ -260,6 +261,12 @@ export default function App() {
   const [authMode, setAuthMode] = useState('login')
   // exploring the sample dashboard without an account
   const [demo, setDemo] = useState(false)
+  // a deactivated account's saved data, waiting for "Reactivate" (it isn't loaded into the app until then)
+  const [paused, setPaused] = useState(null)
+  // shown after deactivating or deleting: 'deactivated' | 'deleted'
+  const [farewell, setFarewell] = useState(null)
+  // set while an account is being deactivated or deleted, so autosave can't write it back
+  const stopSaving = useRef(false)
   /* locked: null, or why ('idle' | 'manual'). It survives a reload, so refreshing doesn't get past the lock. */
   const [lock, setLock] = useState(() => {
     try {
@@ -327,9 +334,13 @@ export default function App() {
     let alive = true
     loadUserState(userId)
       .then(async (saved) => {
+        if (!alive) return
+        // a deactivated account waits on the reactivate screen
+        if (saved?.account?.status === 'deactivated') return setPaused(saved)
         const data = saved ?? freshState()
         if (!saved) await saveUserState(userId, data)
         if (!alive) return
+        stopSaving.current = false
         applyState(data)
         setLoadedFor(userId)
       })
@@ -348,6 +359,7 @@ export default function App() {
   useEffect(() => {
     if (!accountsEnabled || !userId || loadedFor !== userId) return undefined
     const h = window.setTimeout(() => {
+      if (stopSaving.current) return
       saveUserState(userId, Object.fromEntries(SAVED_KEYS.map((k) => [k, saved[k]])))
         .then(() => setSaveFailed(false))
         .catch(() => setSaveFailed(true))
@@ -797,6 +809,70 @@ export default function App() {
     [isDemo, balance],
   )
 
+  /* ---------- account settings: export, deactivate, reactivate, delete ---------- */
+  const exportData = useCallback(() => {
+    const body = { app: BRAND.name, exportedAt: new Date().toISOString(), profile: { name: user.name, email: user.email }, data: saved }
+    const url = URL.createObjectURL(new Blob([JSON.stringify(body, null, 2)], { type: 'application/json' }))
+    const a = Object.assign(document.createElement('a'), { href: url, download: `watchdog-wallet-data-${localIso().slice(0, 10)}.json` })
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }, [saved, user])
+
+  const deactivateAccount = useCallback(async () => {
+    if (!userId) return
+    stopSaving.current = true
+    try {
+      const data = Object.fromEntries(SAVED_KEYS.map((k) => [k, saved[k]]))
+      await saveUserState(userId, { ...data, account: { status: 'deactivated', at: new Date().toISOString() } })
+    } catch (err) {
+      stopSaving.current = false
+      throw err
+    }
+    setModal(null)
+    setAiOpen(false)
+    setFarewell('deactivated')
+    setLoadedFor(null)
+    const supabase = await getSupabase()
+    await supabase.auth.signOut()
+  }, [userId, saved])
+
+  const reactivate = useCallback(async () => {
+    if (!paused || !userId) return
+    const data = { ...paused, account: { status: 'active', at: new Date().toISOString() } }
+    await saveUserState(userId, data)
+    stopSaving.current = false
+    applyState(data)
+    setPaused(null)
+    setLoadedFor(userId)
+  }, [paused, userId, applyState])
+
+  const deleteAccount = useCallback(
+    async (password) => {
+      if (!userId) return
+      await confirmPassword(user.email, password)
+      stopSaving.current = true
+      try {
+        await deleteMyAccount()
+      } catch (err) {
+        stopSaving.current = false
+        throw err
+      }
+      setModal(null)
+      setAiOpen(false)
+      setLoadedFor(null)
+      setPaused(null)
+      setFarewell('deleted')
+      try {
+        ;['ww-locked', 'ww-grace-voice'].forEach((k) => localStorage.removeItem(k))
+      } catch {
+        /* nothing saved */
+      }
+    },
+    [userId, user],
+  )
+
   const ctx = useMemo(
     () => ({
       page: route.page,
@@ -836,6 +912,9 @@ export default function App() {
       guard,
       setGuard,
       lockNow,
+      exportData,
+      deactivateAccount,
+      deleteAccount,
       // the demo's sample data ends on Oct 28 2026, so Grace treats that as today there
       now: isDemo ? DEMO_NOW : undefined,
       pots,
@@ -907,6 +986,9 @@ export default function App() {
       guard,
       setGuard,
       lockNow,
+      exportData,
+      deactivateAccount,
+      deleteAccount,
       pots,
       unassigned,
       inPots,
@@ -941,6 +1023,23 @@ export default function App() {
   )
 
   if (accountsEnabled && !demo) {
+    if (farewell && !session)
+      return (
+        <div className="signed-out">
+          <div className="so-card">
+            <Logo size={60} />
+            <h2>{farewell === 'deleted' ? t('Your account is deleted') : t('Your account is deactivated')}</h2>
+            <p>
+              {farewell === 'deleted'
+                ? t('Your login and all your data are gone for good. Thanks for using {brand}.', { brand: BRAND.name })
+                : t('Your data is kept safe. Log in again any time to reactivate your account.')}
+            </p>
+            <button type="button" className="btn solid lg" onClick={() => setFarewell(null)}>
+              {t('Back to log in')}
+            </button>
+          </div>
+        </div>
+      )
     if (session === undefined) return <Splash />
     if (!session || recovery) {
       return (
@@ -970,6 +1069,28 @@ export default function App() {
               {t('Try again')}
             </button>
             <button type="button" className="link" onClick={signOut}>
+              {t('Log out')}
+            </button>
+          </div>
+        </div>
+      )
+    if (paused)
+      return (
+        <div className="signed-out">
+          <div className="so-card">
+            <Logo size={60} />
+            <h2>{t('Welcome back')}</h2>
+            <p>{t('Your account is deactivated. Reactivate it to pick up where you left off: all your data is still here.')}</p>
+            <button
+              type="button"
+              className="btn solid lg"
+              onClick={() =>
+                reactivate().catch(() => toast(t('Couldn’t reactivate'), t('Something went wrong. Try again in a minute.'), { icon: 'info' }))
+              }
+            >
+              {t('Reactivate my account')}
+            </button>
+            <button type="button" className="link" onClick={() => (setPaused(null), signOut())}>
               {t('Log out')}
             </button>
           </div>
@@ -1021,6 +1142,7 @@ export default function App() {
       <InvestModal open={modal?.type === 'invest'} payload={modal?.payload} onClose={closeModal} />
       <SellModal open={modal?.type === 'sell'} payload={modal?.payload} onClose={closeModal} />
       <GuardModal open={modal?.type === 'guard'} onClose={closeModal} />
+      <AccountModal open={modal?.type === 'account'} onClose={closeModal} />
       {hidden && !lock ? (
         <div className="guard-veil" aria-hidden="true">
           <span>

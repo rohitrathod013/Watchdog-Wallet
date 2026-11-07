@@ -1120,4 +1120,50 @@ export default {
   'Turn on large payment guard': 'Activer la garde des gros paiements',
   'Turn on first payment warnings': 'Activer les alertes de premier paiement',
   'Turn on privacy blur': 'Activer le flou de confidentialité',
+  // ---------------- account settings ----------------
+  'A copy of everything in your account as a JSON file.': 'Une copie de tout votre compte dans un fichier JSON.',
+  'Account settings': 'Paramètres du compte',
+  'Couldn’t reactivate': 'Réactivation impossible',
+  DELETE: 'SUPPRIMER',
+  Deactivate: 'Désactiver',
+  'Deactivate account': 'Désactiver le compte',
+  'Deactivate your account now? You’ll be logged out straight away.': 'Désactiver votre compte maintenant ? Vous serez déconnecté tout de suite.',
+  Delete: 'Supprimer',
+  'Delete account': 'Supprimer le compte',
+  'Delete my account': 'Supprimer mon compte',
+  'Deletes your login and everything in {brand} for good. This can’t be undone.':
+    'Supprime votre accès et tout ce qui est dans {brand} pour de bon. C’est irréversible.',
+  'Deleting accounts needs a one-time setup in Supabase: run the latest supabase/schema.sql. Nothing was deleted.':
+    'La suppression de comptes demande une configuration unique dans Supabase : exécutez le dernier supabase/schema.sql. Rien n’a été supprimé.',
+  'Deleting…': 'Suppression…',
+  Download: 'Télécharger',
+  'Download my data': 'Télécharger mes données',
+  'I can’t delete your account from chat, because it can’t be undone. In **Account settings** you can download your data first, then delete the account with your password.':
+    'Je ne peux pas supprimer votre compte depuis le chat, car c’est irréversible. Dans **Paramètres du compte**, vous pouvez d’abord télécharger vos données, puis supprimer le compte avec votre mot de passe.',
+  'Open account settings': 'Ouvrir les paramètres du compte',
+  'Pauses your account and logs you out. Your data is kept, and logging in again lets you reactivate it.':
+    'Met votre compte en pause et vous déconnecte. Vos données sont conservées, et vous pouvez le réactiver en vous reconnectant.',
+  'Reactivate my account': 'Réactiver mon compte',
+  'Something went wrong, so nothing was changed. Try again in a minute.': 'Un problème est survenu, rien n’a été modifié. Réessayez dans une minute.',
+  'Something went wrong. Try again in a minute.': 'Un problème est survenu. Réessayez dans une minute.',
+  'That password didn’t work, so nothing was changed.': 'Ce mot de passe n’a pas fonctionné, rien n’a été modifié.',
+  'This deletes your balance, transactions, pots, goals, bills, contacts, investments and settings. Download your data first if you want a copy.':
+    'Cela supprime votre solde, vos transactions, cagnottes, objectifs, factures, contacts, investissements et réglages. Téléchargez vos données avant si vous voulez une copie.',
+  'This is the demo, so there’s no account to deactivate or delete. Create an account to manage it here.':
+    'C’est la démo, il n’y a donc aucun compte à désactiver ou supprimer. Créez un compte pour le gérer ici.',
+  'Type {word} to confirm': 'Tapez {word} pour confirmer',
+  'Working…': 'En cours…',
+  'Yes, deactivate': 'Oui, désactiver',
+  'You can deactivate your account in **Account settings**. It pauses the account and logs you out; your data is kept, and logging in again lets you reactivate it.':
+    'Vous pouvez désactiver votre compte dans **Paramètres du compte**. Il est mis en pause et vous êtes déconnecté ; vos données sont conservées et vous pouvez le réactiver en vous reconnectant.',
+  'Your account is deactivated': 'Votre compte est désactivé',
+  'Your account is deactivated. Reactivate it to pick up where you left off: all your data is still here.':
+    'Votre compte est désactivé. Réactivez-le pour reprendre là où vous en étiez : toutes vos données sont toujours là.',
+  'Your account is deleted': 'Votre compte est supprimé',
+  'Your data is kept safe. Log in again any time to reactivate your account.':
+    'Vos données sont conservées en sécurité. Reconnectez-vous quand vous voulez pour réactiver votre compte.',
+  'Your data, and deactivating or deleting your account': 'Vos données, et la désactivation ou suppression de votre compte',
+  'Your login and all your data are gone for good. Thanks for using {brand}.':
+    'Votre accès et toutes vos données ont été supprimés pour de bon. Merci d’avoir utilisé {brand}.',
+  'Your password': 'Votre mot de passe',
 }

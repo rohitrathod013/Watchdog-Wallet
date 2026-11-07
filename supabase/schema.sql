@@ -26,3 +26,24 @@ create policy "update own state" on public.user_state
 drop policy if exists "delete own state" on public.user_state;
 create policy "delete own state" on public.user_state
   for delete using (auth.uid() = user_id);
+
+-- Account deletion: lets a signed-in user delete their own account and data, and nothing else.
+-- The website only has the public key, which can't delete logins, so it calls this instead.
+-- "security definer" runs it with the owner's rights; auth.uid() limits it to the caller.
+create or replace function public.delete_my_account()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Not signed in';
+  end if;
+  delete from public.user_state where user_id = auth.uid();
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+
+revoke all on function public.delete_my_account() from public, anon;
+grant execute on function public.delete_my_account() to authenticated;

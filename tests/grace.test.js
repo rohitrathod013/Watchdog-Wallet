@@ -1068,3 +1068,30 @@ describe('Grace on guard', () => {
       expect(plain(ask(guarded(), c))).not.toMatch(/sounds like a scam/)
     })
 })
+
+/* ================================================================== */
+describe('account deletion and deactivation', () => {
+  const account = () => {
+    const app = demo()
+    app.demo = false
+    return app
+  }
+  for (const c of ['delete my account', 'please close my account', 'remove my profile'])
+    it(`never deletes from chat: "${c}"`, () => {
+      const app = account()
+      const r = ask(app, c)
+      expect(plain(r)).toMatch(/can’t delete your account from chat/)
+      expect(r.confirm).toBeFalsy()
+      expect(r.run).toBeFalsy()
+      r.links[0].run()
+      expect(app.calls).toContainEqual({ name: 'openModal', args: ['account'] })
+    })
+  it('points to deactivation', () => {
+    expect(plain(ask(account(), 'deactivate my account'))).toMatch(/deactivate your account in Account settings/)
+  })
+  it('explains there is nothing to delete in the demo', () => {
+    const app = demo()
+    app.demo = true
+    expect(plain(ask(app, 'delete my account'))).toMatch(/This is the demo/)
+  })
+})

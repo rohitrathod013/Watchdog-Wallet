@@ -2156,7 +2156,28 @@ function securityCheck(app) {
   }
 }
 
+/* deleting or pausing the account is never done from chat: Grace explains and opens Account settings */
+function accountIntent(s, app) {
+  const del = /\b(delete|remove|erase|close|terminate|cancel)\s+(my\s+|the\s+)?(whole\s+)?(account|profile|login)\b/.test(s)
+  const pause = /\b(deactivate|disable|pause|freeze|suspend)\s+(my\s+|the\s+)?(account|profile)\b/.test(s)
+  if (!del && !pause) return null
+  if (app.demo) return { text: t('This is the demo, so there’s no account to deactivate or delete. Create an account to manage it here.') }
+  return {
+    text: del
+      ? t(
+          'I can’t delete your account from chat, because it can’t be undone. In **Account settings** you can download your data first, then delete the account with your password.',
+        )
+      : t(
+          'You can deactivate your account in **Account settings**. It pauses the account and logs you out; your data is kept, and logging in again lets you reactivate it.',
+        ),
+    links: [{ label: t('Open account settings'), run: () => app.openModal('account') }],
+  }
+}
+
 function guardIntent(s, app) {
+  const acct = accountIntent(s, app)
+  if (acct) return acct
+
   if (/^(please )?(lock|lock (it|up|the app|the screen|everything|my account|the dashboard)( now)?|lock now|lock the app now)\s*!?$/.test(s))
     return { text: t('Locked 🔒 Your money is safe. Unlock with your password when you’re back.'), run: () => app.lockNow?.('manual') }
 

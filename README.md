@@ -16,6 +16,10 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 - Every account has its own private dashboard, saved automatically. Row level security means no one can read anyone else's data.
 - A new account starts empty: $0, with no transactions, goals, bills or contacts.
 - **Clear my data** in the account menu resets an account.
+- **Account settings** (account menu):
+  - **Download my data**: everything in the account as a JSON file.
+  - **Deactivate account**: pauses the account and logs out. The data is kept, and logging in again shows a **Reactivate** button.
+  - **Delete account**: removes the login and all its data for good, after typing DELETE and the password. Grace never does this from chat; she opens Account settings instead.
 - **Explore the demo** opens a full sample dashboard without an account. Nothing in the demo is saved.
 
 ### Your money
@@ -113,7 +117,7 @@ The app connects to the Supabase project set in `src/config.js`. To use your own
 ## Setting up Supabase
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor**, paste the contents of [`supabase/schema.sql`](supabase/schema.sql) and click **Run**. It creates the `user_state` table, one private row per user.
+2. Open **SQL Editor**, paste the contents of [`supabase/schema.sql`](supabase/schema.sql) and click **Run**. It creates the `user_state` table (one private row per user) and the `delete_my_account` function that **Delete account** uses. It's safe to run again after updates.
 3. In **Authentication > URL Configuration**:
    - set **Site URL** to where the site lives, for example `https://rohitrathod013.github.io/Watchdog-Wallet/`;
    - add `http://localhost:5173/` to **Redirect URLs** for local testing.
