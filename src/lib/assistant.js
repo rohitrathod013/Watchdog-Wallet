@@ -892,7 +892,10 @@ function safety(raw, s) {
     return {
       text: t('Use **Forgot password?** on the login screen and we’ll email you a reset link. If the email doesn’t arrive, check your spam folder.'),
     }
+  // "buy $200 of bitcoin" is an instruction to record; "should I buy bitcoin?" asks for advice
+  const command = /^(please )?(buy|invest|sell|purchase)\b/.test(s) && !/\?\s*$/.test(s) && !/\b(should|good|best|which|worth it|recommend)\b/.test(s)
   if (
+    !command &&
     /\b(should i (buy|sell|invest|short)|which (stocks?|shares?|crypto|coins?|funds?|etfs?)|best (stocks?|crypto|investments?|funds?)|invest (in|my)|buy (bitcoin|btc|crypto|stocks?|shares?|eth|gold|etfs?)|stock tips?|good investment|price prediction)\b/.test(
       s,
     )
@@ -1468,7 +1471,12 @@ const cash = (n, code) =>
   new Intl.NumberFormat(tag(), {
     style: 'currency',
     currency: code,
-    maximumFractionDigits: code === 'JPY' || code === 'KRW' ? 0 : n !== 0 && Math.abs(n) < 1 ? 4 : 2,
+    // tiny coin prices keep 4 significant digits ($0.000007123)
+    ...(n !== 0 && Math.abs(n) < 0.01
+      ? { maximumSignificantDigits: 4 }
+      : Math.abs(n) < 1
+        ? { minimumFractionDigits: 2, maximumFractionDigits: 4 }
+        : { maximumFractionDigits: code === 'JPY' || code === 'KRW' ? 0 : 2 }),
   }).format(n)
 const dayText = (iso, opts = { weekday: 'long', day: 'numeric', month: 'long' }) => new Date(`${iso}T12:00`).toLocaleDateString(tag(), opts)
 const OFFLINE = () => ({ text: t('I can’t reach that service right now. Check your connection and try again in a minute.') })
@@ -1524,10 +1532,13 @@ function convertIntent(s, app) {
 }
 
 function cryptoIntent(s, app) {
-  if (SPENT.test(s) || EARNED.test(s)) return null
+  if (SPENT.test(s) || EARNED.test(s) || /^(please )?(buy|sell|invest|purchase)\b/.test(s)) return null
   let coins = COINS.filter(([, , , re]) => re.test(s))
   const priceQ = /\b(price|prices|worth|value|cost|trading|market|doing|today|now|rate|up|down|at)\b|how('?s| is)/.test(s)
-  if (!coins.length && /\b(crypto|cryptos|cryptocurrency|cryptocurrencies|coins?)\b/.test(s) && priceQ) coins = COINS.slice(0, 3)
+  // "crypto prices" means the big ones; "price of zzzz coin" is a search, handled by assetIntent
+  const named = assetTarget(s, s)
+  const generic = !named || /^(crypto\w*|coins?|the market|market|top coins?)$/.test(named.name)
+  if (!coins.length && generic && /\b(crypto|cryptos|cryptocurrency|cryptocurrencies|coins?)\b/.test(s) && priceQ) coins = COINS.slice(0, 3)
   // a bare "btc?" counts; otherwise ask about a price
   const bare =
     coins.length &&
@@ -1645,9 +1656,352 @@ function holidayIntent(s, app) {
   })
 }
 
-/** Questions answered from the internet: rates, crypto prices, holidays. */
-function liveData(s, app) {
-  return holidayIntent(s, app) ?? convertIntent(s, app) ?? cryptoIntent(s, app)
+/* ---------------- any coin or US stock ---------------- */
+const NOT_ASSETS =
+  /^(my|the|a|an|it|this|that|rent|bills?|budgets?|food|groceries|coffee|dinner|lunch|gas|petrol|fuel|electricity|house|houses|car|cars|gold|silver|oil|euro|euros|dollar|dollars|pound|pounds|yen|rupees?)$/
+const STOCK_HINT = /\b(stocks?|shares?|share price|stock price|ticker|equity|etf)\b/
+const COIN_HINT = /\b(coin|coins|token|tokens|crypto|cryptocurrency)\b/
+const NO_STOCKS = () => ({
+  text: t(
+    'Stock prices aren’t switched on yet. They need a free Finnhub key kept in a Supabase function, so it never ships in the website. The README explains the setup.',
+  ),
+})
+const ASSET_NOTE = () => t('For information only, not investment advice.')
+
+/* the thing being priced: "price of chainlink", "nvidia stock", "how is pepe doing", "$AAPL" */
+function assetTarget(raw, s) {
+  const tag = raw.match(/\$([A-Za-z]{1,5})\b/)
+  if (tag) return { name: tag[1], kind: 'stocks' }
+  const m =
+    s.match(
+      /\b(?:price|value|quote)\s+(?:of|for)\s+(?:an?\s+|one\s+)?([a-z0-9][a-z0-9 .&-]{1,30}?)(?:\s+(?:stocks?|shares?|coins?|tokens?))?(?:\s+(?:today|now|right now))?\s*\??$/,
+    ) ??
+    s.match(
+      /^(?:what'?s\s+|what is\s+|check\s+|show\s+(?:me\s+)?)?([a-z0-9][a-z0-9 .&-]{1,30}?)\s+(?:stock|stocks|shares?|share price|stock price|price|prices|coin|token)\b(?:\s+(?:today|now|right now))?\s*\??$/,
+    ) ??
+    s.match(/^how(?:'s| is| are)\s+([a-z0-9][a-z0-9 .&-]{1,30}?)\s+(?:stocks?\s+|shares?\s+)?(?:doing|trading|today|performing)\b/)
+  if (!m) return null
+  const name = m[1].trim().replace(/^the\s+/, '')
+  if (!name || NOT_ASSETS.test(name) || (/\d/.test(name) && !/[a-z]/.test(name))) return null
+  return { name, kind: STOCK_HINT.test(s) ? 'stocks' : COIN_HINT.test(s) ? 'crypto' : null }
+}
+
+/* find the best match: a coin, a stock, or nothing */
+async function resolveAsset({ name, kind }) {
+  const L = await import('./live')
+  const exact = (x) => [x.name?.toLowerCase(), x.symbol?.toLowerCase(), x.id].includes(name.toLowerCase())
+  let coins = []
+  if (kind !== 'stocks') coins = await L.searchCoins(name).catch(() => [])
+  const coin = coins.find(exact) ?? (kind === 'crypto' ? coins[0] : null)
+  // a well-known coin wins ("pepe", "chainlink"); otherwise look for a stock first
+  if (coin && (kind === 'crypto' || (coin.rank && coin.rank <= 500))) return { kind: 'crypto', item: coin }
+  if (kind !== 'crypto') {
+    try {
+      const stocks = await L.searchStocks(name)
+      const stock = stocks.find(exact) ?? stocks[0]
+      if (stock) return { kind: 'stocks', item: stock }
+    } catch (err) {
+      if (err?.setup && kind === 'stocks') return { kind: 'setup' }
+    }
+  }
+  if (coins[0]) return { kind: 'crypto', item: coins[0] }
+  return null
+}
+
+async function quoteReply(found, app) {
+  const L = await import('./live')
+  const vs = ['USD', 'EUR', 'GBP', 'JPY'].includes(app.currency) ? app.currency : 'USD'
+  const kind = found.kind
+  const id = kind === 'crypto' ? found.item.id : found.item.symbol
+  const have = (app.watchlist?.[kind] ?? []).includes(id)
+  const add = have ? [] : [chip(`watch ${kind} ${id}`, 'Add {name} to my watchlist', { name: found.item.symbol })]
+  if (kind === 'crypto') {
+    const [c] = await L.loadMarkets([id], vs.toLowerCase())
+    if (!c) return { text: t('I found **{name}**, but there’s no price for it right now.', { name: found.item.name }) }
+    return {
+      text: `${t('**{name}** ({symbol}) is **{price}** ({change} in 24 hours).', { name: c.name, symbol: c.symbol, price: cash(c.price, vs), change: signedPct(c.change) })}\n${t('Prices from CoinGecko.')} ${ASSET_NOTE()}`,
+      chips: add,
+    }
+  }
+  const [q] = await L.loadStocks([id])
+  if (!q) return { text: t('I found **{name}**, but there’s no price for it right now.', { name: found.item.name }) }
+  return {
+    text:
+      `${t('**{name}** ({symbol}) is **{price}** ({change} today).', { name: q.name, symbol: q.symbol, price: cash(q.price, q.currency), change: signedPct(q.change) })}\n` +
+      `${t('Today’s range: {low} to {high}.', { low: cash(q.low, q.currency), high: cash(q.high, q.currency) })} ${t('Prices from Finnhub, may be delayed.')} ${ASSET_NOTE()}`,
+    chips: add,
+  }
+}
+
+/* ---------------- investing: recorded buys and sells, valued live ---------------- */
+const qtyWord = (n) => (n >= 1 ? n.toLocaleString(tag(), { maximumFractionDigits: 4 }) : n.toLocaleString(tag(), { maximumSignificantDigits: 4 }))
+const NOT_REAL = () => t('This records it in {brand}; no real trade is placed.', { brand: BRAND.name })
+
+/* live price in USD for a holding or a found asset */
+async function usdPrice(kind, id) {
+  const L = await import('./live')
+  if (kind === 'crypto') return (await L.loadMarkets([id], 'usd'))[0]?.price ?? null
+  return (await L.loadStocks([id]))[0]?.price ?? null
+}
+
+function findHolding(name, app) {
+  const n = name.toLowerCase().replace(/\s+(stocks?|shares?|coins?|tokens?)$/, '')
+  return (app.holdings ?? []).find((h) =>
+    [h.asset.toLowerCase(), h.symbol.toLowerCase(), h.name.toLowerCase(), h.name.toLowerCase().split(' ')[0]].includes(n),
+  )
+}
+
+function portfolioReply(app) {
+  const list = app.holdings ?? []
+  if (!list.length)
+    return { text: t('You haven’t recorded any investments yet. Press **Buy** on the Markets card, or tell me, like “buy $100 of bitcoin”.') }
+  return online(async () => {
+    const L = await import('./live')
+    const [coins, stocks] = await Promise.all([
+      L.loadMarkets(
+        list.filter((h) => h.kind === 'crypto').map((h) => h.asset),
+        'usd',
+      ).catch(() => []),
+      list.some((h) => h.kind === 'stocks') ? L.loadStocks(list.filter((h) => h.kind === 'stocks').map((h) => h.asset)).catch(() => []) : [],
+    ])
+    const price = (h) => (h.kind === 'crypto' ? coins.find((c) => c.id === h.asset) : stocks.find((c) => c.symbol === h.asset))?.price
+    const rows = list.map((h) => ({ ...h, value: price(h) != null ? price(h) * h.qty : null }))
+    const priced = rows.filter((r) => r.value != null)
+    const value = rows.reduce((sum, r) => sum + (r.value ?? r.cost), 0)
+    const gain = priced.reduce((sum, r) => sum + r.value - r.cost, 0)
+    const cost = priced.reduce((sum, r) => sum + r.cost, 0)
+    const lines = rows.map((r) =>
+      r.value == null
+        ? `• **${r.name}**: ${qtyWord(r.qty)} ${r.symbol}, ${t('paid {amount}', { amount: money(r.cost) })}`
+        : `• **${r.name}**: ${money(r.value)} (${signedPct(r.cost ? ((r.value - r.cost) / r.cost) * 100 : 0)})`,
+    )
+    return {
+      text: `${t('Your investments are worth **{value}**, {gain} ({pct}) on what you paid.', {
+        value: money(value),
+        gain: `${gain >= 0 ? '+' : '−'}${money(Math.abs(gain))}`,
+        pct: signedPct(cost ? (gain / cost) * 100 : 0),
+      })}\n${lines.join('\n')}\n${ASSET_NOTE()}`,
+      mood: gain >= 0 ? 'happy' : 'idle',
+    }
+  })
+}
+
+const kind0 = (s) => STOCK_HINT.test(s) || COIN_HINT.test(s)
+
+function tradeIntent(raw, s, app) {
+  if (
+    /^(how are|how'?s|show|check)?\s*(my )?(investments?|portfolio|holdings)( doing| worth| today)?\s*\??$/.test(s) ||
+    /\bwhat (are|is) my (investments?|portfolio|holdings) worth\b/.test(s)
+  )
+    return portfolioReply(app)
+
+  // "sell my bitcoin", "sell half my apple", "sell $100 of eth", "sell 0.5 eth"
+  const sell = s.match(
+    /^(?:please )?sell\s+(all(?: of)?\s+|half(?: of)?\s+|\$?[\d.,]+k?\s+(?:of\s+|worth of\s+)?|[\d.]+%\s+of\s+)?(?:my\s+)?(.+?)\s*\.?$/,
+  )
+  if (sell && !/\?$/.test(s)) {
+    const h = findHolding(sell[2], app)
+    if (!h) return { text: t('You don’t have any {name} recorded. Your investments are on the Markets card.', { name: sell[2] }) }
+    const how = (sell[1] ?? '').trim()
+    return online(async () => {
+      const price = await usdPrice(h.kind, h.asset).catch(() => null)
+      if (!price)
+        return {
+          text: t('I can’t get a live price for {name} right now, so use **Sell** on the Markets card and enter the price yourself.', {
+            name: h.name,
+          }),
+        }
+      let qty = h.qty
+      if (how.startsWith('half')) qty = h.qty / 2
+      else if (how.endsWith('of') && how.includes('%')) qty = (h.qty * parseFloat(how)) / 100
+      else if (/^\$/.test(how) || /^[\d.,]+k?\s+(of|worth)/.test(how)) qty = Math.min(h.qty, parseAmount(how) / price)
+      else if (/^[\d.]+/.test(how)) qty = Math.min(h.qty, parseFloat(how))
+      const value = qty * price
+      const gain = value - h.cost * (qty / h.qty)
+      return {
+        text: t('Sell **{qty} {symbol}** for about **{value}**? That’s {gain} {word} on what you paid.', {
+          qty: qtyWord(qty),
+          symbol: h.symbol,
+          value: money(value),
+          gain: money(Math.abs(gain)),
+          word: gain >= 0 ? t('profit') : t('loss'),
+        }),
+        confirm: {
+          label: t('Sell {symbol}', { symbol: h.symbol }),
+          note: `${NOT_REAL()} ${t('The money goes back to your balance.')}`,
+          effect: { balance: value, free: value },
+          run: () => app.sellHolding({ id: h.id, qty, price }),
+          done: t('Sold ✅ {value} is back in your balance.', { value: money(value) }),
+        },
+      }
+    })
+  }
+
+  // "buy $200 of bitcoin", "invest $500 in apple", "buy 2 shares of nvidia"
+  const buy =
+    s.match(/^(?:please )?(?:buy|purchase|invest)\s+(\$?[\d.,]+k?)\s*(?:dollars?\s+|usd\s+)?(?:of|in|into|on|worth of)\s+(.+?)\s*\.?$/) ??
+    s.match(/^(?:please )?(?:buy|purchase)\s+([\d.]+)\s+(?:shares?\s+of\s+|units?\s+of\s+)?(.+?)\s*\.?$/) ??
+    s.match(/^(?:please )?(?:buy|purchase|invest in)\s+()(?:some\s+)?(.+?)\s*\.?$/)
+  if (!buy || /\?$/.test(s) || NOT_ASSETS.test(buy[2])) return null
+  const name = buy[2].replace(/^(some|the|a|an)\s+/, '').replace(/\s+(stocks?|shares?|coins?|tokens?|crypto)$/, '')
+  // "buy coffee for $5" is shopping, not investing
+  if (!buy[1] && (/\d/.test(name) || name.split(' ').length > 3)) return null
+  if ((!buy[1] && !kind0(s) && EXPENSE_WORDS.some(([, re]) => re.test(name))) || NOT_ASSETS.test(name)) return null
+  if (/^(crypto\w*|stocks?|shares?|(the )?stock market|etfs?|index funds?|funds?|something|anything|it)$/.test(name))
+    return {
+      text: t(
+        'Which one? Tell me a coin or stock, like “buy $100 of bitcoin”. I can’t recommend what to buy, but I can record it and track its value.',
+      ),
+    }
+  const money$ =
+    buy[1] && (buy[1].startsWith('$') || /^(?:buy|purchase|invest)\s+\$?[\d.,]+k?\s*(?:dollars?\s+|usd\s+)?(?:of|in|into|on|worth of)\b/.test(s))
+  const units = buy[1] && !money$ ? parseFloat(buy[1]) : null
+  const amount = money$ ? parseAmount(buy[1]) : null
+  const kind = STOCK_HINT.test(s) ? 'stocks' : COIN_HINT.test(s) ? 'crypto' : null
+  return online(async () => {
+    const found = (await resolveAsset({ name, kind })) ?? null
+    if (found?.kind === 'setup') return NO_STOCKS()
+    if (!found) return { text: t('I couldn’t find a coin or stock called “{name}”.', { name }) }
+    const id = found.kind === 'crypto' ? found.item.id : found.item.symbol
+    let price
+    try {
+      price = await usdPrice(found.kind, id)
+    } catch (err) {
+      if (err?.setup) return NO_STOCKS()
+      throw err
+    }
+    if (!price) return { text: t('I found **{name}**, but there’s no price for it right now.', { name: found.item.name }) }
+    const symbol = found.item.symbol.toUpperCase()
+    const cost = amount ?? (units ? units * price : null)
+    if (!cost)
+      return {
+        text: t('How much would you like to put into **{name}**? It’s {price} right now.', { name: found.item.name, price: money(price) }),
+        chips: [50, 100, 500].map((n) => chip(`buy $${n} of ${id}`, 'Buy {amount}', { amount: `$${n}` })),
+      }
+    const free = Math.max(0, app.unassigned ?? app.balance)
+    if (cost > free)
+      return {
+        text: t('That’s {cost}, but you only have {free} unassigned. Move money out of a pot first, or buy less.', {
+          cost: money(cost),
+          free: money(free),
+        }),
+      }
+    const qty = cost / price
+    return {
+      text: t('Buy **{qty} {symbol}** ({name}) for **{cost}** at {price} each?', {
+        qty: qtyWord(qty),
+        symbol,
+        name: found.item.name,
+        cost: money(cost),
+        price: money(price),
+      }),
+      confirm: {
+        label: t('Buy {symbol}', { symbol }),
+        note: `${NOT_REAL()} ${t('It comes out of your unassigned money.')}`,
+        effect: { balance: -cost, free: -cost },
+        run: () => {
+          app.invest({ kind: found.kind, asset: id, name: found.item.name, symbol, amount: cost, price })
+          app.watch?.(found.kind, id)
+        },
+        done: t('Bought ✅ {qty} {symbol} is in your investments. I’ll keep its value up to date.', { qty: qtyWord(qty), symbol }),
+      },
+    }
+  })
+}
+
+function assetIntent(raw, s, app) {
+  if (SPENT.test(s) || EARNED.test(s)) return null
+  // "stock prices", "how are my stocks", "my crypto"
+  const mine = s.match(/^(?:how are |show |check )?(?:my )?(stocks?|stock prices|shares|crypto|coins|watchlist)(?: (?:prices|doing|today))?\s*\??$/)
+  if (mine && (/stock|share|watchlist/.test(mine[1]) || /\bmy\b/.test(s))) {
+    const kind = /crypto|coins/.test(mine[1]) ? 'crypto' : 'stocks'
+    const list = app.watchlist?.[kind] ?? []
+    if (!list.length) return { text: t('Your watchlist is empty. Search on the Markets card, or ask me about any coin or stock.') }
+    return online(async () => {
+      const L = await import('./live')
+      const vs = ['USD', 'EUR', 'GBP', 'JPY'].includes(app.currency) ? app.currency : 'USD'
+      let rows
+      try {
+        rows =
+          kind === 'crypto'
+            ? (await L.loadMarkets(list, vs.toLowerCase())).map((c) => ({ ...c, cur: vs }))
+            : (await L.loadStocks(list)).map((c) => ({ ...c, cur: c.currency }))
+      } catch (err) {
+        if (err?.setup) return NO_STOCKS()
+        throw err
+      }
+      if (!rows.length) return OFFLINE()
+      return {
+        text: `${rows.map((c) => `• **${c.name}** (${c.symbol}): ${cash(c.price, c.cur)}, ${signedPct(c.change)}`).join('\n')}\n${ASSET_NOTE()}`,
+        card: {
+          type: 'stats',
+          items: rows.slice(0, 6).map((c) => ({ label: c.symbol, value: cash(c.price, c.cur), note: ` ${signedPct(c.change)}` })),
+        },
+      }
+    })
+  }
+
+  // "add pepe to my watchlist", "remove tesla from my watchlist", and the chip "watch stocks AAPL"
+  const chipCmd = s.match(/^watch (stocks|crypto) ([a-z0-9.-]+)$/)
+  if (chipCmd) {
+    const kind = chipCmd[1]
+    const id = kind === 'stocks' ? chipCmd[2].toUpperCase() : chipCmd[2]
+    return {
+      text: t('Added **{name}** to your watchlist ⭐ It’s on the Markets card.', { name: kind === 'stocks' ? id : titleCase(id.replace(/-/g, ' ')) }),
+      run: () => app.watch(kind, id),
+      mood: 'happy',
+    }
+  }
+  const edit = s.match(/^(?:please )?(add|put|remove|delete|take)\s+(.+?)\s+(?:to|on|into|from|off|out of)\s+(?:my\s+|the\s+)?watch ?list\s*\.?$/)
+  if (edit) {
+    const name = edit[2].replace(/^the\s+/, '')
+    const kindHint = STOCK_HINT.test(s) ? 'stocks' : COIN_HINT.test(s) ? 'crypto' : null
+    if (/^(remove|delete|take)$/.test(edit[1])) {
+      for (const kind of ['crypto', 'stocks']) {
+        const id = (app.watchlist?.[kind] ?? []).find((x) => x.toLowerCase() === name.replace(/\s+(stock|coin|token)s?$/, '').toLowerCase())
+        if (id)
+          return {
+            text: t('Removed **{name}** from your watchlist.', { name: kind === 'stocks' ? id : titleCase(id) }),
+            run: () => app.unwatch(kind, id),
+          }
+      }
+    }
+    return online(async () => {
+      const found = await resolveAsset({ name: name.replace(/\s+(stock|shares?|coin|token)s?$/, ''), kind: kindHint })
+      if (found?.kind === 'setup') return NO_STOCKS()
+      if (!found) return { text: t('I couldn’t find a coin or stock called “{name}”.', { name }) }
+      const id = found.kind === 'crypto' ? found.item.id : found.item.symbol
+      if (/^(remove|delete|take)$/.test(edit[1]))
+        return { text: t('Removed **{name}** from your watchlist.', { name: found.item.name }), run: () => app.unwatch(found.kind, id) }
+      return {
+        text: t('Added **{name}** ({symbol}) to your watchlist ⭐ It’s on the Markets card.', { name: found.item.name, symbol: found.item.symbol }),
+        run: () => app.watch(found.kind, id),
+        mood: 'happy',
+      }
+    })
+  }
+
+  const trade = tradeIntent(raw, s, app)
+  if (trade) return trade
+
+  const target = assetTarget(raw, s)
+  if (!target) return null
+  return online(async () => {
+    const found = await resolveAsset(target)
+    if (found?.kind === 'setup') return NO_STOCKS()
+    if (!found) return { text: t('I couldn’t find a coin or stock called “{name}”.', { name: target.name }) }
+    try {
+      return await quoteReply(found, app)
+    } catch (err) {
+      if (err?.setup) return NO_STOCKS()
+      throw err
+    }
+  })
+}
+
+/** Questions answered from the internet: rates, crypto and stock prices, holidays. */
+function liveData(raw, s, app) {
+  return holidayIntent(s, app) ?? convertIntent(s, app) ?? cryptoIntent(s, app) ?? assetIntent(raw, s, app)
 }
 
 /* ---------------- several requests in one message ---------------- */
@@ -1764,7 +2118,7 @@ export function respond(typed, app, memory = {}) {
   const f = followUp(raw, s, app, memory)
   if (f) return keep(f)
 
-  const r = liveData(s, app) ?? smart(raw, s, app) ?? core(raw, app)
+  const r = liveData(raw, s, app) ?? smart(raw, s, app) ?? core(raw, app)
   // remember an action with an amount, so "make it $80" can redo it
   const token = raw.match(AMOUNT_TOKEN)?.[0]
   const lastCommand = r.confirm && token && !r.confirm.steps ? raw.replace(token, '{amount}') : memory.lastCommand

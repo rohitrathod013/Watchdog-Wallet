@@ -53,6 +53,10 @@ function makeApp(base) {
     'setCurrency',
     'setPeriod',
     'logActivity',
+    'watch',
+    'unwatch',
+    'invest',
+    'sellHolding',
   ])
     app[f] = spy(f)
   if (!app.stats) app.stats = computeStats(app.transactions, app.budgets ?? [], app.now)
@@ -723,5 +727,268 @@ describe('live data (rates, crypto, holidays)', () => {
       throw new Error('offline')
     })
     expect(plain(await live(demo(), 'litecoin price'))).toMatch(/can’t reach that service/)
+  })
+})
+
+/* ================================================================== */
+describe('any coin or stock', () => {
+  const SEARCH = {
+    pepe: [{ id: 'pepe', name: 'Pepe', symbol: 'pepe', market_cap_rank: 45 }],
+    chainlink: [{ id: 'chainlink', name: 'Chainlink', symbol: 'link', market_cap_rank: 15 }],
+    nvidia: [{ id: 'nvidia-xstock', name: 'NVIDIA xStock', symbol: 'nvdax', market_cap_rank: null }],
+    apple: [{ id: 'apple-token', name: 'Apple Token', symbol: 'apple', market_cap_rank: 4000 }],
+    zzzz: [],
+  }
+  const MARKETS = {
+    pepe: {
+      id: 'pepe',
+      name: 'Pepe',
+      symbol: 'pepe',
+      current_price: 0.0000071,
+      price_change_percentage_24h: 4.2,
+      sparkline_in_7d: { price: [1, 2] },
+    },
+    chainlink: {
+      id: 'chainlink',
+      name: 'Chainlink',
+      symbol: 'link',
+      current_price: 14.5,
+      price_change_percentage_24h: -1.1,
+      sparkline_in_7d: { price: [1, 2] },
+    },
+    bitcoin: {
+      id: 'bitcoin',
+      name: 'Bitcoin',
+      symbol: 'btc',
+      current_price: 75000,
+      price_change_percentage_24h: 1,
+      sparkline_in_7d: { price: [1, 2] },
+    },
+  }
+  const STOCKS = {
+    NVDA: { symbol: 'NVDA', name: 'NVIDIA Corp', currency: 'USD', price: 190.5, change: 2.5, high: 192, low: 187, open: 188, prev: 185.9 },
+    AAPL: { symbol: 'AAPL', name: 'Apple Inc', currency: 'USD', price: 228.4, change: -0.6, high: 230, low: 226.1, open: 229, prev: 229.8 },
+  }
+  const STOCK_SEARCH = {
+    nvidia: [{ symbol: 'NVDA', name: 'NVIDIA CORP', type: 'Common Stock' }],
+    apple: [{ symbol: 'AAPL', name: 'APPLE INC', type: 'Common Stock' }],
+    aapl: [{ symbol: 'AAPL', name: 'APPLE INC', type: 'Common Stock' }],
+  }
+  let stocksStatus = 200
+  beforeEach(() => {
+    clearLiveCache()
+    stocksStatus = 200
+    vi.stubGlobal('fetch', async (u) => {
+      const url = new URL(String(u))
+      const ok = (body, status = 200) => ({ ok: status < 300, status, json: async () => structuredClone(body) })
+      if (url.pathname.endsWith('/search')) return ok({ coins: SEARCH[url.searchParams.get('query')] ?? [] })
+      if (url.pathname.endsWith('/coins/markets'))
+        return ok(
+          url.searchParams
+            .get('ids')
+            .split(',')
+            .map((id) => MARKETS[id])
+            .filter(Boolean),
+        )
+      if (url.pathname.endsWith('/functions/v1/stocks')) {
+        if (stocksStatus !== 200) return ok({ error: 'not set up' }, stocksStatus)
+        const q = url.searchParams.get('q')
+        if (q) return ok({ results: STOCK_SEARCH[q.toLowerCase()] ?? [] })
+        return ok({
+          quotes: url.searchParams
+            .get('symbols')
+            .split(',')
+            .map((s) => STOCKS[s])
+            .filter(Boolean),
+        })
+      }
+      return ok({})
+    })
+  })
+  afterEach(() => vi.unstubAllGlobals())
+  const live = async (app, text) => {
+    const r = ask(app, text)
+    expect(r.later, `expected an online lookup for: ${text}`).toBeTypeOf('function')
+    return r.later()
+  }
+  const withList = () => {
+    const app = demo()
+    app.watchlist = { crypto: ['bitcoin'], stocks: ['AAPL'] }
+    return app
+  }
+
+  it('prices any coin by name', async () => {
+    const r = await live(withList(), 'price of pepe')
+    expect(plain(r)).toMatch(/Pepe \(PEPE\) is \$0\.0000071 \(\+4\.2% in 24 hours\)/)
+    expect(r.chips.map((c) => c.q)).toContain('watch crypto pepe')
+  })
+  it('understands "how is chainlink doing"', async () => {
+    expect(plain(await live(withList(), 'how is chainlink doing'))).toMatch(/Chainlink \(LINK\) is \$14\.50/)
+  })
+  it('prices any US stock', async () => {
+    const r = await live(withList(), 'nvidia stock price')
+    expect(plain(r)).toMatch(/NVIDIA Corp \(NVDA\) is \$190\.50 \(\+2\.5% today\)/)
+    expect(plain(r)).toMatch(/range: \$187\.00 to \$192\.00/)
+  })
+  it('prefers the company over an obscure token with the same name', async () => {
+    expect(plain(await live(withList(), 'apple price'))).toMatch(/Apple Inc \(AAPL\)/)
+  })
+  it('reads cashtags like $AAPL as stocks', async () => {
+    expect(plain(await live(withList(), 'what about $AAPL'))).toMatch(/Apple Inc \(AAPL\) is \$228\.40/)
+  })
+  it('says so when nothing matches', async () => {
+    expect(plain(await live(withList(), 'price of zzzz coin'))).toMatch(/couldn’t find a coin or stock called “zzzz”/)
+  })
+  it('explains the setup when stocks are not switched on', async () => {
+    stocksStatus = 404
+    expect(plain(await live(withList(), 'tesla stock price'))).toMatch(/Stock prices aren’t switched on yet/)
+  })
+  it('lists the stocks on the watchlist', async () => {
+    const r = await live(withList(), 'my stocks')
+    expect(plain(r)).toMatch(/Apple Inc \(AAPL\): \$228\.40, −0\.6%/)
+  })
+  it('adds a coin to the watchlist from a sentence', async () => {
+    const app = withList()
+    const r = await live(app, 'add chainlink to my watchlist')
+    expect(plain(r)).toMatch(/Added Chainlink \(LINK\) to your watchlist/)
+    r.run()
+    expect(app.calls).toContainEqual({ name: 'watch', args: ['crypto', 'chainlink'] })
+  })
+  it('adds from the chip without going online', () => {
+    const app = withList()
+    const r = ask(app, 'watch stocks NVDA')
+    expect(r.later).toBeFalsy()
+    r.run()
+    expect(app.calls).toContainEqual({ name: 'watch', args: ['stocks', 'NVDA'] })
+  })
+  it('removes something already on the list', () => {
+    const app = withList()
+    const r = ask(app, 'remove AAPL from my watchlist')
+    r.run()
+    expect(app.calls).toContainEqual({ name: 'unwatch', args: ['stocks', 'AAPL'] })
+  })
+  for (const c of ['what’s the price of rent', 'food price', 'should I buy nvidia stock', 'I spent $40 on gas', 'show my balance', 'gold price'])
+    it(`leaves other questions alone: "${c}"`, () => {
+      const r = ask(withList(), c)
+      expect(r.later).toBeFalsy()
+    })
+})
+
+/* ================================================================== */
+describe('investing (recorded, valued live)', () => {
+  const COINS_SEARCH = {
+    bitcoin: [{ id: 'bitcoin', name: 'Bitcoin', symbol: 'btc', market_cap_rank: 1 }],
+    eth: [{ id: 'ethereum', name: 'Ethereum', symbol: 'eth', market_cap_rank: 2 }],
+    nvidia: [],
+    apple: [{ id: 'apple-token', name: 'Apple Token', symbol: 'apple', market_cap_rank: 4000 }],
+  }
+  const MARKETS = {
+    bitcoin: { id: 'bitcoin', name: 'Bitcoin', symbol: 'btc', current_price: 80000, price_change_percentage_24h: 1 },
+    ethereum: { id: 'ethereum', name: 'Ethereum', symbol: 'eth', current_price: 2000, price_change_percentage_24h: -1 },
+  }
+  const STOCKS = {
+    AAPL: { symbol: 'AAPL', name: 'Apple Inc', currency: 'USD', price: 250, change: 1, high: 251, low: 247 },
+    NVDA: { symbol: 'NVDA', name: 'NVIDIA Corp', currency: 'USD', price: 200, change: 2, high: 201, low: 195 },
+  }
+  const STOCK_SEARCH = {
+    apple: [{ symbol: 'AAPL', name: 'APPLE INC', type: 'Common Stock' }],
+    nvidia: [{ symbol: 'NVDA', name: 'NVIDIA CORP', type: 'Common Stock' }],
+  }
+  beforeEach(() => {
+    clearLiveCache()
+    vi.stubGlobal('fetch', async (u) => {
+      const url = new URL(String(u))
+      const ok = (body) => ({ ok: true, status: 200, json: async () => structuredClone(body) })
+      if (url.pathname.endsWith('/search')) return ok({ coins: COINS_SEARCH[url.searchParams.get('query')] ?? [] })
+      if (url.pathname.endsWith('/coins/markets'))
+        return ok(
+          url.searchParams
+            .get('ids')
+            .split(',')
+            .map((id) => MARKETS[id])
+            .filter(Boolean),
+        )
+      if (url.pathname.endsWith('/functions/v1/stocks')) {
+        const q = url.searchParams.get('q')
+        if (q) return ok({ results: STOCK_SEARCH[q.toLowerCase()] ?? [] })
+        return ok({
+          quotes: url.searchParams
+            .get('symbols')
+            .split(',')
+            .map((x) => STOCKS[x])
+            .filter(Boolean),
+        })
+      }
+      return ok({})
+    })
+  })
+  afterEach(() => vi.unstubAllGlobals())
+  const live = async (app, text) => {
+    const r = ask(app, text)
+    expect(r.later, `expected an online lookup for: ${text}`).toBeTypeOf('function')
+    return r.later()
+  }
+  const investor = () => {
+    const app = makeApp({ balance: 5000, now: new Date(2026, 10, 6, 12) })
+    app.holdings = [
+      { id: 'h1', kind: 'crypto', asset: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', qty: 0.05, cost: 3000 },
+      { id: 'h2', kind: 'stocks', asset: 'AAPL', name: 'Apple Inc', symbol: 'AAPL', qty: 4, cost: 1100 },
+    ]
+    return app
+  }
+
+  it('buys a dollar amount of a coin, after a confirm', async () => {
+    const app = investor()
+    const r = await live(app, 'buy $200 of bitcoin')
+    expect(plain(r)).toMatch(/Buy 0\.0025 BTC \(Bitcoin\) for \$200\.00 at \$80,000\.00 each/)
+    expect(r.confirm.note).toMatch(/no real trade is placed/)
+    expect(app.calls.find((c) => c.name === 'invest')).toBeFalsy()
+    r.confirm.run()
+    expect(app.calls).toContainEqual({
+      name: 'invest',
+      args: [{ kind: 'crypto', asset: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', amount: 200, price: 80000 }],
+    })
+  })
+  it('invests in a stock by name', async () => {
+    const r = await live(investor(), 'invest $500 in nvidia')
+    expect(plain(r)).toMatch(/Buy 2\.5 NVDA \(NVIDIA CORP\) for \$500\.00/)
+  })
+  it('buys a number of shares', async () => {
+    const r = await live(investor(), 'buy 2 shares of apple')
+    expect(plain(r)).toMatch(/Buy 2 AAPL .* for \$500\.00/)
+  })
+  it('asks how much when no amount is given', async () => {
+    const r = await live(investor(), 'buy bitcoin')
+    expect(plain(r)).toMatch(/How much would you like to put into Bitcoin/)
+    expect(r.chips.map((c) => c.q)).toContain('buy $100 of bitcoin')
+  })
+  it('will not spend more than is unassigned', async () => {
+    expect(plain(await live(investor(), 'buy $9000 of eth'))).toMatch(/you only have \$5,000\.00 unassigned/)
+  })
+  it('sells half a holding with the profit shown', async () => {
+    const app = investor()
+    const r = await live(app, 'sell half my bitcoin')
+    expect(plain(r)).toMatch(/Sell 0\.025 BTC for about \$2,000\.00\? That’s \$500\.00 profit/)
+    r.confirm.run()
+    expect(app.calls).toContainEqual({ name: 'sellHolding', args: [{ id: 'h1', qty: 0.025, price: 80000 }] })
+  })
+  it('sells everything and shows a loss', async () => {
+    expect(plain(await live(investor(), 'sell my apple shares'))).toMatch(/Sell 4 AAPL for about \$1,000\.00\? That’s \$100\.00 loss/)
+  })
+  it('says so when there is nothing to sell', () => {
+    expect(plain(ask(investor(), 'sell my dogecoin'))).toMatch(/don’t have any dogecoin recorded/)
+  })
+  it('sums up the portfolio', async () => {
+    const r = await live(investor(), 'how are my investments')
+    expect(plain(r)).toMatch(/worth \$5,000\.00, \+\$900\.00 \(\+22\.0%\)/)
+  })
+  it('still refuses to recommend', () => {
+    for (const q of ['should I buy bitcoin', 'what stocks should I buy?', 'is apple a good investment'])
+      expect(plain(ask(investor(), q))).toMatch(/can’t give investment advice/)
+    expect(plain(ask(investor(), 'invest in crypto'))).toMatch(/can’t recommend what to buy/)
+  })
+  it('does not mistake shopping for investing', () => {
+    expect(ask(investor(), 'buy coffee for $5').later).toBeFalsy()
+    expect(ask(investor(), 'I bought a laptop for $900').later).toBeFalsy()
   })
 })

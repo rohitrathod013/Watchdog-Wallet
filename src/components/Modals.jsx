@@ -801,3 +801,164 @@ export function ActivityModal({ open, onClose }) {
     </Modal>
   )
 }
+
+/* ---------------- Invest: record buying a coin or stock ---------------- */
+const qtyText = (n) =>
+  n >= 1 ? n.toLocaleString(undefined, { maximumFractionDigits: 4 }) : n.toLocaleString(undefined, { maximumSignificantDigits: 4 })
+
+function InvestBody({ payload, onClose }) {
+  const { pots, unassigned, invest } = useApp()
+  const [amount, setAmount] = useState(payload?.amount ? String(payload.amount) : '')
+  const [price, setPrice] = useState(payload?.price ? String(+Number(payload.price).toPrecision(8)) : '')
+  const [potId, setPotId] = useState('')
+  const [done, setDone] = useState(null)
+  const n = Number(amount)
+  const each = Number(price)
+  const from = potId ? pots.find((p) => p.id === potId) : null
+  const have = from ? from.amount : Math.max(0, unassigned)
+  const over = n > have
+  const qty = n > 0 && each > 0 ? n / each : 0
+  const ok = qty > 0 && !over
+
+  if (done)
+    return (
+      <Success
+        title={t('Investment recorded')}
+        body={t('{qty} {symbol} for {amount}.', { qty: qtyText(done.qty), symbol: done.symbol, amount: money(done.amount) })}
+      />
+    )
+
+  const submit = (e) => {
+    e.preventDefault()
+    if (!ok) return
+    invest({ kind: payload.kind, asset: payload.asset, name: payload.name, symbol: payload.symbol, amount: n, price: each, potId: potId || null })
+    setDone({ qty, symbol: payload.symbol, amount: n })
+    window.setTimeout(onClose, 1300)
+  }
+
+  return (
+    <form className="form" onSubmit={submit}>
+      <div className="invest-head">
+        <b>{payload?.name}</b>
+        <small>
+          {payload?.symbol} · {payload?.kind === 'crypto' ? t('Crypto') : t('Stocks')}
+        </small>
+      </div>
+      <AmountField
+        value={amount}
+        onChange={setAmount}
+        bad={over}
+        hint={over ? <small className="bad">{t('You only have {amount} there.', { amount: money(have) })}</small> : null}
+      />
+      <div className="chips">
+        {QUICK.map((q) => (
+          <button key={q} type="button" className={`chip ${n === q ? 'on' : ''}`} onClick={() => setAmount(String(q))}>
+            ${q}
+          </button>
+        ))}
+      </div>
+      <div className="field-row">
+        <label className="field">
+          <span>{t('Price per unit')}</span>
+          <input inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d.]/g, ''))} />
+        </label>
+        <label className="field">
+          <span>{t('Pay from')}</span>
+          <select value={potId} onChange={(e) => setPotId(e.target.value)}>
+            <option value="">
+              {t('Unassigned')} · {money(Math.max(0, unassigned))}
+            </option>
+            {pots.map((p) => (
+              <option key={p.id} value={p.id}>
+                {t(p.name)} · {money(p.amount)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className="invest-preview">
+        {qty > 0
+          ? t('You’ll get about **{qty} {symbol}**.', { qty: qtyText(qty), symbol: payload.symbol }).replace(/\*\*/g, '')
+          : t('Enter an amount to see how much you get.')}
+      </p>
+      <p className="form-note">
+        {t('This records the purchase in {brand} and tracks its value live. No real trade is placed, so buy it with your broker or exchange too.', {
+          brand: BRAND.name,
+        })}
+      </p>
+      <button type="submit" className="btn solid lg block" disabled={!ok}>
+        <Icon name="trendUp" size={18} stroke={2} />
+        {t('Buy {symbol}', { symbol: payload?.symbol ?? '' })}
+      </button>
+    </form>
+  )
+}
+
+export function InvestModal({ open, payload, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose} title={t('Invest')} sub={t('Record buying a coin or stock with money from your balance')}>
+      {open ? <InvestBody payload={payload} onClose={onClose} /> : null}
+    </Modal>
+  )
+}
+
+/* ---------------- Sell: record selling part or all of a holding ---------------- */
+function SellBody({ payload, onClose }) {
+  const { holdings, sellHolding } = useApp()
+  const h = holdings.find((x) => x.id === payload?.id)
+  const [share, setShare] = useState(100)
+  const [price, setPrice] = useState(payload?.price ? String(+Number(payload.price).toPrecision(8)) : '')
+  const [done, setDone] = useState(null)
+  if (done) return <Success title={t('Sale recorded')} body={t('{amount} back in your balance.', { amount: money(done.value) })} />
+  if (!h) return <p className="form-note">{t('That holding is gone.')}</p>
+  const each = Number(price)
+  const qty = (h.qty * share) / 100
+  const value = qty * each
+  const gain = value - h.cost * (share / 100)
+  const ok = qty > 0 && each > 0
+
+  const submit = (e) => {
+    e.preventDefault()
+    if (!ok) return
+    const r = sellHolding({ id: h.id, qty: share >= 100 ? h.qty : qty, price: each })
+    setDone(r ?? { value })
+    window.setTimeout(onClose, 1300)
+  }
+
+  return (
+    <form className="form" onSubmit={submit}>
+      <div className="invest-head">
+        <b>{h.name}</b>
+        <small>{t('You hold {qty} {symbol}, bought for {amount}', { qty: qtyText(h.qty), symbol: h.symbol, amount: money(h.cost) })}</small>
+      </div>
+      <div className="chips">
+        {[25, 50, 75, 100].map((p) => (
+          <button key={p} type="button" className={`chip ${share === p ? 'on' : ''}`} onClick={() => setShare(p)}>
+            {p === 100 ? t('All') : `${p}%`}
+          </button>
+        ))}
+      </div>
+      <label className="field">
+        <span>{t('Price per unit')}</span>
+        <input inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d.]/g, ''))} autoFocus={!payload?.price} />
+      </label>
+      <p className="invest-preview">
+        {ok
+          ? `${t('Selling {qty} {symbol} for {amount}', { qty: qtyText(qty), symbol: h.symbol, amount: money(value) })} · ${gain >= 0 ? '+' : '−'}${money(Math.abs(gain))} ${gain >= 0 ? t('profit') : t('loss')}`
+          : t('Enter the price to see what you get.')}
+      </p>
+      <button type="submit" className="btn solid lg block" disabled={!ok}>
+        <Icon name="receive" size={18} stroke={2} />
+        {t('Sell {symbol}', { symbol: h.symbol })}
+      </button>
+    </form>
+  )
+}
+
+export function SellModal({ open, payload, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose} title={t('Sell')} sub={t('Record selling a holding. The money goes back to your balance.')}>
+      {open ? <SellBody payload={payload} onClose={onClose} /> : null}
+    </Modal>
+  )
+}

@@ -1799,7 +1799,7 @@
 .coin,
 .rate {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) 88px auto;
+  grid-template-columns: 36px minmax(0, 1fr) 80px auto auto 24px;
   align-items: center;
   gap: 12px;
   padding: 9px 6px;
@@ -1896,7 +1896,7 @@
 }
 @media (max-width: 480px) {
   .coin {
-    grid-template-columns: 34px minmax(0, 1fr) 60px auto;
+    grid-template-columns: 32px minmax(0, 1fr) auto auto 22px;
     gap: 9px;
   }
   .rates {
@@ -1974,4 +1974,222 @@
 }
 .rates-card .rates {
   margin-bottom: 14px;
+}
+
+/* watchlist search and rows */
+.markets-card .c-head {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.mk-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  margin-top: 4px;
+  padding: 0 14px;
+  border-radius: 14px;
+  background: var(--soft);
+  color: var(--muted);
+}
+.mk-search:focus-within {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.mk-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+}
+.mk-results {
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  max-height: 340px;
+  overflow-y: auto;
+  transform-origin: top center;
+}
+.mk-results p {
+  margin: 0;
+  padding: 12px;
+  color: var(--muted);
+}
+.mk-results button {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: start;
+  cursor: pointer;
+}
+.mk-results button:hover,
+.mk-results button:focus-visible {
+  background: var(--soft);
+}
+.mk-results button.have {
+  color: var(--muted);
+}
+.mk-results button > svg {
+  color: var(--accent);
+}
+.coin-logo.sm {
+  width: 30px;
+  height: 30px;
+  font-size: 12px;
+}
+.coin-x {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.2s,
+    background 0.2s;
+}
+.coin:hover .coin-x,
+.coin-x:focus-visible {
+  opacity: 1;
+}
+.coin-x:hover {
+  background: var(--soft-2);
+  color: var(--ink);
+}
+@media (hover: none) {
+  .coin-x {
+    opacity: 0.7;
+  }
+}
+.coin-spark {
+  display: flex;
+  align-items: center;
+}
+.day-range {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--red) 35%, var(--soft-2)), color-mix(in srgb, var(--green) 35%, var(--soft-2)));
+}
+.day-range i {
+  position: absolute;
+  top: 50%;
+  left: var(--p);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 3px solid var(--ink);
+  transform: translate(-50%, -50%);
+}
+[dir='rtl'] .day-range i {
+  left: auto;
+  right: var(--p);
+  transform: translate(50%, -50%);
+}
+.live-note .link {
+  font-size: inherit;
+}
+
+/* invest and sell */
+.invest-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--soft);
+}
+.invest-head b {
+  font-size: 17px;
+}
+.invest-head small,
+.form-note {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.form-note {
+  margin: 0;
+  line-height: 1.45;
+}
+.invest-preview {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+  font-weight: 600;
+}
+.bad {
+  color: var(--red);
+}
+
+.coin-buy {
+  padding-inline: 12px;
+}
+.coin.pf-row {
+  grid-template-columns: 36px minmax(0, 1fr) auto auto;
+}
+.pf-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin: 6px 0 14px;
+}
+.pf-total > b {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.portfolio-card .pots-bar {
+  margin-bottom: 6px;
+}
+.coin-price small.muted {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.rates-card.span-4 .rates {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.rates-card.span-4 .converter {
+  max-width: 640px;
+}
+@media (max-width: 1100px) {
+  .rates-card.span-4 .rates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .coin-spark {
+    display: none;
+  }
+  .rates-card.span-4 .rates {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.btn.sm {
+  height: 32px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+.btn.sm:disabled {
+  opacity: 0.45;
+  cursor: default;
 }

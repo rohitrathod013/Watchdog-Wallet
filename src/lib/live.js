@@ -12,6 +12,7 @@
    holidays for a week.
    ------------------------------------------------------------------ */
 import { CURRENCIES } from '../data/seed'
+import { SUPABASE } from '../config'
 
 const MIN = 60 * 1000
 const memo = new Map()
@@ -42,7 +43,12 @@ export function cached(key, ttl = Infinity) {
 async function getJSON(key, url, ttl) {
   const fresh = cached(key, ttl)
   if (fresh) return fresh
-  const res = await fetch(url, { headers: { Accept: 'application/json' } })
+  let res = await fetch(url, { headers: { Accept: 'application/json' } })
+  // free tiers rate-limit bursts; wait a moment and try once more
+  if (res.status === 429) {
+    await new Promise((r) => setTimeout(r, 1500))
+    res = await fetch(url, { headers: { Accept: 'application/json' } })
+  }
   if (res.status === 204) return null
   if (!res.ok) throw new Error(`${res.status} from ${new URL(url).host}`)
   const value = await res.json()
@@ -127,6 +133,54 @@ export async function loadMarkets(ids, vs = 'usd') {
       trend: week.filter((_, i) => i % step === 0),
     }
   })
+}
+
+/** Search every coin CoinGecko lists: [{ id, name, symbol, rank }] */
+export async function searchCoins(query) {
+  const q = query.trim().toLowerCase()
+  if (!q) return []
+  const r = await getJSON(`coin-search:${q}`, `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(q)}`, 60 * MIN)
+  return (r?.coins ?? []).slice(0, 8).map((c) => ({ id: c.id, name: c.name, symbol: c.symbol.toUpperCase(), rank: c.market_cap_rank }))
+}
+
+/* ---------------- stocks ----------------
+   Stock data needs an API key, so it goes through the "stocks" Supabase
+   Edge Function (supabase/functions/stocks), which keeps the key secret. */
+export class StocksNotSetUp extends Error {
+  setup = true
+}
+
+async function stocksCall(key, params, ttl) {
+  const fresh = cached(key, ttl)
+  if (fresh) return fresh
+  if (!SUPABASE.url) throw new StocksNotSetUp('No Supabase project')
+  const url = `${SUPABASE.url.replace(/\/rest\/v1\/?$/, '')}/functions/v1/stocks?${new URLSearchParams({ ...params, apikey: SUPABASE.anonKey })}`
+  // a plain GET first: no custom headers means no CORS preflight, so a "not deployed" 404 can be read
+  let res = await fetch(url)
+  // the gateway wants the key as a header: ask again with it (the deployed function answers the preflight)
+  if (res.status === 401) res = await fetch(url, { headers: { apikey: SUPABASE.anonKey, Authorization: `Bearer ${SUPABASE.anonKey}` } })
+  // not deployed yet (404), JWT check still on (401), or no Finnhub key (503)
+  if ([401, 403, 404, 503].includes(res.status)) throw new StocksNotSetUp(`stocks function: ${res.status}`)
+  if (!res.ok) throw new Error(`${res.status} from stocks function`)
+  const value = await res.json()
+  const hit = { at: Date.now(), value }
+  memo.set(key, hit)
+  store.set(key, hit)
+  return value
+}
+
+/** Search US stocks and ETFs: [{ symbol, name, type }] */
+export async function searchStocks(query) {
+  const q = query.trim()
+  if (!q) return []
+  return (await stocksCall(`stock-search:${q.toLowerCase()}`, { q }, 60 * MIN)).results ?? []
+}
+
+/** Quotes for tickers: [{ symbol, name, currency, price, change, high, low, open, prev }] */
+export async function loadStocks(symbols) {
+  const list = [...new Set(symbols.map((s) => s.toUpperCase()))]
+  if (!list.length) return []
+  return (await stocksCall(`stocks:${list.join(',')}`, { symbols: list.join(',') }, MIN)).quotes ?? []
 }
 
 /* ---------------- public holidays ---------------- */

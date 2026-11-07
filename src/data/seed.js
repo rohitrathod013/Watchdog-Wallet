@@ -382,3 +382,11 @@ export const HEAT = (() => {
   }
   return weeks
 })()
+
+/* The demo's sample portfolio: what was paid, valued live at today's prices. */
+export const HOLDINGS = [
+  { id: 'h1', kind: 'crypto', asset: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', qty: 0.042, cost: 2650, at: '2026-06-12T10:20' },
+  { id: 'h2', kind: 'crypto', asset: 'ethereum', name: 'Ethereum', symbol: 'ETH', qty: 1.5, cost: 3900, at: '2026-04-03T09:05' },
+  { id: 'h3', kind: 'stocks', asset: 'AAPL', name: 'Apple Inc', symbol: 'AAPL', qty: 10, cost: 2050, at: '2026-03-18T15:40' },
+  { id: 'h4', kind: 'stocks', asset: 'NVDA', name: 'NVIDIA Corp', symbol: 'NVDA', qty: 12, cost: 1680, at: '2026-05-22T14:10' },
+]

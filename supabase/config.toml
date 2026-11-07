@@ -1,0 +1,4 @@
+# Only used by the Supabase CLI (`supabase functions deploy stocks`).
+# The site calls the function with its publishable key, which isn't a JWT.
+[functions.stocks]
+verify_jwt = false

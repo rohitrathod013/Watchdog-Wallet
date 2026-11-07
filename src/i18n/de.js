@@ -936,4 +936,107 @@ export default {
   Convert: 'Umrechnen',
   Into: 'In',
   Currency: 'Währung',
+  // ---------------- any coin or stock ----------------
+  'Stock prices need a one-time setup: a free Finnhub key kept in a Supabase function, so it never ships in the website.':
+    'Aktienkurse brauchen eine einmalige Einrichtung: einen kostenlosen Finnhub-Schlüssel in einer Supabase-Funktion, damit er nie auf der Website landet.',
+  'How to set it up': 'So richtest du es ein',
+  'Searching…': 'Suche…',
+  'Stock search needs the one-time setup first.': 'Die Aktiensuche braucht zuerst die einmalige Einrichtung.',
+  'Couldn’t search right now. Try again in a minute.': 'Suche gerade nicht möglich. Versuch es in einer Minute noch einmal.',
+  'No matches for “{q}”.': 'Keine Treffer für „{q}“.',
+  'Search any coin, like Pepe or Chainlink': 'Jede Kryptowährung suchen, z. B. Pepe oder Chainlink',
+  'Search any US stock or ETF, like Apple or SPY': 'Jede US-Aktie oder jeden ETF suchen, z. B. Apple oder SPY',
+  'Search coins': 'Kryptowährungen suchen',
+  'Search stocks': 'Aktien suchen',
+  Low: 'Tief',
+  High: 'Hoch',
+  'No price right now': 'Gerade kein Kurs',
+  'Your list is empty. Search above to add one.': 'Deine Liste ist leer. Such oben, um etwas hinzuzufügen.',
+  Watchlist: 'Watchlist',
+  'US stocks from Finnhub · updates every minute': 'US-Aktien von Finnhub · jede Minute aktualisiert',
+  Crypto: 'Krypto',
+  Stocks: 'Aktien',
+  'For information only, not investment advice. The bar shows where the price sits in today’s range.':
+    'Nur zur Information, keine Anlageberatung. Der Balken zeigt, wo der Kurs in der heutigen Spanne liegt.',
+  'My crypto': 'Meine Kryptos',
+  'My stocks': 'Meine Aktien',
+  'Stock prices aren’t switched on yet. They need a free Finnhub key kept in a Supabase function, so it never ships in the website. The README explains the setup.':
+    'Aktienkurse sind noch nicht eingeschaltet. Sie brauchen einen kostenlosen Finnhub-Schlüssel in einer Supabase-Funktion, damit er nie auf der Website landet. Die README erklärt die Einrichtung.',
+  'For information only, not investment advice.': 'Nur zur Information, keine Anlageberatung.',
+  'Add {name} to my watchlist': '{name} zur Watchlist hinzufügen',
+  'I found **{name}**, but there’s no price for it right now.': 'Ich habe **{name}** gefunden, aber gerade gibt es keinen Kurs.',
+  '**{name}** ({symbol}) is **{price}** ({change} in 24 hours).': '**{name}** ({symbol}) steht bei **{price}** ({change} in 24 Stunden).',
+  'Prices from CoinGecko.': 'Preise von CoinGecko.',
+  '**{name}** ({symbol}) is **{price}** ({change} today).': '**{name}** ({symbol}) steht bei **{price}** ({change} heute).',
+  'Today’s range: {low} to {high}.': 'Heutige Spanne: {low} bis {high}.',
+  'Prices from Finnhub, may be delayed.': 'Kurse von Finnhub, eventuell verzögert.',
+  'Your watchlist is empty. Search on the Markets card, or ask me about any coin or stock.':
+    'Deine Watchlist ist leer. Such auf der Märkte-Karte oder frag mich nach jeder Kryptowährung oder Aktie.',
+  'Added **{name}** to your watchlist ⭐ It’s on the Markets card.': '**{name}** zur Watchlist hinzugefügt ⭐ Du findest es auf der Märkte-Karte.',
+  'Removed **{name}** from your watchlist.': '**{name}** aus der Watchlist entfernt.',
+  'I couldn’t find a coin or stock called “{name}”.': 'Ich habe keine Kryptowährung oder Aktie namens „{name}“ gefunden.',
+  'Added **{name}** ({symbol}) to your watchlist ⭐ It’s on the Markets card.':
+    '**{name}** ({symbol}) zur Watchlist hinzugefügt ⭐ Du findest es auf der Märkte-Karte.',
+  // ---------------- investing ----------------
+  'Bought ✅ {qty} {symbol} is in your investments. I’ll keep its value up to date.':
+    'Gekauft ✅ {qty} {symbol} ist in deinen Investments. Ich halte den Wert aktuell.',
+  Buy: 'Kaufen',
+  'Buy **{qty} {symbol}** ({name}) for **{cost}** at {price} each?': '**{qty} {symbol}** ({name}) für **{cost}** zu je {price} kaufen?',
+  'Buy {amount}': 'Für {amount} kaufen',
+  'Buy {symbol}': '{symbol} kaufen',
+  'Enter an amount to see how much you get.': 'Gib einen Betrag ein, um zu sehen, wie viel du bekommst.',
+  'Enter the price to see what you get.': 'Gib den Preis ein, um zu sehen, was du bekommst.',
+  History: 'Verlauf',
+  'How much would you like to put into **{name}**? It’s {price} right now.':
+    'Wie viel möchtest du in **{name}** stecken? Aktuell steht es bei {price}.',
+  'I can’t get a live price for {name} right now, so use **Sell** on the Markets card and enter the price yourself.':
+    'Ich bekomme gerade keinen Live-Kurs für {name}. Nutze **Verkaufen** auf der Märkte-Karte und gib den Preis selbst ein.',
+  Invest: 'Investieren',
+  'Investment recorded': 'Investment erfasst',
+  'It comes out of your unassigned money.': 'Es wird von deinem nicht zugewiesenen Geld abgezogen.',
+  'My Investments': 'Meine Investments',
+  'No investments yet': 'Noch keine Investments',
+  'No live price': 'Kein Live-Kurs',
+  'Press Buy on any coin or stock in your watchlist to record an investment.':
+    'Tippe in deiner Watchlist bei einer Kryptowährung oder Aktie auf Kaufen, um ein Investment zu erfassen.',
+  'Price per unit': 'Preis pro Einheit',
+  'Record buying a coin or stock with money from your balance': 'Erfasse den Kauf einer Kryptowährung oder Aktie mit Geld aus deinem Guthaben',
+  'Record selling a holding. The money goes back to your balance.': 'Erfasse den Verkauf eines Investments. Das Geld geht zurück auf dein Guthaben.',
+  'Sale recorded': 'Verkauf erfasst',
+  Sell: 'Verkaufen',
+  'Sell **{qty} {symbol}** for about **{value}**? That’s {gain} {word} on what you paid.':
+    '**{qty} {symbol}** für etwa **{value}** verkaufen? Das sind {gain} {word} gegenüber dem Kaufpreis.',
+  'Sell {symbol}': '{symbol} verkaufen',
+  'Selling {qty} {symbol} for {amount}': 'Verkauf von {qty} {symbol} für {amount}',
+  'Sold ✅ {value} is back in your balance.': 'Verkauft ✅ {value} ist zurück auf deinem Guthaben.',
+  'That holding is gone.': 'Dieses Investment gibt es nicht mehr.',
+  'That’s {cost}, but you only have {free} unassigned. Move money out of a pot first, or buy less.':
+    'Das sind {cost}, aber du hast nur {free} nicht zugewiesen. Nimm zuerst Geld aus einem Topf oder kauf weniger.',
+  'The money goes back to your balance.': 'Das Geld geht zurück auf dein Guthaben.',
+  'This records it in {brand}; no real trade is placed.': 'Das wird in {brand} erfasst; es wird kein echter Handel ausgeführt.',
+  'This records the purchase in {brand} and tracks its value live. No real trade is placed, so buy it with your broker or exchange too.':
+    'Das erfasst den Kauf in {brand} und verfolgt den Wert live. Es wird kein echter Handel ausgeführt, kauf also auch bei deinem Broker oder deiner Börse.',
+  'Tracked in {brand}, not a real brokerage account. Buying and selling here doesn’t count as income or spending.':
+    'In {brand} verfolgt, kein echtes Depot. Kaufen und Verkaufen zählt hier nicht als Einnahme oder Ausgabe.',
+  'Valued live at market prices': 'Live zu Marktpreisen bewertet',
+  'Which one? Tell me a coin or stock, like “buy $100 of bitcoin”. I can’t recommend what to buy, but I can record it and track its value.':
+    'Welche? Nenn mir eine Kryptowährung oder Aktie, z. B. „kauf Bitcoin für 100 $“. Ich kann nichts empfehlen, aber ich kann es erfassen und den Wert verfolgen.',
+  'You don’t have any {name} recorded. Your investments are on the Markets card.':
+    'Du hast kein {name} erfasst. Deine Investments findest du auf der Märkte-Karte.',
+  'You haven’t recorded any investments yet. Press **Buy** on the Markets card, or tell me, like “buy $100 of bitcoin”.':
+    'Du hast noch keine Investments erfasst. Tippe auf der Märkte-Karte auf **Kaufen** oder sag es mir, z. B. „kauf Bitcoin für 100 $“.',
+  'You hold {qty} {symbol}, bought for {amount}': 'Du hältst {qty} {symbol}, gekauft für {amount}',
+  'You only have {amount} there.': 'Dort hast du nur {amount}.',
+  'Your investments are worth **{value}**, {gain} ({pct}) on what you paid.':
+    'Deine Investments sind **{value}** wert, {gain} ({pct}) gegenüber dem Kaufpreis.',
+  'You’ll get about **{qty} {symbol}**.': 'Du bekommst etwa **{qty} {symbol}**.',
+  'all time': 'insgesamt',
+  loss: 'Verlust',
+  'paid {amount}': 'bezahlt {amount}',
+  profit: 'Gewinn',
+  '{amount} back in your balance ({gain} {word}).': '{amount} zurück auf deinem Guthaben ({gain} {word}).',
+  '{amount} back in your balance.': '{amount} zurück auf deinem Guthaben.',
+  '{qty} {symbol} for {amount}.': '{qty} {symbol} für {amount}.',
+  Investment: 'Investment',
+  Invested: 'Investiert',
 }

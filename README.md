@@ -27,6 +27,16 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 - Currency switcher (USD, EUR, GBP, JPY) and period switcher (week, month, quarter, year).
 - Export transactions and reports as CSV.
 
+### Markets and investing
+
+At the bottom of the Overview tab:
+
+- **Watchlist**: Crypto and Stocks tabs with live prices and the 24-hour change. Search **any coin** CoinGecko lists or **any US stock or ETF**, and add or remove it. Coins show a 7-day trend line; stocks show where the price sits in today's range. Each account keeps its own list.
+- **My Investments**: press **Buy** on anything in the watchlist to record a purchase from your unassigned money or a pot. Holdings are valued live, with profit or loss per holding and in total, and **Sell** puts the money back in your balance.
+- **Exchange Rates**: European Central Bank rates against your dashboard currency, with a quick converter.
+
+Investing here is **tracked, not traded**: Watchdog Wallet records what you bought and follows its value, but places no real orders, so buy through your broker or exchange as well. Buys and sells are saved with the status "Invested", so they never count as income or spending in the charts.
+
 ### Pages
 
 - **Dashboard**, with four tabs:
@@ -54,12 +64,14 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 - **Keeps an audit trail**: every change Grace makes is saved in **Grace's activity** (account menu) with what you asked and why, and "why did you do that?" explains the last one.
 - **Live data, no keys needed** (`src/lib/live.js`, cached so free limits are never hit):
   - **Exchange rates** from the European Central Bank via [Frankfurter](https://frankfurter.dev): "what's $100 in euros?", "50 pounds to rupees", "usd to eur". The currency switcher uses the same live rates.
-  - **Crypto prices** from [CoinGecko](https://www.coingecko.com): "bitcoin price", "how's ETH doing", "crypto prices", with the 24-hour change.
+  - **Crypto prices** from [CoinGecko](https://www.coingecko.com) for any listed coin: "bitcoin price", "price of chainlink", "how is pepe doing".
+  - **Stock prices** for any US stock or ETF via Finnhub (needs the [one-time setup](#stock-prices)): "nvidia stock price", "$AAPL", "my stocks".
+  - **Watchlist and investing**: "add chainlink to my watchlist", "buy $200 of bitcoin", "buy 2 shares of apple", "sell half my ethereum", "how are my investments". Buying and selling always ask for a confirm, and Grace still won't recommend what to buy.
   - **Public holidays** from [Nager.Date](https://date.nager.at): "any bank holidays soon?", "are banks open on Monday?", "holidays in the UK". Grace also warns when a bill falls on a bank holiday.
 - **Talks back**: the speaker button in the chat header reads every reply aloud, and questions asked with the microphone are always answered out loud.
 - **Forgives typos**: "whats my balnce", "I spnet $30 on dinnr" and "send $50 to varsah" all work. [Fuse.js](https://www.fusejs.io) matches each unknown word against Grace's vocabulary and the names on your account (`src/lib/typos.js`), with strict rules so real words like "tax" or "crash" are never changed.
 - Understands some Roman Urdu, such as "balance kitna hai" and "kal 300 ka khana kharch kiya".
-- **Tested**: `npm test` runs 150+ example questions with expected answers (`tests/grace.test.js`), and GitHub runs them before every deploy.
+- **Tested**: `npm test` runs 220+ example questions with expected answers (`tests/grace.test.js`), and GitHub runs them before every deploy.
 
 ### Languages
 
@@ -104,6 +116,19 @@ The publishable/anon key is meant to be public, and row level security keeps eac
 To run without accounts, leave both values empty in `src/config.js` and don't set the variables. The site then opens straight into the demo with no login.
 
 **Before real users sign up:** Supabase's built-in email service only sends a few emails per hour. Connect your own provider under **Authentication > Emails > SMTP Settings**.
+
+## Stock prices
+
+Crypto prices and exchange rates work with no setup. Stock prices need an API key, and a key in the website could be copied by anyone, so it lives in a small Supabase Edge Function ([`supabase/functions/stocks`](supabase/functions/stocks/index.ts)) instead. Until it's set up, the Stocks tab and Grace explain that stock prices aren't switched on.
+
+1. Get a free API key at [finnhub.io/register](https://finnhub.io/register) (60 calls a minute; the function caches answers so you stay under it).
+2. In the Supabase dashboard, open **Edge Functions > Secrets** and add a secret named `FINNHUB_KEY` with your key.
+3. Open **Edge Functions > Deploy a new function > Via Editor**, name it `stocks`, paste the contents of `supabase/functions/stocks/index.ts` and deploy.
+4. In the function's **Settings**, turn **off** "Verify JWT with legacy secret" (the site calls it with the publishable key, which isn't a JWT) and save.
+
+With the Supabase CLI instead: `supabase secrets set FINNHUB_KEY=your-key` then `supabase functions deploy stocks` (`supabase/config.toml` already turns off JWT verification).
+
+Finnhub's free plan covers US stocks and ETFs.
 
 ## Make it yours
 
@@ -175,7 +200,7 @@ src/
     insights.js        search, forecasts, unusual charges, subscriptions, afford and goal plans
     assistant.js       Grace's intent engine
     typos.js           typo correction with Fuse.js
-    live.js            exchange rates, crypto prices and holidays, with caching
+    live.js            exchange rates, crypto and stock prices, search and holidays, with caching
     i18n.js            translation helper
     format.js          money and date helpers
     themeTransition.js liquid theme switch
@@ -183,6 +208,7 @@ src/
   data/seed.js         demo data
   styles/              base (tokens), shell, dashboard, pages, assistant, auth, mobile
 supabase/schema.sql    database table and security rules
+supabase/functions/stocks/  Edge Function that fetches stock prices with a hidden Finnhub key
 tests/grace.test.js    Grace's test set
 ```
 
@@ -193,7 +219,7 @@ tests/grace.test.js    Grace's test set
 | `npm run dev` | Start the dev server with hot reload |
 | `npm run build` | Production build into `dist/` |
 | `npm run preview` | Serve the production build at `/Watchdog-Wallet/`, like the live site |
-| `npm test` | Grace's test set (150+ questions) |
+| `npm test` | Grace's test set (220+ questions) |
 | `npm run lint` | ESLint |
 | `npm run format` | Prettier |
 
@@ -221,4 +247,5 @@ The latest Chrome, Edge, Safari and Firefox, on desktop and mobile. The liquid t
 - Typo matching: [Fuse.js](https://www.fusejs.io) (Apache 2.0)
 - Exchange rates: [Frankfurter](https://frankfurter.dev) (European Central Bank data)
 - Crypto prices: [CoinGecko](https://www.coingecko.com)
+- Stock prices: [Finnhub](https://finnhub.io)
 - Public holidays: [Nager.Date](https://date.nager.at)

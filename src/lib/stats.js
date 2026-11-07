@@ -38,6 +38,7 @@ export const KIND_FOR = {
   Freelance: 'freelance',
   Business: 'business',
   'Other income': 'request',
+  Investment: 'business',
 }
 
 const parse = (iso) => {

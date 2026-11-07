@@ -14,6 +14,8 @@ import {
   SendModal,
   TransactionModal,
   ActivityModal,
+  InvestModal,
+  SellModal,
 } from './components/Modals'
 import { Toasts } from './components/ui'
 import { Logo } from './components/Brand'
@@ -53,6 +55,9 @@ const PAGE_VIEWS = { dashboard: Dashboard, analytics: Analytics, transfer: Trans
 
 /* A new account starts empty: no money, no history. Only a few budget
    categories are suggested so the Budget page has something to adjust. */
+/* the coins and stocks on the Markets card until the user picks their own */
+const DEFAULT_WATCHLIST = { crypto: ['bitcoin', 'ethereum', 'ripple', 'solana', 'dogecoin'], stocks: ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN'] }
+
 const freshState = () => ({
   balance: 0,
   transactions: [],
@@ -62,6 +67,8 @@ const freshState = () => ({
   contacts: [],
   pots: [],
   activity: [],
+  watchlist: DEFAULT_WATCHLIST,
+  holdings: [],
   notifications: [
     {
       id: 'welcome',
@@ -89,6 +96,8 @@ const demoState = () => ({
   notifications: seed.NOTIFICATIONS,
   pots: seed.POTS,
   activity: [],
+  watchlist: DEFAULT_WATCHLIST,
+  holdings: seed.HOLDINGS,
 })
 
 /** Shown while checking the session or loading an account's data. */
@@ -224,6 +233,10 @@ export default function App() {
   const [pots, setPots] = useState(seed.POTS)
   // everything Grace has done, newest first: the audit trail behind "why did you do that?"
   const [activity, setActivity] = useState([])
+  // the coins and stocks on the Markets card
+  const [watchlist, setWatchlist] = useState(DEFAULT_WATCHLIST)
+  // coins and stocks the user has recorded buying: { kind, asset, name, symbol, qty, cost }
+  const [holdings, setHoldings] = useState(seed.HOLDINGS)
   const [sentToday, setSentToday] = useState(0)
 
   /* ---------- accounts (Supabase) ----------
@@ -249,6 +262,8 @@ export default function App() {
     setContacts(data.contacts ?? [])
     setPots(data.pots ?? [])
     setActivity(data.activity ?? [])
+    setWatchlist(data.watchlist ?? DEFAULT_WATCHLIST)
+    setHoldings(data.holdings ?? [])
     setDrift(0)
     setSentToday(0)
   }, [])
@@ -292,8 +307,8 @@ export default function App() {
 
   // save the dashboard back to the account a moment after anything changes
   const saved = useMemo(
-    () => ({ balance, transactions, goals, budgets, bills, notifications, contacts, pots, activity }),
-    [balance, transactions, goals, budgets, bills, notifications, contacts, pots, activity],
+    () => ({ balance, transactions, goals, budgets, bills, notifications, contacts, pots, activity, watchlist, holdings }),
+    [balance, transactions, goals, budgets, bills, notifications, contacts, pots, activity, watchlist, holdings],
   )
   const [saveFailed, setSaveFailed] = useState(false)
   useEffect(() => {
@@ -556,6 +571,79 @@ export default function App() {
   )
 
   /** Record something Grace did, with what was asked and why (kept to the last 200). */
+  /* add or remove a coin (CoinGecko id) or stock (ticker) on the Markets card */
+  const watch = useCallback(
+    (kind, id) => setWatchlist((w) => (w[kind]?.includes(id) ? w : { ...w, [kind]: [...(w[kind] ?? []), id].slice(-12) })),
+    [],
+  )
+  const unwatch = useCallback((kind, id) => setWatchlist((w) => ({ ...w, [kind]: (w[kind] ?? []).filter((x) => x !== id) })), [])
+
+  /* investing: recorded here, valued live at market prices. No real trade is placed.
+     Buys and sells are saved with status 'Invested', so they never count as income or spending. */
+  const invest = useCallback(
+    ({ kind, asset, name, symbol, amount, price, potId }) => {
+      const cost = Math.round(amount * 100) / 100
+      const qty = cost / price
+      if (!(qty > 0)) return
+      setBalance((b) => Math.round((b - cost) * 100) / 100)
+      if (potId) setPots((list) => list.map((p) => (p.id === potId ? { ...p, amount: Math.max(0, Math.round((p.amount - cost) * 100) / 100) } : p)))
+      setHoldings((list) => {
+        const have = list.find((h) => h.kind === kind && h.asset === asset)
+        if (have) return list.map((h) => (h === have ? { ...h, qty: h.qty + qty, cost: Math.round((h.cost + cost) * 100) / 100 } : h))
+        return [...list, { id: uid(), kind, asset, name, symbol, qty, cost, at: localIso() }]
+      })
+      addTx({
+        name: `Bought ${symbol}`,
+        category: 'Investment',
+        kind: 'business',
+        method: 'Portfolio',
+        amount: -cost,
+        status: 'Invested',
+        note: `${+qty.toPrecision(6)} ${symbol} at ${money(price)}`,
+      })
+      toast(t('Investment recorded'), t('{qty} {symbol} for {amount}.', { qty: +qty.toPrecision(6), symbol, amount: money(cost) }), {
+        icon: 'trendUp',
+      })
+    },
+    [addTx, toast],
+  )
+  const sellHolding = useCallback(
+    ({ id, qty, price }) => {
+      const h = holdings.find((x) => x.id === id)
+      if (!h || !(price > 0)) return
+      const n = Math.min(h.qty, qty ?? h.qty)
+      const value = Math.round(n * price * 100) / 100
+      const costPart = Math.round(h.cost * (n / h.qty) * 100) / 100
+      setBalance((b) => Math.round((b + value) * 100) / 100)
+      setHoldings((list) =>
+        n >= h.qty * 0.9999
+          ? list.filter((x) => x.id !== id)
+          : list.map((x) => (x.id === id ? { ...x, qty: x.qty - n, cost: Math.round((x.cost - costPart) * 100) / 100 } : x)),
+      )
+      addTx({
+        name: `Sold ${h.symbol}`,
+        category: 'Investment',
+        kind: 'business',
+        method: 'Portfolio',
+        amount: value,
+        status: 'Invested',
+        note: `${+n.toPrecision(6)} ${h.symbol} at ${money(price)}`,
+      })
+      const gain = value - costPart
+      toast(
+        t('Sale recorded'),
+        t('{amount} back in your balance ({gain} {word}).', {
+          amount: money(value),
+          gain: money(Math.abs(gain)),
+          word: gain >= 0 ? t('profit') : t('loss'),
+        }),
+        { icon: 'receive' },
+      )
+      return { value, gain }
+    },
+    [holdings, addTx, toast],
+  )
+
   const logActivity = useCallback(
     (entry) => setActivity((list) => [{ id: uid(), at: new Date().toISOString(), ...entry }, ...list].slice(0, 200)),
     [],
@@ -645,6 +733,12 @@ export default function App() {
       leaveDemo,
       activity,
       logActivity,
+      watchlist,
+      watch,
+      unwatch,
+      holdings,
+      invest,
+      sellHolding,
       // the demo's sample data ends on Oct 28 2026, so Grace treats that as today there
       now: isDemo ? DEMO_NOW : undefined,
       pots,
@@ -707,6 +801,12 @@ export default function App() {
       leaveDemo,
       activity,
       logActivity,
+      watchlist,
+      watch,
+      unwatch,
+      holdings,
+      invest,
+      sellHolding,
       pots,
       unassigned,
       inPots,
@@ -817,6 +917,8 @@ export default function App() {
       <MoveMoneyModal open={modal?.type === 'move'} payload={modal?.payload} onClose={closeModal} />
       <PotModal open={modal?.type === 'pot'} onClose={closeModal} />
       <ActivityModal open={modal?.type === 'activity'} onClose={closeModal} />
+      <InvestModal open={modal?.type === 'invest'} payload={modal?.payload} onClose={closeModal} />
+      <SellModal open={modal?.type === 'sell'} payload={modal?.payload} onClose={closeModal} />
       {accountsEnabled && demo ? (
         <div className="demo-bar" role="status">
           <span className="demo-long">{t('You’re exploring the demo. Nothing here is saved.')}</span>

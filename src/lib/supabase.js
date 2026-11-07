@@ -18,7 +18,19 @@ export const siteUrl = () => `${window.location.origin}${import.meta.env.BASE_UR
 /* ---------------- per-user dashboard data ---------------- */
 
 /** The parts of the app state that belong to an account and are saved for it. */
-export const SAVED_KEYS = ['balance', 'transactions', 'goals', 'budgets', 'bills', 'notifications', 'contacts', 'pots', 'activity']
+export const SAVED_KEYS = [
+  'balance',
+  'transactions',
+  'goals',
+  'budgets',
+  'bills',
+  'notifications',
+  'contacts',
+  'pots',
+  'activity',
+  'watchlist',
+  'holdings',
+]
 
 /** Load this user's saved dashboard, or null if they have none yet. */
 export async function loadUserState(userId) {

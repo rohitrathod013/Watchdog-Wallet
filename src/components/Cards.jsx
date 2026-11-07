@@ -8,6 +8,7 @@ import { money, signed, stamp, whole } from '../lib/format'
 import { t, tMonths, tName } from '../lib/i18n'
 import { CAT_COLORS, CURRENCIES } from '../data/seed'
 import { billDue } from '../lib/stats'
+import { BRAND } from '../config'
 
 const sum = (list, f = (x) => x) => list.reduce((s, x) => s + f(x), 0)
 
@@ -901,26 +902,32 @@ export function HeatmapCard({ d = 0, className = '' }) {
 /* ============================================================
    Money pots: the balance sorted by what it's for
    ============================================================ */
-/* ---------------- live markets ---------------- */
+/* ---------------- live markets: any coin or US stock ---------------- */
 const COIN_LOOK = {
   bitcoin: '#f7931a',
   ethereum: '#627eea',
   solana: '#9945ff',
   ripple: '#0085c0',
   dogecoin: '#c2a633',
+  cardano: '#0033ad',
+  tether: '#26a17b',
+  binancecoin: '#f0b90b',
 }
-const MARKET_IDS = Object.keys(COIN_LOOK)
+const lookFor = (id = '') => COIN_LOOK[id] ?? CAT_COLORS[[...id].reduce((h, c) => h + c.charCodeAt(0), 0) % CAT_COLORS.length]
 
 /** Load something from the internet now and every `every` ms, while the page is open. */
 function useLive(load, deps, every) {
-  const [state, setState] = useState({ status: 'loading', data: null })
+  const key = deps.join('|')
+  const [state, setState] = useState({ key, status: 'loading', data: null })
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     let on = true
     const run = () =>
       load()
-        .then((data) => on && setState({ status: data ? 'ready' : 'error', data }))
-        .catch(() => on && setState((s) => (s.data ? s : { status: 'error', data: null })))
+        .then((data) => on && setState({ key, status: data ? 'ready' : 'error', data }))
+        .catch(
+          (err) => on && setState((s) => (s.key === key && s.data && !err?.setup ? s : { key, status: err?.setup ? 'setup' : 'error', data: null })),
+        )
     run()
     const timer = every ? window.setInterval(() => document.visibilityState === 'visible' && run(), every) : 0
     return () => {
@@ -930,11 +937,21 @@ function useLive(load, deps, every) {
     // load is rebuilt each render; deps says when it really changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, attempt, every])
-  return { ...state, retry: () => setAttempt((a) => a + 1) }
+  // results for other inputs (the other tab, an older list) don't count
+  const current = state.key === key ? state : { status: 'loading', data: null }
+  return { ...current, retry: () => setAttempt((a) => a + 1) }
 }
 
-const priceText = (n, code) =>
-  new Intl.NumberFormat(undefined, { style: 'currency', currency: code, maximumFractionDigits: code === 'JPY' ? 0 : n < 1 ? 4 : 2 }).format(n)
+const priceText = (n, code = 'USD') =>
+  new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: code,
+    ...(n > 0 && n < 0.01
+      ? { maximumSignificantDigits: 4 }
+      : n < 1
+        ? { minimumFractionDigits: 2, maximumFractionDigits: 4 }
+        : { maximumFractionDigits: code === 'JPY' ? 0 : 2 }),
+  }).format(n)
 
 function LiveError({ onRetry }) {
   return (
@@ -948,48 +965,323 @@ function LiveError({ onRetry }) {
   )
 }
 
+function StocksSetup() {
+  return (
+    <div className="live-error">
+      <Icon name="shield" size={18} />
+      <span>{t('Stock prices need a one-time setup: a free Finnhub key kept in a Supabase function, so it never ships in the website.')}</span>
+      <a className="btn" href="https://github.com/rohitrathod013/Watchdog-Wallet#stock-prices" target="_blank" rel="noreferrer">
+        {t('How to set it up')}
+      </a>
+    </div>
+  )
+}
+
+/* search box: any coin on CoinGecko, or any US stock or ETF */
+function MarketSearch({ kind, picked, onPick }) {
+  const [q, setQ] = useState('')
+  const [res, setRes] = useState({ q: '', status: 'idle', items: [] })
+  const box = useRef(null)
+  useEffect(() => {
+    const query = q.trim()
+    if (query.length < 2) return undefined
+    let on = true
+    const timer = window.setTimeout(async () => {
+      setRes({ q: query, status: 'loading', items: [] })
+      try {
+        const L = await import('../lib/live')
+        const items = kind === 'crypto' ? await L.searchCoins(query) : await L.searchStocks(query)
+        if (on) setRes({ q: query, status: 'ready', items })
+      } catch (err) {
+        if (on) setRes({ q: query, status: err?.setup ? 'setup' : 'error', items: [] })
+      }
+    }, 350)
+    return () => {
+      on = false
+      window.clearTimeout(timer)
+    }
+  }, [q, kind])
+  useEffect(() => {
+    const away = (e) => !box.current?.contains(e.target) && setQ('')
+    document.addEventListener('pointerdown', away)
+    return () => document.removeEventListener('pointerdown', away)
+  }, [])
+  const query = q.trim()
+  const open = query.length >= 2
+  let body
+  if (res.status === 'loading' || res.q !== query) body = <p>{t('Searching…')}</p>
+  else if (res.status === 'setup') body = <p>{t('Stock search needs the one-time setup first.')}</p>
+  else if (res.status === 'error') body = <p>{t('Couldn’t search right now. Try again in a minute.')}</p>
+  else if (!res.items.length) body = <p>{t('No matches for “{q}”.', { q: query })}</p>
+  else
+    body = res.items.map((it) => {
+      const id = kind === 'crypto' ? it.id : it.symbol
+      const have = picked.includes(id)
+      return (
+        <button
+          key={id}
+          type="button"
+          role="option"
+          aria-selected={have}
+          className={have ? 'have' : ''}
+          onClick={() => {
+            onPick(id)
+            setQ('')
+          }}
+        >
+          <span className="coin-logo sm" style={{ '--c': kind === 'crypto' ? lookFor(it.id) : 'var(--solid)' }}>
+            {kind === 'crypto' ? it.symbol.slice(0, 1) : it.symbol.slice(0, 2)}
+          </span>
+          <span className="coin-name">
+            <b>{it.name}</b>
+            <small>
+              {it.symbol}
+              {it.rank ? ` · #${it.rank}` : ''}
+              {it.type && it.type !== 'Common Stock' ? ` · ${it.type}` : ''}
+            </small>
+          </span>
+          <Icon name={have ? 'check' : 'plus'} size={16} stroke={2} />
+        </button>
+      )
+    })
+  return (
+    <div className="mk-search" ref={box}>
+      <Icon name="search" size={17} />
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        onKeyDown={(e) => e.key === 'Escape' && setQ('')}
+        placeholder={kind === 'crypto' ? t('Search any coin, like Pepe or Chainlink') : t('Search any US stock or ETF, like Apple or SPY')}
+        aria-label={kind === 'crypto' ? t('Search coins') : t('Search stocks')}
+      />
+      {open ? (
+        <div className="mk-results pop" role="listbox">
+          {body}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/* where today's price sits between the day's low and high */
+function DayRange({ low, high, price }) {
+  const p = high > low ? Math.min(1, Math.max(0, (price - low) / (high - low))) : 0.5
+  return (
+    <span className="day-range" title={`${t('Low')} ${low} · ${t('High')} ${high}`}>
+      <i style={{ '--p': `${p * 100}%` }} />
+    </span>
+  )
+}
+
 export function MarketsCard({ d = 0, className = '' }) {
-  const { currency, openAssistant } = useApp()
+  const { currency, openAssistant, openModal, watchlist, watch, unwatch } = useApp()
+  const [tab, setTab] = useState('crypto')
   const vs = ['USD', 'EUR', 'GBP', 'JPY'].includes(currency) ? currency : 'USD'
-  const live = useLive(async () => (await import('../lib/live')).loadMarkets(MARKET_IDS, vs.toLowerCase()), [vs], 2 * 60 * 1000)
+  const coins = watchlist?.crypto ?? []
+  const stocks = watchlist?.stocks ?? []
+  const picked = tab === 'crypto' ? coins : stocks
+  const live = useLive(
+    async () => {
+      const L = await import('../lib/live')
+      if (tab === 'crypto') return coins.length ? L.loadMarkets(coins, vs.toLowerCase()) : []
+      return stocks.length ? L.loadStocks(stocks) : []
+    },
+    [tab, vs, picked.join()],
+    tab === 'crypto' ? 2 * 60 * 1000 : 60 * 1000,
+  )
+  // a row for everything on the list, even before its price arrives
+  const byId = new Map((live.data ?? []).map((c) => [tab === 'crypto' ? c.id : c.symbol, c]))
+  const rows = picked.map((id) => byId.get(id) ?? { id, symbol: id, loading: live.status === 'loading' || !live.data, missing: Boolean(live.data) })
+  let list
+  if (live.status === 'setup' && tab === 'stocks') list = <StocksSetup />
+  else if (live.status === 'error' || live.status === 'setup') list = <LiveError onRetry={live.retry} />
+  else if (!picked.length) list = <p className="live-error">{t('Your list is empty. Search above to add one.')}</p>
+  else
+    list = (
+      <div className="coins">
+        {rows.map((c, r) => {
+          const id = tab === 'crypto' ? c.id : c.symbol
+          const wait = c.loading
+          return (
+            <div key={id} className={`coin rv ${wait ? 'loading' : ''}`} style={{ '--i': 1 + r * 0.4 }}>
+              <span className="coin-logo" style={{ '--c': tab === 'crypto' ? lookFor(c.id) : 'var(--solid)' }}>
+                {tab === 'crypto' ? (c.symbol ?? '').slice(0, 1).toUpperCase() : (c.symbol ?? '').slice(0, 2)}
+              </span>
+              <span className="coin-name">
+                <b>{wait ? ' ' : (c.name ?? id)}</b>
+                <small>{wait ? ' ' : c.missing ? t('No price right now') : c.symbol}</small>
+              </span>
+              <span className="coin-spark">
+                {c.trend?.length > 1 ? <Sparkline values={c.trend} color={c.change >= 0 ? 'var(--green)' : 'var(--red)'} /> : null}
+                {tab === 'stocks' && c.price ? <DayRange low={c.low} high={c.high} price={c.price} /> : null}
+              </span>
+              <span className="coin-price">
+                <b>{c.price == null ? ' ' : priceText(c.price, tab === 'crypto' ? vs : c.currency)}</b>
+                {c.price == null ? null : <Chg value={c.change} size="sm" />}
+              </span>
+              <button
+                type="button"
+                className="btn sm coin-buy"
+                disabled={c.price == null}
+                onClick={() =>
+                  openModal('invest', {
+                    kind: tab,
+                    asset: id,
+                    name: c.name ?? id,
+                    symbol: tab === 'crypto' ? c.symbol : id,
+                    price: tab === 'crypto' && vs !== 'USD' ? null : c.price,
+                  })
+                }
+              >
+                {t('Buy')}
+              </button>
+              <button type="button" className="coin-x" onClick={() => unwatch(tab, id)} aria-label={t('Remove {name}', { name: c.name ?? id })}>
+                <Icon name="close" size={14} stroke={2} />
+              </button>
+            </div>
+          )
+        })}
+      </div>
+    )
   return (
     <section className={`card markets-card ${className}`} style={slot(d)}>
       <div className="c-head rv" style={{ '--i': 0 }}>
         <div>
-          <h2 className="card-h">{t('Crypto Prices')}</h2>
+          <h2 className="card-h">{t('Watchlist')}</h2>
           <p className="card-sub">
-            <span className="live-dot" /> {t('Live from CoinGecko · updates every 2 minutes')}
+            <span className="live-dot" />{' '}
+            {tab === 'crypto' ? t('Live from CoinGecko · updates every 2 minutes') : t('US stocks from Finnhub · updates every minute')}
           </p>
         </div>
-        <button type="button" className="link" onClick={() => openAssistant('Crypto prices')}>
-          {t('Ask Grace')} <Icon name="arrowRight" size={15} />
+        <Segmented
+          items={[
+            { key: 'crypto', label: t('Crypto') },
+            { key: 'stocks', label: t('Stocks') },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+      </div>
+      <div className="rv" style={{ '--i': 0.5 }}>
+        <MarketSearch key={tab} kind={tab} picked={picked} onPick={(id) => watch(tab, id)} />
+      </div>
+      {list}
+      <p className="live-note">
+        {tab === 'crypto'
+          ? t('For information only, not investment advice. 7-day trend shown.')
+          : t('For information only, not investment advice. The bar shows where the price sits in today’s range.')}{' '}
+        <button type="button" className="link" onClick={() => openAssistant(tab === 'crypto' ? 'My crypto' : 'My stocks')}>
+          {t('Ask Grace')}
+        </button>
+      </p>
+    </section>
+  )
+}
+
+/* ---------------- my investments: recorded buys, valued live ---------------- */
+export function PortfolioCard({ d = 0, className = '' }) {
+  const { holdings = [], openModal, go } = useApp()
+  const lead = useLead()
+  const coinIds = holdings.filter((h) => h.kind === 'crypto').map((h) => h.asset)
+  const stockIds = holdings.filter((h) => h.kind === 'stocks').map((h) => h.asset)
+  const live = useLive(
+    async () => {
+      const L = await import('../lib/live')
+      const [coins, stocks] = await Promise.all([
+        coinIds.length ? L.loadMarkets(coinIds, 'usd').catch(() => []) : [],
+        stockIds.length ? L.loadStocks(stockIds).catch(() => []) : [],
+      ])
+      const prices = {}
+      for (const c of coins) prices[`crypto:${c.id}`] = c
+      for (const c of stocks) prices[`stocks:${c.symbol}`] = c
+      return prices
+    },
+    [coinIds.join(), stockIds.join()],
+    60 * 1000,
+  )
+  const rows = holdings.map((h) => {
+    const q = live.data?.[`${h.kind}:${h.asset}`]
+    const value = q ? h.qty * q.price : null
+    return { ...h, price: q?.price ?? null, value, gain: value == null ? null : value - h.cost }
+  })
+  const priced = rows.filter((r) => r.value != null)
+  const total = sum(rows, (r) => r.value ?? r.cost)
+  const cost = sum(priced, (r) => r.cost)
+  const gain = sum(priced, (r) => r.gain)
+  const qtyOf = (n) =>
+    n >= 1 ? n.toLocaleString(undefined, { maximumFractionDigits: 4 }) : n.toLocaleString(undefined, { maximumSignificantDigits: 4 })
+  return (
+    <section className={`card portfolio-card ${className}`} style={slot(d)}>
+      <div className="c-head rv" style={{ '--i': 0 }}>
+        <div>
+          <h2 className="card-h">{t('My Investments')}</h2>
+          <p className="card-sub">
+            <span className="live-dot" /> {t('Valued live at market prices')}
+          </p>
+        </div>
+        <button type="button" className="link" onClick={() => go('dashboard', { tab: 'transactions' })}>
+          {t('History')} <Icon name="arrowRight" size={15} />
         </button>
       </div>
-      {live.status === 'error' ? (
-        <LiveError onRetry={live.retry} />
+      {!holdings.length ? (
+        <CardEmpty
+          icon="trendUp"
+          title={t('No investments yet')}
+          body={t('Press Buy on any coin or stock in your watchlist to record an investment.')}
+        />
       ) : (
-        <div className="coins">
-          {(live.data ?? MARKET_IDS.map((id) => ({ id, loading: true }))).map((c, r) => (
-            <div key={c.id} className={`coin rv ${c.loading ? 'loading' : ''}`} style={{ '--i': 1 + r * 0.5 }}>
-              <span className="coin-logo" style={{ '--c': COIN_LOOK[c.id] ?? 'var(--accent)' }}>
-                {c.symbol?.[0] ?? ''}
-              </span>
-              <span className="coin-name">
-                <b>{c.name ?? ' '}</b>
-                <small>{c.symbol ?? ' '}</small>
-              </span>
-              <span className="coin-spark">
-                {c.trend?.length > 1 ? <Sparkline values={c.trend} color={c.change >= 0 ? 'var(--green)' : 'var(--red)'} /> : null}
-              </span>
-              <span className="coin-price">
-                <b>{c.loading ? ' ' : priceText(c.price, vs)}</b>
-                {c.loading ? null : <Chg value={c.change} size="sm" />}
-              </span>
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="pf-total rv" style={{ '--i': 1 }}>
+            <b>
+              <CountUp value={total} format={(n) => money(n)} delay={lead + 200} />
+            </b>
+            {priced.length ? (
+              <Chg value={cost ? (gain / cost) * 100 : 0} note={`${gain >= 0 ? '+' : '−'}${money(Math.abs(gain))} ${t('all time')}`} />
+            ) : null}
+          </div>
+          <div className="stacked pots-bar rv" style={{ '--i': 1.5, height: 10 }}>
+            {rows.map((r, i) => (
+              <i
+                key={r.id}
+                style={{
+                  '--w': Math.max(r.value ?? r.cost, 0.0001),
+                  '--c': r.kind === 'crypto' ? lookFor(r.asset) : CAT_COLORS[(i + 2) % CAT_COLORS.length],
+                  '--i': i,
+                }}
+              />
+            ))}
+          </div>
+          <div className="coins">
+            {rows.map((r, k) => (
+              <div key={r.id} className="coin pf-row rv" style={{ '--i': 2 + k * 0.4 }}>
+                <span className="coin-logo" style={{ '--c': r.kind === 'crypto' ? lookFor(r.asset) : 'var(--solid)' }}>
+                  {r.kind === 'crypto' ? r.symbol.slice(0, 1) : r.symbol.slice(0, 2)}
+                </span>
+                <span className="coin-name">
+                  <b>{r.name}</b>
+                  <small>
+                    {qtyOf(r.qty)} {r.symbol} · {t('paid {amount}', { amount: money(r.cost) })}
+                  </small>
+                </span>
+                <span className="coin-price">
+                  <b>{money(r.value ?? r.cost)}</b>
+                  {r.gain == null ? (
+                    <small className="muted">{t('No live price')}</small>
+                  ) : (
+                    <Chg value={r.cost ? (r.gain / r.cost) * 100 : 0} size="sm" />
+                  )}
+                </span>
+                <button type="button" className="btn sm" onClick={() => openModal('sell', { id: r.id, price: r.price })}>
+                  {t('Sell')}
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
       )}
-      <p className="live-note">{t('For information only, not investment advice. 7-day trend shown.')}</p>
+      <p className="live-note">
+        {t('Tracked in {brand}, not a real brokerage account. Buying and selling here doesn’t count as income or spending.', { brand: BRAND.name })}
+      </p>
     </section>
   )
 }

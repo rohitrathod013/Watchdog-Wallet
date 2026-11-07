@@ -8,6 +8,7 @@ import {
   KpiCard,
   MarketsCard,
   NetProfitCard,
+  PortfolioCard,
   RatesCard,
   QuickTransferCard,
   ReportCard,
@@ -70,9 +71,12 @@ export default function OverviewView() {
       <Reveal>
         <h3 className="section-label">{t('Markets')}</h3>
         <div className="grid-4">
-          <MarketsCard className="span-2" d={0} />
-          <RatesCard className="span-2" d={90} />
+          <PortfolioCard className="span-2" d={0} />
+          <MarketsCard className="span-2" d={90} />
         </div>
+      </Reveal>
+      <Reveal className="grid-4" after={300}>
+        <RatesCard className="span-4" d={0} />
       </Reveal>
     </>
   )
