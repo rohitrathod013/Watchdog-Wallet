@@ -5,6 +5,7 @@ import { MerchantLogo } from './Brand'
 import { useApp } from '../lib/store'
 import { greetingAlerts, respond, starters } from '../lib/assistant'
 import { cachedHolidays, homeCountry, loadHolidays } from '../lib/live'
+import { graceVoice } from '../lib/voice'
 import { signed, uid } from '../lib/format'
 import { ASSISTANT, BRAND } from '../config'
 import { getLocale, LOCALES, t, tName } from '../lib/i18n'
@@ -59,6 +60,14 @@ function say(text) {
     .replace(/\n+/g, '. ')
   const u = new SpeechSynthesisUtterance(clean)
   u.lang = LOCALES[getLocale()]?.tag ?? 'en'
+  // a female voice in the current language (see lib/voice.js)
+  const { voice, pitch } = graceVoice(u.lang)
+  if (voice) {
+    u.voice = voice
+    u.lang = voice.lang
+  }
+  u.pitch = pitch
+  u.rate = 1.02
   window.speechSynthesis.cancel()
   window.speechSynthesis.speak(u)
 }
