@@ -24,10 +24,15 @@ body {
     max-width: calc(100vw - 24px);
   }
   .set-pop,
-  .user-pop,
-  .opt-pop {
+  .user-pop {
     min-width: 0;
     width: min(300px, calc(100vw - 24px));
+  }
+  /* short option lists only need to be as wide as their longest option */
+  .opt-pop {
+    min-width: 170px;
+    width: max-content;
+    max-width: calc(100vw - 24px);
   }
 
   /* ---------- page head ---------- */
