@@ -121,6 +121,11 @@ create table if not exists public.messages (
   created_at timestamptz not null default now(),
   read_at    timestamptz
 );
+-- photos, videos, files and voice notes: the file lives in the chat-media bucket (see the end)
+alter table public.messages add column if not exists media jsonb;
+alter table public.messages drop constraint if exists messages_kind_check;
+alter table public.messages add constraint messages_kind_check
+  check (kind in ('text', 'payment', 'request', 'split', 'media'));
 create index if not exists messages_sender on public.messages (sender, created_at desc);
 create index if not exists messages_recipient on public.messages (recipient, created_at desc);
 
@@ -193,8 +198,13 @@ create policy "see own messages" on public.messages
 drop policy if exists "chat with friends" on public.messages;
 create policy "chat with friends" on public.messages
   for insert with check (
-    sender = auth.uid() and kind = 'text' and char_length(body) between 1 and 2000
-    and public.are_friends(sender, recipient)
+    sender = auth.uid() and public.are_friends(sender, recipient)
+    and (
+      (kind = 'text' and media is null and char_length(body) between 1 and 2000)
+      -- a media message must point at a file in this pair's own folder
+      or (kind = 'media' and jsonb_typeof(media) = 'object'
+          and (media ->> 'path') like auth.uid()::text || '/' || recipient::text || '/%')
+    )
   );
 
 -- create or refresh my profile; returns it (with my invite code)
@@ -400,3 +410,39 @@ begin
     end if;
   end loop;
 end $$;
+
+-- ==================================================================
+-- Chat media: photos, videos, files and voice notes.
+-- A private bucket; files sit in <sender id>/<recipient id>/<file>.
+-- Only friends can upload into their own folder for a friend, only the
+-- two people in a chat can open its files, and the sender can delete them.
+-- ==================================================================
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('chat-media', 'chat-media', false, 10485760,
+        array['image/*', 'video/*', 'audio/*', 'application/pdf', 'text/plain'])
+on conflict (id) do update
+  set public = false,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "chat media: upload to a friend" on storage.objects;
+create policy "chat media: upload to a friend" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'chat-media'
+    and (storage.foldername(name))[1] = auth.uid()::text
+    and (storage.foldername(name))[2] ~ '^[0-9a-f-]{36}$'
+    and public.are_friends(auth.uid(), ((storage.foldername(name))[2])::uuid)
+  );
+
+drop policy if exists "chat media: the two people can open it" on storage.objects;
+create policy "chat media: the two people can open it" on storage.objects
+  for select to authenticated using (
+    bucket_id = 'chat-media'
+    and auth.uid()::text in ((storage.foldername(name))[1], (storage.foldername(name))[2])
+  );
+
+drop policy if exists "chat media: the sender can delete it" on storage.objects;
+create policy "chat media: the sender can delete it" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'chat-media' and (storage.foldername(name))[1] = auth.uid()::text
+  );

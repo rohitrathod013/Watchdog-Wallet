@@ -43,8 +43,10 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
   - the message box grows as you type: **Enter** sends, **Shift+Enter** adds a line;
   - an **emoji** picker and **quick replies** (👍, Thanks!, On my way, Sounds good, Paid you back 💸);
   - links are clickable, and emoji-only messages show large;
+  - **photos and videos** (big photos are shrunk before upload, and open full screen with a tap), **files** like PDFs, and **voice notes** with a waveform you can scrub through. Pick them with **+**, take a photo with the camera on a phone, paste or drag a picture in, or tap the **mic**. Files can be up to 10 MB;
   - scrolled up to read? A **new messages** button takes you back down.
-- Payments, requests and splits show as cards in the chat, with **Pay** and **Decline** right there.
+- Payments, requests and splits show as cards in the chat, with **Pay** and **Decline** right there. **Send**, **Request** and **Split** are also in the chat header and the **+** menu.
+- The chat is a fixed-height window that fits the screen: only the messages scroll. On phones it takes the whole screen.
 - **Send money** to a friend: it leaves your balance and lands in theirs, and both of you see it in your transactions.
 - **Request money**: your friend gets a card in the chat and pays it in one tap, or declines.
 - **Split a bill** like dinner or rent: pick friends, include your own share or not, and each friend gets a request for an equal share (leftover cents go to you). You can also add the full bill to your own spending.
@@ -174,7 +176,8 @@ Friends work between real accounts, so they live in Supabase. If you set up Supa
 - Money only moves through SQL functions (`send_to_friend`, `request_from_friend`, `create_split`) that check both people are friends, the amount is between $0.01 and $10,000, and a request is still open, so it can't be paid twice.
 - Each transfer is added to both people's balances exactly once: the transaction keeps the transfer's id.
 - Live updates use Supabase Realtime; the script adds the tables to the `supabase_realtime` publication for you.
-- Deleting an account removes its profile, friendships, messages, requests and transfers.
+- Photos, videos, files and voice notes go in a private Storage bucket, `chat-media`, which the script creates. Files sit in a folder per pair of friends, only those two can open them, and links to them expire after an hour.
+- Deleting an account removes its profile, friendships, messages, requests, transfers and uploaded files.
 
 The demo shows a "create an account" card on the Friends page, because friends need two real accounts.
 
@@ -251,6 +254,7 @@ src/
     Charts.jsx         earning bars, line chart, donut, heatmap, sparkline
     Modals.jsx         send, receive, request, add money (and pay by card), goal, transaction, contact, bill, invest
     FriendModals.jsx   pay a friend, request from a friend, split a bill
+    ChatMedia.jsx      photos, videos, files and voice notes in the chat, and the photo viewer
     Account.jsx        account settings: download, deactivate, delete
     TopBar.jsx         navigation, notifications, settings, language, account
     Assistant.jsx      Grace's chat panel
@@ -261,6 +265,7 @@ src/
   lib/
     supabase.js        Supabase client, loading and saving each user's data
     social.js          friends, chat, requests and splits in Supabase, plus the chat layout helpers
+    media.js           photo, video, file and voice note uploads, signed links, voice recording
     useSocial.js       the Friends state: live updates, and each transfer counted once
     payments.js        card top-ups through the payments Edge Function
     voice.js           Grace's voice

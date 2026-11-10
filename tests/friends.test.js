@@ -1,6 +1,7 @@
 /* Friends: splitting a bill fairly, and working out who owes whom. */
 import { describe, expect, it } from 'vitest'
 import { chatRows, emojiOnly, shapeSocial, splitEqually } from '../src/lib/social'
+import { peaksOf } from '../src/lib/media'
 
 describe('splitEqually', () => {
   it('splits a bill between me and two friends', () => {
@@ -114,5 +115,17 @@ describe('emojiOnly', () => {
     expect(emojiOnly('123')).toBe(false)
     expect(emojiOnly('😀😀😀😀😀😀😀')).toBe(false)
     expect(emojiOnly('')).toBe(false)
+  })
+})
+
+describe('voice note waveform', () => {
+  it('squashes volume readings into bars from 1 to 9', () => {
+    const bars = peaksOf([0, 0.1, 0.5, 1, 0.3, 0.05, 0.9, 0.2], 4)
+    expect(bars).toHaveLength(4)
+    expect(Math.max(...bars)).toBe(9)
+    expect(Math.min(...bars)).toBeGreaterThanOrEqual(1)
+  })
+  it('draws a flat line for silence', () => {
+    expect(peaksOf([], 5)).toEqual([1, 1, 1, 1, 1])
   })
 })

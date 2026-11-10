@@ -8,7 +8,9 @@ import { Persona } from '../components/Brand'
 import { PageHead, Stage } from '../components/ui'
 import { useApp } from '../lib/store'
 import { accountsEnabled } from '../lib/supabase'
-import { chatRows, emojiOnly, friendError, typingChannel } from '../lib/social'
+import { chatRows, emojiOnly, friendError, mediaLabel, typingChannel } from '../lib/social'
+import { canRecord, durationLabel, MAX_VOICE_SECONDS, prepareFile, removeMedia, sizeLabel, startRecording, uploadMedia } from '../lib/media'
+import { MediaBubble } from '../components/ChatMedia'
 import { money, shortDate } from '../lib/format'
 import { t, tMonths } from '../lib/i18n'
 import { BRAND } from '../config'
@@ -189,6 +191,7 @@ function preview(m, me, social) {
   if (!m) return t('Say hello 👋')
   const mine = m.sender === me
   if (m.kind === 'text') return `${mine ? `${t('You')}: ` : ''}${m.body}`
+  if (m.kind === 'media') return `${mine ? `${t('You')}: ` : ''}${m.body || mediaLabel(m.media)}`
   if (m.kind === 'payment') {
     const x = social.transfers.get(m.ref)
     const amount = money(Number(x?.amount ?? 0))
@@ -335,6 +338,7 @@ function MoneyCard({ m, friend }) {
 const EMOJI = ['😀', '😂', '😍', '🥳', '😅', '🙏', '👍', '👏', '🔥', '❤️', '🎉', '💸', '🍕', '🍻', '☕', '🚕']
 const QUICK_REPLIES = ['👍', 'Thanks!', 'On my way', 'Sounds good', 'Paid you back 💸']
 const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g
+const touch = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
 
 const clock = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 function dayLabel(iso) {
@@ -345,6 +349,16 @@ function dayLabel(iso) {
   if (d.toDateString() === today.toDateString()) return t('Today')
   if (d.toDateString() === yesterday.toDateString()) return t('Yesterday')
   return tMonths(shortDate(iso))
+}
+
+/** A friendly line for something that went wrong with a photo, file or voice note. */
+function mediaError(err) {
+  if (err?.setup) return t('Photos and voice notes need a one-time setup: run the latest supabase/schema.sql in Supabase.')
+  if (err?.tooBig) return t('Files can be up to {size}.', { size: '10 MB' })
+  if (err?.notAllowed) return t('You can send photos, videos, audio, PDFs and text files.')
+  if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') return t('Allow the microphone in your browser to record a voice note.')
+  if (err?.name === 'NotFoundError') return t('No microphone was found.')
+  return friendError(err)
 }
 
 /** Message text with web links made clickable. */
@@ -361,10 +375,88 @@ function Linked({ text }) {
   )
 }
 
-function Composer({ friend, onSend, onTyping, disabled }) {
+/* ---------------- recording a voice note ---------------- */
+function Recorder({ onDone, onCancel, onError }) {
+  const [secs, setSecs] = useState(0)
+  const [bars, setBars] = useState(() => Array(28).fill(0.08))
+  const handle = useRef(null)
+  const started = useRef(0)
+  const finished = useRef(false)
+
+  const stop = useCallback(async () => {
+    if (finished.current || !handle.current) return
+    finished.current = true
+    const note = await handle.current.stop()
+    if (note.seconds < 0.8) onCancel()
+    else onDone(note)
+  }, [onDone, onCancel])
+
+  useEffect(() => {
+    let alive = true
+    let timer = 0
+    let lastBar = 0
+    startRecording((level) => {
+      const now = performance.now()
+      if (now - lastBar < 90) return
+      lastBar = now
+      setBars((list) => [...list.slice(1), Math.max(0.08, level)])
+    })
+      .then((h) => {
+        if (!alive) return h.cancel()
+        handle.current = h
+        started.current = performance.now()
+        timer = window.setInterval(() => {
+          const s = (performance.now() - started.current) / 1000
+          setSecs(s)
+          if (s >= MAX_VOICE_SECONDS) stop()
+        }, 200)
+      })
+      .catch((err) => alive && onError(err))
+    return () => {
+      alive = false
+      window.clearInterval(timer)
+      if (!finished.current) handle.current?.cancel()
+    }
+  }, [onError, stop])
+
+  return (
+    <div className="recorder" role="group" aria-label={t('Recording a voice message')}>
+      <button
+        type="button"
+        className="icon-btn soft rec-cancel"
+        onClick={() => {
+          finished.current = true
+          handle.current?.cancel()
+          onCancel()
+        }}
+        aria-label={t('Delete recording')}
+      >
+        <Icon name="trash" size={18} />
+      </button>
+      <span className="rec-dot" aria-hidden="true" />
+      <span className="rec-time">{durationLabel(secs)}</span>
+      <div className="rec-bars" aria-hidden="true">
+        {bars.map((b, i) => (
+          <i key={i} style={{ '--l': b }} />
+        ))}
+      </div>
+      <button type="button" className="btn solid icon" onClick={stop} aria-label={t('Send voice message')}>
+        <Icon name="send" size={18} />
+      </button>
+    </div>
+  )
+}
+
+/* ---------------- the message box ---------------- */
+function Composer({ friend, onSend, onSendMedia, onTyping, attachment, setAttachment, onError, showQuick, onMoney }) {
   const [text, setText] = useState('')
   const [emoji, setEmoji] = useState(false)
+  const [menu, setMenu] = useState(false)
+  const [recording, setRecording] = useState(false)
   const box = useRef(null)
+  const photoInput = useRef(null)
+  const fileInput = useRef(null)
+  const cameraInput = useRef(null)
   const first = friend.name.split(' ')[0]
 
   // the box grows with the message, up to about five lines
@@ -374,12 +466,27 @@ function Composer({ friend, onSend, onTyping, disabled }) {
     el.style.height = 'auto'
     el.style.height = `${Math.min(el.scrollHeight, 132)}px`
     el.style.overflowY = el.scrollHeight > 132 ? 'auto' : 'hidden'
-  }, [text])
+  }, [text, attachment])
+
+  const attach = async (file) => {
+    setMenu(false)
+    if (!file) return
+    try {
+      const prepared = await prepareFile(file)
+      setAttachment({ prepared, preview: ['image', 'video'].includes(prepared.type) ? URL.createObjectURL(prepared.blob) : null })
+      box.current?.focus()
+    } catch (err) {
+      onError(mediaError(err))
+    }
+  }
 
   const send = (body = text) => {
-    const clean = body.trim()
-    if (!clean || disabled) return
-    onSend(clean.slice(0, 2000))
+    const clean = body.trim().slice(0, 2000)
+    if (attachment) {
+      onSendMedia(attachment, clean)
+      setAttachment(null)
+    } else if (clean) onSend(clean)
+    else return
     setText('')
     setEmoji(false)
     onTyping(false)
@@ -389,23 +496,68 @@ function Composer({ friend, onSend, onTyping, disabled }) {
     const el = box.current
     const at = el?.selectionStart ?? text.length
     const end = el?.selectionEnd ?? text.length
-    const next = text.slice(0, at) + e + text.slice(end)
-    setText(next)
+    setText(text.slice(0, at) + e + text.slice(end))
     window.requestAnimationFrame(() => {
       el?.focus()
       el?.setSelectionRange(at + e.length, at + e.length)
     })
   }
+  const pick = (input) => {
+    if (input.current) input.current.value = ''
+    input.current?.click()
+  }
+  const canSend = Boolean(text.trim() || attachment)
+
+  if (recording)
+    return (
+      <div className="composer-wrap">
+        <Recorder
+          onCancel={() => setRecording(false)}
+          onError={(err) => {
+            setRecording(false)
+            onError(mediaError(err))
+          }}
+          onDone={(note) => {
+            setRecording(false)
+            onSendMedia(
+              {
+                prepared: { blob: note.blob, mime: note.mime, name: 'voice-message', size: note.blob.size, type: 'audio' },
+                extra: { duration: Math.round(note.seconds * 10) / 10, peaks: note.peaks },
+              },
+              '',
+            )
+          }}
+        />
+      </div>
+    )
 
   return (
     <div className="composer-wrap">
-      {!text ? (
+      {showQuick && !text && !attachment ? (
         <div className="quick-replies" aria-label={t('Quick replies')}>
           {QUICK_REPLIES.map((q) => (
-            <button key={q} type="button" className="chip" onClick={() => send(t(q))} disabled={disabled}>
+            <button key={q} type="button" className="chip" onClick={() => send(t(q))}>
               {t(q)}
             </button>
           ))}
+        </div>
+      ) : null}
+      {attachment ? (
+        <div className="attach-tray">
+          {attachment.prepared.type === 'image' ? <img src={attachment.preview} alt="" /> : null}
+          {attachment.prepared.type === 'video' ? <video src={attachment.preview} muted playsInline /> : null}
+          {!['image', 'video'].includes(attachment.prepared.type) ? (
+            <span className="mf-ic">
+              <Icon name="file" size={20} />
+            </span>
+          ) : null}
+          <div>
+            <b>{attachment.prepared.name}</b>
+            <small>{sizeLabel(attachment.prepared.size)}</small>
+          </div>
+          <button type="button" className="icon-btn soft" onClick={() => setAttachment(null)} aria-label={t('Remove attachment')}>
+            <Icon name="close" size={16} />
+          </button>
         </div>
       ) : null}
       {emoji ? (
@@ -417,6 +569,46 @@ function Composer({ friend, onSend, onTyping, disabled }) {
           ))}
         </div>
       ) : null}
+      {menu ? (
+        <div className="attach-pop" role="menu">
+          <button type="button" role="menuitem" onClick={() => pick(photoInput)}>
+            <Icon name="image" size={18} />
+            {t('Photo or video')}
+          </button>
+          {touch ? (
+            <button type="button" role="menuitem" onClick={() => pick(cameraInput)}>
+              <Icon name="eye" size={18} />
+              {t('Camera')}
+            </button>
+          ) : null}
+          <button type="button" role="menuitem" onClick={() => pick(fileInput)}>
+            <Icon name="file" size={18} />
+            {t('File')}
+          </button>
+          <hr />
+          <button type="button" role="menuitem" onClick={() => (setMenu(false), onMoney('pay'))}>
+            <Icon name="send" size={18} />
+            {t('Send money')}
+          </button>
+          <button type="button" role="menuitem" onClick={() => (setMenu(false), onMoney('ask'))}>
+            <Icon name="request" size={18} />
+            {t('Request money')}
+          </button>
+          <button type="button" role="menuitem" onClick={() => (setMenu(false), onMoney('split'))}>
+            <Icon name="receipt" size={18} />
+            {t('Split a bill')}
+          </button>
+        </div>
+      ) : null}
+      <input ref={photoInput} type="file" accept="image/*,video/*" hidden onChange={(e) => attach(e.target.files?.[0])} />
+      <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={(e) => attach(e.target.files?.[0])} />
+      <input
+        ref={fileInput}
+        type="file"
+        accept="image/*,video/*,audio/*,application/pdf,text/plain"
+        hidden
+        onChange={(e) => attach(e.target.files?.[0])}
+      />
       <form
         className="composer"
         onSubmit={(e) => {
@@ -426,37 +618,66 @@ function Composer({ friend, onSend, onTyping, disabled }) {
       >
         <button
           type="button"
-          className={`icon-btn soft emoji-btn ${emoji ? 'on' : ''}`}
-          onClick={() => setEmoji((v) => !v)}
-          aria-label={t('Emoji')}
-          aria-expanded={emoji}
+          className={`icon-btn soft attach-btn ${menu ? 'on' : ''}`}
+          onClick={() => (setMenu((v) => !v), setEmoji(false))}
+          aria-label={t('Attach a photo, video or file')}
+          aria-expanded={menu}
         >
-          <Icon name="smile" size={19} />
+          <Icon name="plus" size={19} stroke={2} />
         </button>
-        <textarea
-          ref={box}
-          rows={1}
-          value={text}
-          maxLength={2000}
-          placeholder={t('Message {name}…', { name: first })}
-          onChange={(e) => {
-            setText(e.target.value)
-            onTyping(Boolean(e.target.value.trim()))
-          }}
-          onKeyDown={(e) => {
-            // Enter sends; Shift+Enter starts a new line (and nothing fires mid IME composition)
-            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-              e.preventDefault()
-              send()
-            }
-            if (e.key === 'Escape') setEmoji(false)
-          }}
-          onBlur={() => onTyping(false)}
-          aria-label={t('Message {name}…', { name: first })}
-        />
-        <button type="submit" className="btn solid icon" disabled={!text.trim() || disabled} aria-label={t('Send message')}>
-          <Icon name="send" size={18} />
-        </button>
+        <div className="composer-field">
+          <textarea
+            ref={box}
+            rows={1}
+            value={text}
+            maxLength={2000}
+            placeholder={attachment ? t('Add a caption…') : t('Message {name}…', { name: first })}
+            onChange={(e) => {
+              setText(e.target.value)
+              onTyping(Boolean(e.target.value.trim()))
+            }}
+            onPaste={(e) => {
+              const file = e.clipboardData?.files?.[0]
+              if (file) {
+                e.preventDefault()
+                attach(file)
+              }
+            }}
+            onKeyDown={(e) => {
+              // Enter sends; Shift+Enter starts a new line (and nothing fires mid IME composition)
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault()
+                send()
+              }
+              if (e.key === 'Escape') (setEmoji(false), setMenu(false))
+            }}
+            onBlur={() => onTyping(false)}
+            aria-label={t('Message {name}…', { name: first })}
+          />
+          <button
+            type="button"
+            className={`emoji-btn ${emoji ? 'on' : ''}`}
+            onClick={() => (setEmoji((v) => !v), setMenu(false))}
+            aria-label={t('Emoji')}
+            aria-expanded={emoji}
+          >
+            <Icon name="smile" size={19} />
+          </button>
+        </div>
+        {canSend || !canRecord() ? (
+          <button type="submit" className="btn solid icon" disabled={!canSend} aria-label={t('Send message')}>
+            <Icon name="send" size={18} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="btn solid icon mic-btn"
+            onClick={() => (setRecording(true), setEmoji(false), setMenu(false))}
+            aria-label={t('Record a voice message')}
+          >
+            <Icon name="mic" size={19} />
+          </button>
+        )}
       </form>
       {text.length > 1800 ? <small className="composer-count">{2000 - text.length}</small> : null}
     </div>
@@ -469,6 +690,8 @@ function Chat({ friend, onBack }) {
   const [confirmRemove, setConfirmRemove] = useState(false)
   // messages on their way: shown straight away, replaced by the saved one
   const [outbox, setOutbox] = useState([])
+  const [attachment, setAttachmentState] = useState(null)
+  const [dragging, setDragging] = useState(false)
   // they are typing: the id of their latest message when it started, so a new message from them ends it
   const [typingAfter, setTypingAfter] = useState(null)
   const [below, setBelow] = useState(0) // new messages that arrived while scrolled up
@@ -477,6 +700,13 @@ function Chat({ friend, onBack }) {
   const typing = useRef(null)
   const typingSent = useRef(false)
   const first = friend.name.split(' ')[0]
+
+  const setAttachment = useCallback((next) => {
+    setAttachmentState((prev) => {
+      if (prev?.preview && prev !== next) URL.revokeObjectURL(prev.preview)
+      return next
+    })
+  }, [])
 
   const thread = social.messages.filter((m) => m.sender === friend.id || m.recipient === friend.id)
   const all = [...thread, ...outbox]
@@ -545,13 +775,18 @@ function Chat({ friend, onBack }) {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' })
     setBelow(0)
   }
+  // a photo that just loaded makes the thread taller: keep the bottom in view
+  const keepBottom = () => {
+    if (atBottom.current && scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight
+  }
 
   useEffect(() => {
     if (friend.unread) social.read(friend.id)
   }, [friend.id, friend.unread, social])
 
-  const send = async (body, retry) => {
-    const id = retry ?? `out-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+  const draftId = () => `out-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+  const sendText = async (body, retry) => {
+    const id = retry ?? draftId()
     const draft = { id, sender: social.me, recipient: friend.id, kind: 'text', body, created_at: new Date().toISOString(), sending: true }
     setOutbox((list) => [...list.filter((m) => m.id !== id), draft])
     setError('')
@@ -563,27 +798,115 @@ function Chat({ friend, onBack }) {
       setError(friendError(err))
     }
   }
+  const sendMedia = async ({ prepared, extra = {} }, caption, retry) => {
+    const id = retry ?? draftId()
+    const local = URL.createObjectURL(prepared.blob)
+    const preview = {
+      type: prepared.type,
+      mime: prepared.mime,
+      name: prepared.name,
+      size: prepared.size,
+      width: prepared.width,
+      height: prepared.height,
+      ...extra,
+    }
+    const draft = {
+      id,
+      sender: social.me,
+      recipient: friend.id,
+      kind: 'media',
+      body: caption,
+      media: preview,
+      local,
+      upload: { prepared, extra },
+      created_at: new Date().toISOString(),
+      sending: true,
+    }
+    setOutbox((list) => [...list.filter((m) => m.id !== id), draft])
+    setError('')
+    let media = null
+    try {
+      media = await uploadMedia(social.me, friend.id, prepared, extra)
+      await social.chatMedia(friend.id, media, caption)
+      setOutbox((list) => list.filter((m) => m.id !== id))
+      window.setTimeout(() => URL.revokeObjectURL(local), 4000)
+    } catch (err) {
+      // uploaded but the message didn't go: don't leave the file behind
+      if (media) removeMedia(media.path).catch(() => null)
+      setOutbox((list) => list.map((m) => (m.id === id ? { ...m, sending: false, failed: true } : m)))
+      setError(mediaError(err))
+    }
+  }
+  const retry = (m) => (m.kind === 'media' ? sendMedia(m.upload, m.body, m.id) : sendText(m.body, m.id))
+
+  const onDrop = async (e) => {
+    e.preventDefault()
+    setDragging(false)
+    const file = e.dataTransfer?.files?.[0]
+    if (!file) return
+    try {
+      const prepared = await prepareFile(file)
+      setAttachment({ prepared, preview: ['image', 'video'].includes(prepared.type) ? URL.createObjectURL(prepared.blob) : null })
+    } catch (err) {
+      setError(mediaError(err))
+    }
+  }
+
+  const sub = theyType ? (
+    <small className="typing-line">{t('typing…')}</small>
+  ) : friend.owesMe ? (
+    <small className="owe in">{t('{name} owes you {amount}', { name: first, amount: money(friend.owesMe) })}</small>
+  ) : friend.iOwe ? (
+    <small className="owe out">{t('You owe {name} {amount}', { name: first, amount: money(friend.iOwe) })}</small>
+  ) : (
+    <small>{friend.email}</small>
+  )
 
   return (
-    <section className="card chat-card rv" style={{ '--i': 2 }}>
+    <section
+      className={`card chat-card rv ${dragging ? 'dragging' : ''}`}
+      style={{ '--i': 2 }}
+      onDragOver={(e) => {
+        if ([...(e.dataTransfer?.types ?? [])].includes('Files')) {
+          e.preventDefault()
+          setDragging(true)
+        }
+      }}
+      onDragLeave={(e) => e.currentTarget.contains(e.relatedTarget) || setDragging(false)}
+      onDrop={onDrop}
+    >
       <header className="chat-head">
         <button type="button" className="icon-btn soft chat-back" onClick={onBack} aria-label={t('Back to friends')}>
           <Icon name="chevLeft" size={18} />
         </button>
-        <Persona name={friend.name} hue={friend.hue} size={44} />
+        <Persona name={friend.name} hue={friend.hue} size={42} />
         <div className="ch-main">
           <b>{friend.name}</b>
-          <small className={theyType ? 'typing-line' : ''}>{theyType ? t('typing…') : friend.email}</small>
+          {sub}
         </div>
-        <button
-          type="button"
-          className="icon-btn soft"
-          onClick={() => setConfirmRemove((v) => !v)}
-          aria-label={t('Remove friend')}
-          aria-expanded={confirmRemove}
-        >
-          <Icon name="dotsH" size={18} />
-        </button>
+        <div className="ch-actions">
+          <button type="button" className="ch-act solid" onClick={() => openModal('friendPay', { friend })} title={t('Send money')}>
+            <Icon name="send" size={16} />
+            <span>{t('Send')}</span>
+          </button>
+          <button type="button" className="ch-act extra" onClick={() => openModal('friendAsk', { friend })} title={t('Request money')}>
+            <Icon name="request" size={16} />
+            <span>{t('Request')}</span>
+          </button>
+          <button type="button" className="ch-act extra" onClick={() => openModal('split', { friend: friend.id })} title={t('Split a bill')}>
+            <Icon name="receipt" size={16} />
+            <span>{t('Split')}</span>
+          </button>
+          <button
+            type="button"
+            className="ch-act more"
+            onClick={() => setConfirmRemove((v) => !v)}
+            aria-label={t('Remove friend')}
+            aria-expanded={confirmRemove}
+          >
+            <Icon name="dotsH" size={17} />
+          </button>
+        </div>
       </header>
       {confirmRemove ? (
         <div className="acct-confirm danger chat-remove">
@@ -607,24 +930,8 @@ function Chat({ friend, onBack }) {
           </div>
         </div>
       ) : null}
-      <div className="chat-actions">
-        <button type="button" className="btn solid" onClick={() => openModal('friendPay', { friend })}>
-          <Icon name="send" size={16} />
-          {t('Send')}
-        </button>
-        <button type="button" className="btn" onClick={() => openModal('friendAsk', { friend })}>
-          <Icon name="request" size={16} />
-          {t('Request')}
-        </button>
-        <button type="button" className="btn" onClick={() => openModal('split', { friend: friend.id })}>
-          <Icon name="receipt" size={16} />
-          {t('Split a bill')}
-        </button>
-        {friend.owesMe ? <span className="owe in">{t('{name} owes you {amount}', { name: first, amount: money(friend.owesMe) })}</span> : null}
-        {friend.iOwe ? <span className="owe out">{t('You owe {name} {amount}', { name: first, amount: money(friend.iOwe) })}</span> : null}
-      </div>
       <div className="chat-body">
-        <div className="chat-scroll" ref={scroller} onScroll={onScroll} aria-live="polite">
+        <div className="chat-scroll" ref={scroller} onScroll={onScroll} onLoadCapture={keepBottom} aria-live="polite">
           {!all.length ? (
             <div className="chat-empty">
               <Persona name={friend.name} hue={friend.hue} size={56} />
@@ -651,6 +958,8 @@ function Chat({ friend, onBack }) {
                   <p className={`bubble ${big ? 'big' : ''}`} title={new Date(m.created_at).toLocaleString()}>
                     {big ? m.body : <Linked text={m.body} />}
                   </p>
+                ) : m.kind === 'media' ? (
+                  <MediaBubble media={m.media} local={m.local} caption={m.body} />
                 ) : (
                   <MoneyCard m={m} friend={friend} />
                 )}
@@ -659,9 +968,9 @@ function Chat({ friend, onBack }) {
                     <time dateTime={m.created_at}>{clock(m.created_at)}</time>
                     {status === 'seen' ? <em className="seen">· {t('Seen')}</em> : null}
                     {status === 'sent' ? <em>· {t('Sent')}</em> : null}
-                    {status === 'sending' ? <em>· {t('Sending…')}</em> : null}
+                    {status === 'sending' ? <em>· {m.kind === 'media' ? t('Uploading…') : t('Sending…')}</em> : null}
                     {status === 'failed' ? (
-                      <button type="button" className="retry" onClick={() => send(m.body, m.id)}>
+                      <button type="button" className="retry" onClick={() => retry(m)}>
                         {t('Not sent. Tap to retry')}
                       </button>
                     ) : null}
@@ -686,13 +995,38 @@ function Chat({ friend, onBack }) {
             {below === 1 ? t('1 new message') : t('{count} new messages', { count: below })}
           </button>
         ) : null}
+        {dragging ? (
+          <div className="drop-hint">
+            <Icon name="upload" size={22} />
+            {t('Drop to send to {name}', { name: first })}
+          </div>
+        ) : null}
       </div>
       {error ? (
-        <p className="auth-error" role="alert">
+        <p className="auth-error chat-error" role="alert">
           {error}
+          <button type="button" onClick={() => setError('')} aria-label={t('Close')}>
+            <Icon name="close" size={14} />
+          </button>
         </p>
       ) : null}
-      <Composer friend={friend} onSend={(body) => send(body)} onTyping={onTyping} disabled={false} />
+      <Composer
+        friend={friend}
+        onSend={(body) => sendText(body)}
+        onSendMedia={(att, caption) => sendMedia(att, caption)}
+        onTyping={onTyping}
+        attachment={attachment}
+        setAttachment={setAttachment}
+        onError={setError}
+        showQuick={!thread.length || thread[thread.length - 1]?.sender === friend.id}
+        onMoney={(what) =>
+          what === 'pay'
+            ? openModal('friendPay', { friend })
+            : what === 'ask'
+              ? openModal('friendAsk', { friend })
+              : openModal('split', { friend: friend.id })
+        }
+      />
     </section>
   )
 }
@@ -777,7 +1111,7 @@ export default function Friends() {
     )
 
   return (
-    <Stage>
+    <Stage className={`friends-page ${current ? 'chatting' : ''}`}>
       {head}
       {body}
     </Stage>

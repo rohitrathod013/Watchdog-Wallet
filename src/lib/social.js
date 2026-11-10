@@ -46,6 +46,13 @@ export async function removeConnection(id) {
   check(error)
 }
 
+/** A photo, video, file or voice note that's already uploaded (see media.js), with an optional caption. */
+export async function sendMediaMessage(to, media, body = '') {
+  const supabase = await getSupabase()
+  const { error } = await supabase.from('messages').insert({ recipient: to, kind: 'media', body: body.slice(0, 2000), media })
+  check(error)
+}
+
 export async function sendChat(to, body) {
   const supabase = await getSupabase()
   const { error } = await supabase.from('messages').insert({ recipient: to, body })
@@ -100,6 +107,18 @@ export async function typingChannel(me, friend, onTyping) {
     send: (typing) => channel.send({ type: 'broadcast', event: 'typing', payload: { from: me, typing } }).catch(() => null),
     stop: () => supabase.removeChannel(channel),
   }
+}
+
+/** A short line for a media message in previews and pop-ups: "📷 Photo", "🎤 Voice message 0:12"… */
+export function mediaLabel(media) {
+  const type = media?.type
+  if (type === 'image') return `📷 ${t('Photo')}`
+  if (type === 'video') return `🎬 ${t('Video')}`
+  if (type === 'audio') {
+    const s = Math.round(media?.duration || 0)
+    return `🎤 ${t('Voice message')}${s ? ` ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : ''}`
+  }
+  return `📎 ${media?.name || t('File')}`
 }
 
 /* ---------------- chat layout ---------------- */

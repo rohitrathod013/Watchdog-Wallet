@@ -19,11 +19,13 @@ import {
   ensureProfile,
   inviteLink,
   loadSocial,
+  mediaLabel,
   markRead,
   removeConnection,
   requestFromFriend,
   respondRequest,
   sendChat,
+  sendMediaMessage,
   sendToFriend,
   shapeSocial,
   takeInvite,
@@ -115,8 +117,14 @@ export function useSocial({ enabled, userId, userName, transactions, since, setB
       for (const { table, payload } of events) {
         const row = payload.new
         if (payload.eventType !== 'INSERT' || !row) continue
-        if (table === 'messages' && row.kind === 'text' && row.recipient === userId && live.current.openChat !== row.sender)
-          toast(t('New message from {name}', { name: shaped.nameOf(row.sender) }), row.body.slice(0, 90), { icon: 'chat' })
+        if (table === 'messages' && ['text', 'media'].includes(row.kind) && row.recipient === userId && live.current.openChat !== row.sender)
+          toast(
+            t('New message from {name}', { name: shaped.nameOf(row.sender) }),
+            row.kind === 'media' ? mediaLabel(row.media) : row.body.slice(0, 90),
+            {
+              icon: 'chat',
+            },
+          )
         if (table === 'money_requests' && row.payer === userId)
           toast(t('{name} asked you for {amount}', { name: shaped.nameOf(row.requester), amount: money(Number(row.amount)) }), row.note || '', {
             icon: 'request',
@@ -208,6 +216,7 @@ export function useSocial({ enabled, userId, userName, transactions, since, setB
       accept: after(acceptConnection),
       removeFriend: after(removeConnection),
       chat: after(sendChat),
+      chatMedia: after(sendMediaMessage),
       pay: after(sendToFriend),
       ask: after(requestFromFriend),
       decline: after((id) => respondRequest(id, 'decline')),

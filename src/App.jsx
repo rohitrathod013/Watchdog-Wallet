@@ -36,6 +36,7 @@ import { accountsEnabled, confirmPassword, deleteMyAccount, getSupabase, loadUse
 import { AccountModal } from './components/Account'
 import { confirmCardPayment, takePaymentReturn } from './lib/payments'
 import { stashInvite } from './lib/social'
+import { removeAllMyMedia } from './lib/media'
 import { useSocial } from './lib/useSocial'
 import { FriendAskModal, FriendPayModal, SplitModal } from './components/FriendModals'
 import * as seed from './data/seed'
@@ -947,6 +948,8 @@ export default function App() {
       await confirmPassword(user.email, password)
       stopSaving.current = true
       try {
+        // photos and voice notes in chats go first: the account's files can't be removed once it's gone
+        await removeAllMyMedia(userId).catch(() => null)
         await deleteMyAccount()
       } catch (err) {
         stopSaving.current = false
