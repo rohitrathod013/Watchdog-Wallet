@@ -1,6 +1,6 @@
 /* Friends: splitting a bill fairly, and working out who owes whom. */
 import { describe, expect, it } from 'vitest'
-import { shapeSocial, splitEqually } from '../src/lib/social'
+import { chatRows, emojiOnly, shapeSocial, splitEqually } from '../src/lib/social'
 
 describe('splitEqually', () => {
   it('splits a bill between me and two friends', () => {
@@ -75,5 +75,44 @@ describe('shapeSocial', () => {
   })
   it('keeps the latest message for the list preview', () => {
     expect(s.friends.find((f) => f.id === 'bob').last.id).toBe('m2')
+  })
+})
+
+describe('chatRows', () => {
+  const msg = (id, sender, at, kind = 'text') => ({ id, sender, kind, body: id, created_at: at })
+  const rows = chatRows([
+    msg('a', 'me', '2026-11-09T10:00:00'),
+    msg('b', 'me', '2026-11-09T10:01:00'),
+    msg('c', 'bob', '2026-11-09T10:02:00'),
+    msg('d', 'bob', '2026-11-09T10:30:00'),
+    msg('e', 'bob', '2026-11-10T09:00:00'),
+    msg('f', 'bob', '2026-11-10T09:01:00', 'payment'),
+  ])
+  const m = (id) => rows.find((r) => r.key === id)
+  it('adds a divider for each new day', () => {
+    expect(rows.filter((r) => r.type === 'day').length).toBe(2)
+  })
+  it('groups quick messages from the same person, one timestamp per group', () => {
+    expect([m('a').first, m('a').last, m('b').first, m('b').last]).toEqual([true, false, false, true])
+  })
+  it('starts a new group after five minutes, a new day, or a payment card', () => {
+    expect(m('d').first).toBe(true)
+    expect(m('e').first).toBe(true)
+    expect(m('e').last).toBe(true)
+    expect(m('f').first).toBe(true)
+  })
+})
+
+describe('emojiOnly', () => {
+  it('spots short emoji-only messages', () => {
+    expect(emojiOnly('🍕🍻')).toBe(true)
+    expect(emojiOnly(' 👍 ')).toBe(true)
+    expect(emojiOnly('❤️')).toBe(true)
+  })
+  it('leaves text and long emoji runs alone', () => {
+    expect(emojiOnly('ok 👍')).toBe(false)
+    expect(emojiOnly('123')).toBe(false)
+    expect(emojiOnly('😀😀😀😀😀😀😀')).toBe(false)
+    expect(emojiOnly('')).toBe(false)
   })
 })

@@ -2,23 +2,16 @@
    Friends: connect with other Watchdog Wallet accounts, chat, send and
    request money, and split bills. Live through Supabase Realtime.
    ------------------------------------------------------------------ */
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Icon from '../components/Icon'
 import { Persona } from '../components/Brand'
 import { PageHead, Stage } from '../components/ui'
 import { useApp } from '../lib/store'
 import { accountsEnabled } from '../lib/supabase'
-import { friendError } from '../lib/social'
+import { chatRows, emojiOnly, friendError, typingChannel } from '../lib/social'
 import { money, shortDate } from '../lib/format'
 import { t, tMonths } from '../lib/i18n'
 import { BRAND } from '../config'
-
-const when = (iso) => {
-  const d = new Date(iso)
-  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  const today = new Date().toDateString() === d.toDateString()
-  return today ? time : `${tMonths(shortDate(iso))} · ${time}`
-}
 
 const STATUS = { pending: 'Pending', paid: 'Paid', declined: 'Declined', cancelled: 'Cancelled' }
 
@@ -339,38 +332,236 @@ function MoneyCard({ m, friend }) {
   )
 }
 
+const EMOJI = ['😀', '😂', '😍', '🥳', '😅', '🙏', '👍', '👏', '🔥', '❤️', '🎉', '💸', '🍕', '🍻', '☕', '🚕']
+const QUICK_REPLIES = ['👍', 'Thanks!', 'On my way', 'Sounds good', 'Paid you back 💸']
+const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g
+
+const clock = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+function dayLabel(iso) {
+  const d = new Date(iso)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  if (d.toDateString() === today.toDateString()) return t('Today')
+  if (d.toDateString() === yesterday.toDateString()) return t('Yesterday')
+  return tMonths(shortDate(iso))
+}
+
+/** Message text with web links made clickable. */
+function Linked({ text }) {
+  const parts = text.split(URL_RE)
+  return parts.map((part, i) =>
+    i % 2 ? (
+      <a key={i} href={part} target="_blank" rel="noopener noreferrer">
+        {part}
+      </a>
+    ) : (
+      part
+    ),
+  )
+}
+
+function Composer({ friend, onSend, onTyping, disabled }) {
+  const [text, setText] = useState('')
+  const [emoji, setEmoji] = useState(false)
+  const box = useRef(null)
+  const first = friend.name.split(' ')[0]
+
+  // the box grows with the message, up to about five lines
+  useLayoutEffect(() => {
+    const el = box.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 132)}px`
+    el.style.overflowY = el.scrollHeight > 132 ? 'auto' : 'hidden'
+  }, [text])
+
+  const send = (body = text) => {
+    const clean = body.trim()
+    if (!clean || disabled) return
+    onSend(clean.slice(0, 2000))
+    setText('')
+    setEmoji(false)
+    onTyping(false)
+    box.current?.focus()
+  }
+  const insert = (e) => {
+    const el = box.current
+    const at = el?.selectionStart ?? text.length
+    const end = el?.selectionEnd ?? text.length
+    const next = text.slice(0, at) + e + text.slice(end)
+    setText(next)
+    window.requestAnimationFrame(() => {
+      el?.focus()
+      el?.setSelectionRange(at + e.length, at + e.length)
+    })
+  }
+
+  return (
+    <div className="composer-wrap">
+      {!text ? (
+        <div className="quick-replies" aria-label={t('Quick replies')}>
+          {QUICK_REPLIES.map((q) => (
+            <button key={q} type="button" className="chip" onClick={() => send(t(q))} disabled={disabled}>
+              {t(q)}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {emoji ? (
+        <div className="emoji-pop" role="dialog" aria-label={t('Emoji')}>
+          {EMOJI.map((e) => (
+            <button key={e} type="button" onClick={() => insert(e)} aria-label={e}>
+              {e}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <form
+        className="composer"
+        onSubmit={(e) => {
+          e.preventDefault()
+          send()
+        }}
+      >
+        <button
+          type="button"
+          className={`icon-btn soft emoji-btn ${emoji ? 'on' : ''}`}
+          onClick={() => setEmoji((v) => !v)}
+          aria-label={t('Emoji')}
+          aria-expanded={emoji}
+        >
+          <Icon name="smile" size={19} />
+        </button>
+        <textarea
+          ref={box}
+          rows={1}
+          value={text}
+          maxLength={2000}
+          placeholder={t('Message {name}…', { name: first })}
+          onChange={(e) => {
+            setText(e.target.value)
+            onTyping(Boolean(e.target.value.trim()))
+          }}
+          onKeyDown={(e) => {
+            // Enter sends; Shift+Enter starts a new line (and nothing fires mid IME composition)
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault()
+              send()
+            }
+            if (e.key === 'Escape') setEmoji(false)
+          }}
+          onBlur={() => onTyping(false)}
+          aria-label={t('Message {name}…', { name: first })}
+        />
+        <button type="submit" className="btn solid icon" disabled={!text.trim() || disabled} aria-label={t('Send message')}>
+          <Icon name="send" size={18} />
+        </button>
+      </form>
+      {text.length > 1800 ? <small className="composer-count">{2000 - text.length}</small> : null}
+    </div>
+  )
+}
+
 function Chat({ friend, onBack }) {
   const { social, openModal } = useApp()
-  const [text, setText] = useState('')
-  const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [confirmRemove, setConfirmRemove] = useState(false)
+  // messages on their way: shown straight away, replaced by the saved one
+  const [outbox, setOutbox] = useState([])
+  // they are typing: the id of their latest message when it started, so a new message from them ends it
+  const [typingAfter, setTypingAfter] = useState(null)
+  const [below, setBelow] = useState(0) // new messages that arrived while scrolled up
   const scroller = useRef(null)
-  const thread = social.messages.filter((m) => m.sender === friend.id || m.recipient === friend.id)
-  const last = thread[thread.length - 1]?.id
+  const atBottom = useRef(true)
+  const typing = useRef(null)
+  const typingSent = useRef(false)
+  const first = friend.name.split(' ')[0]
 
-  // keep the newest message in view, and mark the thread read while it's open
+  const thread = social.messages.filter((m) => m.sender === friend.id || m.recipient === friend.id)
+  const all = [...thread, ...outbox]
+  const rows = chatRows(all)
+  const lastMine = [...thread].reverse().find((m) => m.sender === social.me)
+  const lastId = all[all.length - 1]?.id
+  const lastFromThem = [...thread].reverse().find((m) => m.sender === friend.id)?.id ?? ''
+  const theirLast = useRef(lastFromThem)
+  useEffect(() => {
+    theirLast.current = lastFromThem
+  }, [lastFromThem])
+  // once their message lands, they've stopped typing
+  const theyType = typingAfter !== null && typingAfter === lastFromThem
+
+  // "typing…" both ways, over a Realtime broadcast
+  useEffect(() => {
+    let alive = true
+    let hide = 0
+    typingChannel(social.me, friend.id, (on) => {
+      window.clearTimeout(hide)
+      setTypingAfter(on ? (theirLast.current ?? '') : null)
+      // in case their "stopped" never arrives
+      if (on) hide = window.setTimeout(() => setTypingAfter(null), 6000)
+    }).then((ch) => {
+      if (alive) typing.current = ch
+      else ch.stop()
+    })
+    return () => {
+      alive = false
+      window.clearTimeout(hide)
+      typing.current?.stop()
+      typing.current = null
+    }
+  }, [social.me, friend.id])
+  const onTyping = useCallback((on) => {
+    if (typingSent.current === on) return
+    typingSent.current = on
+    typing.current?.send(on)
+  }, [])
+
+  // stay pinned to the newest message, unless the user scrolled up to read
+  useLayoutEffect(() => {
+    const el = scroller.current
+    if (!el) return
+    const mineNow = all[all.length - 1]?.sender === social.me
+    if (atBottom.current || mineNow) {
+      el.scrollTop = el.scrollHeight
+      setBelow(0)
+    } else setBelow((n) => n + 1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastId])
   useLayoutEffect(() => {
     const el = scroller.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [last, friend.id])
+    atBottom.current = true
+  }, [friend.id])
+  useEffect(() => {
+    if (theyType && atBottom.current && scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight
+  }, [theyType])
+  const onScroll = () => {
+    const el = scroller.current
+    atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60
+    if (atBottom.current && below) setBelow(0)
+  }
+  const jump = () => {
+    scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' })
+    setBelow(0)
+  }
+
   useEffect(() => {
     if (friend.unread) social.read(friend.id)
   }, [friend.id, friend.unread, social])
 
-  const send = async (e) => {
-    e.preventDefault()
-    const body = text.trim()
-    if (!body || busy) return
-    setBusy(true)
+  const send = async (body, retry) => {
+    const id = retry ?? `out-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const draft = { id, sender: social.me, recipient: friend.id, kind: 'text', body, created_at: new Date().toISOString(), sending: true }
+    setOutbox((list) => [...list.filter((m) => m.id !== id), draft])
     setError('')
     try {
-      await social.chat(friend.id, body.slice(0, 2000))
-      setText('')
+      await social.chat(friend.id, body)
+      setOutbox((list) => list.filter((m) => m.id !== id))
     } catch (err) {
+      setOutbox((list) => list.map((m) => (m.id === id ? { ...m, sending: false, failed: true } : m)))
       setError(friendError(err))
     }
-    setBusy(false)
   }
 
   return (
@@ -382,9 +573,15 @@ function Chat({ friend, onBack }) {
         <Persona name={friend.name} hue={friend.hue} size={44} />
         <div className="ch-main">
           <b>{friend.name}</b>
-          <small>{friend.email}</small>
+          <small className={theyType ? 'typing-line' : ''}>{theyType ? t('typing…') : friend.email}</small>
         </div>
-        <button type="button" className="icon-btn soft" onClick={() => setConfirmRemove((v) => !v)} aria-label={t('Remove friend')}>
+        <button
+          type="button"
+          className="icon-btn soft"
+          onClick={() => setConfirmRemove((v) => !v)}
+          aria-label={t('Remove friend')}
+          aria-expanded={confirmRemove}
+        >
           <Icon name="dotsH" size={18} />
         </button>
       </header>
@@ -423,45 +620,79 @@ function Chat({ friend, onBack }) {
           <Icon name="receipt" size={16} />
           {t('Split a bill')}
         </button>
+        {friend.owesMe ? <span className="owe in">{t('{name} owes you {amount}', { name: first, amount: money(friend.owesMe) })}</span> : null}
+        {friend.iOwe ? <span className="owe out">{t('You owe {name} {amount}', { name: first, amount: money(friend.iOwe) })}</span> : null}
       </div>
-      {friend.owesMe || friend.iOwe ? (
-        <div className="settle">
-          {friend.owesMe ? (
-            <span className="owe in">{t('{name} owes you {amount}', { name: friend.name.split(' ')[0], amount: money(friend.owesMe) })}</span>
+      <div className="chat-body">
+        <div className="chat-scroll" ref={scroller} onScroll={onScroll} aria-live="polite">
+          {!all.length ? (
+            <div className="chat-empty">
+              <Persona name={friend.name} hue={friend.hue} size={56} />
+              <p>{t('No messages yet. Say hello, or split your next dinner.')}</p>
+            </div>
           ) : null}
-          {friend.iOwe ? (
-            <span className="owe out">{t('You owe {name} {amount}', { name: friend.name.split(' ')[0], amount: money(friend.iOwe) })}</span>
+          {rows.map((row) => {
+            if (row.type === 'day')
+              return (
+                <div key={row.key} className="day-sep">
+                  <span>{dayLabel(row.at)}</span>
+                </div>
+              )
+            const { m, first: start, last: end } = row
+            const mine = m.sender === social.me
+            const big = m.kind === 'text' && emojiOnly(m.body)
+            const status = m.failed ? 'failed' : m.sending ? 'sending' : m.id === lastMine?.id ? (m.read_at ? 'seen' : 'sent') : null
+            return (
+              <div
+                key={row.key}
+                className={`msg ${mine ? 'mine' : ''} ${start ? 'start' : ''} ${end ? 'end' : ''} ${m.sending ? 'sending' : ''} ${m.failed ? 'failed' : ''}`}
+              >
+                {m.kind === 'text' ? (
+                  <p className={`bubble ${big ? 'big' : ''}`} title={new Date(m.created_at).toLocaleString()}>
+                    {big ? m.body : <Linked text={m.body} />}
+                  </p>
+                ) : (
+                  <MoneyCard m={m} friend={friend} />
+                )}
+                {end || status ? (
+                  <span className="msg-meta">
+                    <time dateTime={m.created_at}>{clock(m.created_at)}</time>
+                    {status === 'seen' ? <em className="seen">· {t('Seen')}</em> : null}
+                    {status === 'sent' ? <em>· {t('Sent')}</em> : null}
+                    {status === 'sending' ? <em>· {t('Sending…')}</em> : null}
+                    {status === 'failed' ? (
+                      <button type="button" className="retry" onClick={() => send(m.body, m.id)}>
+                        {t('Not sent. Tap to retry')}
+                      </button>
+                    ) : null}
+                  </span>
+                ) : null}
+              </div>
+            )
+          })}
+          {theyType ? (
+            <div className="msg start end typing-msg" aria-label={t('{name} is typing', { name: first })}>
+              <p className="bubble typing-dots">
+                <i />
+                <i />
+                <i />
+              </p>
+            </div>
           ) : null}
         </div>
-      ) : null}
-      <div className="chat-scroll" ref={scroller}>
-        {!thread.length ? <p className="chat-empty">{t('No messages yet. Say hello, or split your next dinner.')}</p> : null}
-        {thread.map((m) => {
-          const mine = m.sender === social.me
-          return (
-            <div key={m.id} className={`msg ${mine ? 'mine' : ''}`}>
-              {m.kind === 'text' ? <p className="bubble">{m.body}</p> : <MoneyCard m={m} friend={friend} />}
-              <time dateTime={m.created_at}>{when(m.created_at)}</time>
-            </div>
-          )
-        })}
+        {below ? (
+          <button type="button" className="jump-new" onClick={jump}>
+            <Icon name="arrowDown" size={15} />
+            {below === 1 ? t('1 new message') : t('{count} new messages', { count: below })}
+          </button>
+        ) : null}
       </div>
       {error ? (
         <p className="auth-error" role="alert">
           {error}
         </p>
       ) : null}
-      <form className="composer" onSubmit={send}>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={t('Message {name}…', { name: friend.name.split(' ')[0] })}
-          maxLength={2000}
-        />
-        <button type="submit" className="btn solid icon" disabled={!text.trim() || busy} aria-label={t('Send message')}>
-          <Icon name="send" size={18} />
-        </button>
-      </form>
+      <Composer friend={friend} onSend={(body) => send(body)} onTyping={onTyping} disabled={false} />
     </section>
   )
 }

@@ -85,6 +85,58 @@ export async function watchSocial(onChange) {
   return () => supabase.removeChannel(channel)
 }
 
+/**
+ * "Typing…" between two friends: a Realtime broadcast, nothing is stored.
+ * Returns { send(typing), stop() }.
+ */
+export async function typingChannel(me, friend, onTyping) {
+  const supabase = await getSupabase()
+  const channel = supabase.channel(`ww-typing-${[me, friend].sort().join('-')}`, { config: { broadcast: { self: false } } })
+  channel.on('broadcast', { event: 'typing' }, ({ payload }) => {
+    if (payload?.from === friend) onTyping(Boolean(payload.typing))
+  })
+  channel.subscribe()
+  return {
+    send: (typing) => channel.send({ type: 'broadcast', event: 'typing', payload: { from: me, typing } }).catch(() => null),
+    stop: () => supabase.removeChannel(channel),
+  }
+}
+
+/* ---------------- chat layout ---------------- */
+const GROUP_GAP = 5 * 60 * 1000
+const dayKey = (iso) => new Date(iso).toDateString()
+
+/**
+ * The thread as rows for display: day dividers, and messages marked as the
+ * first/last of a run from the same person (one timestamp per run).
+ */
+export function chatRows(thread) {
+  const rows = []
+  thread.forEach((m, i) => {
+    const prev = thread[i - 1]
+    const next = thread[i + 1]
+    const newDay = !prev || dayKey(prev.created_at) !== dayKey(m.created_at)
+    if (newDay) rows.push({ type: 'day', key: `day-${m.id}`, at: m.created_at })
+    const joins = (a, b) =>
+      a &&
+      b &&
+      a.sender === b.sender &&
+      a.kind === 'text' &&
+      b.kind === 'text' &&
+      dayKey(a.created_at) === dayKey(b.created_at) &&
+      Math.abs(new Date(b.created_at) - new Date(a.created_at)) < GROUP_GAP
+    rows.push({ type: 'msg', key: m.id, m, first: newDay || !joins(prev, m), last: !joins(m, next) })
+  })
+  return rows
+}
+
+/** Only emoji (up to 6), shown large like other messengers do. */
+export const emojiOnly = (text) => {
+  const s = text.trim()
+  const marks = /\s|\u200d|\ufe0f/g
+  return Boolean(s) && /^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|\s|\u200d|\ufe0f)+$/u.test(s) && [...s.replace(marks, '')].length <= 6
+}
+
 /* ---------------- invite links: #/friends/invite/<code> ---------------- */
 const INVITE_KEY = 'ww-invite'
 export const inviteLink = (code) => `${siteUrl()}#/friends/invite/${code}`
