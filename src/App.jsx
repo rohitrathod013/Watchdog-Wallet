@@ -28,7 +28,7 @@ import Dashboard from './pages/Dashboard'
 import { AppContext } from './lib/store'
 import { PAGES, TABS } from './lib/routes'
 import { liquidSwitch } from './lib/themeTransition'
-import { msUntilSwitch, resolveTheme } from './lib/dayTheme'
+import { lightHours, locate, msUntilSwitch, rememberSun, resolveTheme, savedPlace } from './lib/dayTheme'
 import { localIso, MONTHS, money, uid } from './lib/format'
 import { accountCards, billDue, computeStats, DEFAULT_BUDGETS, demoStats, KIND_FOR } from './lib/stats'
 import { LOCALES, setLocale, t, tMonths } from './lib/i18n'
@@ -159,6 +159,8 @@ export default function App() {
     return ['light', 'dark', 'auto'].includes(saved) ? saved : 'auto'
   })
   const [theme, setTheme] = useState(() => resolveTheme(themeMode))
+  // where the user is, for sunrise and sunset (null until known: then 7am to 7pm)
+  const [place, setPlace] = useState(() => savedPlace())
   const [accent, setAccent] = useState(() => stored('codexr-accent', THEME.defaultAccent))
   const [reduceMotion, setReduceMotion] = useState(() => stored('codexr-motion', 'full') === 'reduced')
   const [lang, setLang] = useState(() => {
@@ -204,27 +206,40 @@ export default function App() {
   const switchTheme = useCallback(
     (mode, origin) => {
       setThemeMode(mode)
-      showTheme(resolveTheme(mode), origin)
+      showTheme(resolveTheme(mode, new Date(), place), origin)
     },
-    [showTheme],
+    [showTheme, place],
   )
-  // Auto: switch at 7am and 7pm (THEME.day), and check again when the tab comes back after a sleep
+  // Auto: find out roughly where the user is (once a week), so it follows their sunrise and sunset
+  useEffect(() => {
+    if (themeMode !== 'auto') return undefined
+    let alive = true
+    locate().then((p) => alive && setPlace(p))
+    return () => {
+      alive = false
+    }
+  }, [themeMode])
+  // ...then switch at sunrise and sunset, and check again when the tab comes back after a sleep
   useEffect(() => {
     if (themeMode !== 'auto') return undefined
     let timer = 0
     const check = () => {
-      showTheme(resolveTheme('auto'))
+      const now = new Date()
+      showTheme(resolveTheme('auto', now, place))
+      rememberSun(now, place)
       window.clearTimeout(timer)
-      timer = window.setTimeout(check, msUntilSwitch())
+      timer = window.setTimeout(check, msUntilSwitch(now, place))
     }
-    timer = window.setTimeout(check, msUntilSwitch())
+    check()
     const onVisible = () => document.visibilityState === 'visible' && check()
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       window.clearTimeout(timer)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [themeMode, showTheme])
+  }, [themeMode, showTheme, place])
+  // today's sunrise and sunset where the user is, for the Settings note
+  const daylight = useMemo(() => (themeMode === 'auto' ? { ...lightHours(new Date(), place), city: place?.city ?? null } : null), [themeMode, place])
 
   /* ---------- intro choreography (plays on every fresh load) ---------- */
   const [bootKey, setBootKey] = useState(0)
@@ -1010,6 +1025,7 @@ export default function App() {
       booting,
       theme,
       themeMode,
+      daylight,
       switchTheme,
       accent,
       setAccent,
@@ -1090,6 +1106,7 @@ export default function App() {
       booting,
       theme,
       themeMode,
+      daylight,
       switchTheme,
       accent,
       reduceMotion,

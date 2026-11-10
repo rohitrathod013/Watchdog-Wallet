@@ -1,4 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { clockTime } from '../lib/dayTheme'
 import Icon from './Icon'
 import { Avatar, Logo } from './Brand'
 import { MenuItem, Popover, Segmented, Toggle } from './ui'
@@ -168,7 +169,21 @@ export default function TopBar() {
               value={app.themeMode ?? app.theme}
               onChange={themeFromGear}
             />
-            {app.themeMode === 'auto' ? <p className="set-note">{t('Light in the day, dark from 7pm to 7am.')}</p> : null}
+            {app.themeMode === 'auto' && app.daylight ? (
+              <p className="set-note">
+                {app.daylight.polar
+                  ? app.daylight.polar === 'day'
+                    ? t('The sun doesn’t set where you are today, so it stays light.')
+                    : t('The sun doesn’t rise where you are today, so it stays dark.')
+                  : app.daylight.city
+                    ? t('Light from sunrise ({rise}) to sunset ({set}) in {city}.', {
+                        rise: clockTime(app.daylight.rise),
+                        set: clockTime(app.daylight.set),
+                        city: app.daylight.city,
+                      })
+                    : t('Light from sunrise ({rise}) to sunset ({set}).', { rise: clockTime(app.daylight.rise), set: clockTime(app.daylight.set) })}
+              </p>
+            ) : null}
             <div className="set-gap" />
             <h6>{t('Accent')}</h6>
             <div className="swatches">

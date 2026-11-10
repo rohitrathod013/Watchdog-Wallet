@@ -124,7 +124,7 @@ English, Español, Français, Deutsch and العربية. Everything is translat
 
 ### Look and feel
 
-- Light, dark and **Auto** themes, with a liquid transition between them. Auto (the default) is light in the daytime and dark from 7pm to 7am by your device's clock, and switches by itself at those times. Grace can turn it on ("auto theme"). The hours are `THEME.day` in `src/config.js`.
+- Light, dark and **Auto** themes, with a liquid transition between them. Auto (the default) is light from **sunrise to sunset where you are** and dark at night, and switches by itself at those moments. The rough location comes from your internet address via [geojs.io](https://www.geojs.io) (free, no key, city level, no permission prompt) and is kept for a week; sunrise and sunset are worked out on your device. Without a location it uses 7am to 7pm (`THEME.day` in `src/config.js`). Settings shows today's times, and Grace can turn it on ("auto theme").
 - 5 accent colours.
 - Staggered entrances, counting numbers, self-drawing charts and sections that reveal as you scroll.
 - Reduce motion setting, and respect for the system reduced-motion preference.

@@ -1499,4 +1499,12 @@ export default {
   'Auto theme is already on 🌗 Light in the day, dark from 7pm to 7am.':
     'Le thème automatique est déjà activé 🌗 Clair le jour, sombre de 19 h à 7 h.',
   'Done 🌗 Light in the day, dark from 7pm to 7am, switching by itself.': 'C’est fait 🌗 Clair le jour, sombre de 19 h à 7 h, ça change tout seul.',
+  'Light from sunrise ({rise}) to sunset ({set}) in {city}.': 'Clair du lever ({rise}) au coucher du soleil ({set}) à {city}.',
+  'Light from sunrise ({rise}) to sunset ({set}).': 'Clair du lever ({rise}) au coucher du soleil ({set}).',
+  'The sun doesn’t set where you are today, so it stays light.': 'Le soleil ne se couche pas chez vous aujourd’hui, donc ça reste clair.',
+  'The sun doesn’t rise where you are today, so it stays dark.': 'Le soleil ne se lève pas chez vous aujourd’hui, donc ça reste sombre.',
+  'Auto theme is already on 🌗 Light from sunrise to sunset where you are, dark at night.':
+    'Le thème automatique est déjà activé 🌗 Clair du lever au coucher du soleil chez vous, sombre la nuit.',
+  'Done 🌗 Light from sunrise to sunset where you are, dark at night, switching by itself.':
+    'C’est fait 🌗 Clair du lever au coucher du soleil chez vous, sombre la nuit, ça change tout seul.',
 }

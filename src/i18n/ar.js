@@ -1451,4 +1451,12 @@ export default {
   'Auto theme is already on 🌗 Light in the day, dark from 7pm to 7am.':
     'السمة التلقائية مفعّلة بالفعل 🌗 فاتحة في النهار وداكنة من 7 مساءً إلى 7 صباحًا.',
   'Done 🌗 Light in the day, dark from 7pm to 7am, switching by itself.': 'تم 🌗 فاتح في النهار وداكن من 7 مساءً إلى 7 صباحًا، ويتبدّل وحده.',
+  'Light from sunrise ({rise}) to sunset ({set}) in {city}.': 'فاتح من الشروق ({rise}) حتى الغروب ({set}) في {city}.',
+  'Light from sunrise ({rise}) to sunset ({set}).': 'فاتح من الشروق ({rise}) حتى الغروب ({set}).',
+  'The sun doesn’t set where you are today, so it stays light.': 'لا تغرب الشمس حيث أنت اليوم، لذا يبقى فاتحًا.',
+  'The sun doesn’t rise where you are today, so it stays dark.': 'لا تشرق الشمس حيث أنت اليوم، لذا يبقى داكنًا.',
+  'Auto theme is already on 🌗 Light from sunrise to sunset where you are, dark at night.':
+    'السمة التلقائية مفعّلة بالفعل 🌗 فاتحة من الشروق حتى الغروب حيث أنت، وداكنة ليلًا.',
+  'Done 🌗 Light from sunrise to sunset where you are, dark at night, switching by itself.':
+    'تم 🌗 فاتح من الشروق حتى الغروب حيث أنت، وداكن ليلًا، ويتبدّل وحده.',
 }

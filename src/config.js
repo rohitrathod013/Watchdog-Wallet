@@ -38,9 +38,9 @@ export const SUPABASE = {
 
 export const THEME = {
   /** 'auto' | 'light' | 'dark': first visit only; the choice is remembered after that.
-      'auto' is light in the daytime and dark at night, by the device's clock. */
+      'auto' is light from sunrise to sunset where the user is, and dark at night. */
   defaultTheme: 'auto',
-  /** The daytime hours for 'auto' (24-hour clock, local time): light from `from`, dark from `to`. */
+  /** The daytime hours for 'auto' when the user's location isn't known yet (24-hour clock, local time). */
   day: { from: 7, to: 19 },
   /** 'orange' | 'blue' | 'green' | 'violet' | 'rose' */
   defaultAccent: 'orange',

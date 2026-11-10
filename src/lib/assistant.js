@@ -250,8 +250,12 @@ function core(raw, app) {
       s,
     )
   ) {
-    if (app.themeMode === 'auto') return { text: t('Auto theme is already on 🌗 Light in the day, dark from 7pm to 7am.') }
-    return { text: t('Done 🌗 Light in the day, dark from 7pm to 7am, switching by itself.'), run: () => app.switchTheme('auto'), mood: 'happy' }
+    if (app.themeMode === 'auto') return { text: t('Auto theme is already on 🌗 Light from sunrise to sunset where you are, dark at night.') }
+    return {
+      text: t('Done 🌗 Light from sunrise to sunset where you are, dark at night, switching by itself.'),
+      run: () => app.switchTheme('auto'),
+      mood: 'happy',
+    }
   }
   if (/\bdark\b/.test(s) || /(lights? off|night mode)/.test(s)) {
     if (app.themeMode === 'dark') return { text: t('We’re already in dark mode 🌙') }

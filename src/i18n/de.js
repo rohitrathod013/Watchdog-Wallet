@@ -1494,4 +1494,12 @@ export default {
     'Das automatische Design ist schon an 🌗 Tagsüber hell, von 19 bis 7 Uhr dunkel.',
   'Done 🌗 Light in the day, dark from 7pm to 7am, switching by itself.':
     'Erledigt 🌗 Tagsüber hell, von 19 bis 7 Uhr dunkel, es wechselt von selbst.',
+  'Light from sunrise ({rise}) to sunset ({set}) in {city}.': 'Hell von Sonnenaufgang ({rise}) bis Sonnenuntergang ({set}) in {city}.',
+  'Light from sunrise ({rise}) to sunset ({set}).': 'Hell von Sonnenaufgang ({rise}) bis Sonnenuntergang ({set}).',
+  'The sun doesn’t set where you are today, so it stays light.': 'Bei dir geht die Sonne heute nicht unter, also bleibt es hell.',
+  'The sun doesn’t rise where you are today, so it stays dark.': 'Bei dir geht die Sonne heute nicht auf, also bleibt es dunkel.',
+  'Auto theme is already on 🌗 Light from sunrise to sunset where you are, dark at night.':
+    'Das automatische Design ist schon an 🌗 Hell von Sonnenaufgang bis Sonnenuntergang bei dir, nachts dunkel.',
+  'Done 🌗 Light from sunrise to sunset where you are, dark at night, switching by itself.':
+    'Erledigt 🌗 Hell von Sonnenaufgang bis Sonnenuntergang bei dir, nachts dunkel, es wechselt von selbst.',
 }

@@ -1486,4 +1486,12 @@ export default {
   'Auto theme is already on 🌗 Light in the day, dark from 7pm to 7am.':
     'El tema automático ya está activado 🌗 Claro de día, oscuro de 19:00 a 7:00.',
   'Done 🌗 Light in the day, dark from 7pm to 7am, switching by itself.': 'Hecho 🌗 Claro de día y oscuro de 19:00 a 7:00, cambia solo.',
+  'Light from sunrise ({rise}) to sunset ({set}) in {city}.': 'Claro desde el amanecer ({rise}) hasta el atardecer ({set}) en {city}.',
+  'Light from sunrise ({rise}) to sunset ({set}).': 'Claro desde el amanecer ({rise}) hasta el atardecer ({set}).',
+  'The sun doesn’t set where you are today, so it stays light.': 'Hoy el sol no se pone donde estás, así que se queda claro.',
+  'The sun doesn’t rise where you are today, so it stays dark.': 'Hoy el sol no sale donde estás, así que se queda oscuro.',
+  'Auto theme is already on 🌗 Light from sunrise to sunset where you are, dark at night.':
+    'El tema automático ya está activado 🌗 Claro del amanecer al atardecer donde estás, oscuro de noche.',
+  'Done 🌗 Light from sunrise to sunset where you are, dark at night, switching by itself.':
+    'Hecho 🌗 Claro del amanecer al atardecer donde estás y oscuro de noche, cambia solo.',
 }
