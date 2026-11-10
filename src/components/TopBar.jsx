@@ -79,6 +79,11 @@ export default function TopBar() {
                 <Icon name={p.icon} size={20} stroke={1.8} />
               </span>
               {t(p.label)}
+              {p.id === 'friends' && app.social?.unread ? (
+                <em className="nav-badge" aria-label={t('{count} new', { count: app.social.unread })}>
+                  {app.social.unread > 9 ? '9+' : app.social.unread}
+                </em>
+              ) : null}
             </span>
           </button>
         ))}

@@ -45,7 +45,7 @@ function NoContacts({ then }) {
   )
 }
 
-function AmountField({ value, onChange, bad, hint }) {
+export function AmountField({ value, onChange, bad, hint }) {
   return (
     <label className="field">
       <span>{t('Amount')}</span>

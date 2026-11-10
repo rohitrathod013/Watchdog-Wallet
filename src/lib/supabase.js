@@ -31,6 +31,7 @@ export const SAVED_KEYS = [
   'watchlist',
   'holdings',
   'guard',
+  'socialSince',
 ]
 
 /** Load this user's saved dashboard, or null if they have none yet. */

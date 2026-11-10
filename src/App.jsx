@@ -35,6 +35,9 @@ import { applyRates, loadRates } from './lib/live'
 import { accountsEnabled, confirmPassword, deleteMyAccount, getSupabase, loadUserState, profileOf, SAVED_KEYS, saveUserState } from './lib/supabase'
 import { AccountModal } from './components/Account'
 import { confirmCardPayment, takePaymentReturn } from './lib/payments'
+import { stashInvite } from './lib/social'
+import { useSocial } from './lib/useSocial'
+import { FriendAskModal, FriendPayModal, SplitModal } from './components/FriendModals'
 import * as seed from './data/seed'
 import { ASSISTANT, BRAND, FEATURES, THEME } from './config'
 
@@ -45,6 +48,7 @@ const load = {
   transfer: () => import('./pages/Transfer'),
   wallet: () => import('./pages/Wallet'),
   budget: () => import('./pages/Budget'),
+  friends: () => import('./pages/Friends'),
   buddy: () => import('./components/Buddy'),
   assistant: () => import('./components/Assistant'),
 }
@@ -52,11 +56,12 @@ const Analytics = lazy(load.analytics)
 const Transfer = lazy(load.transfer)
 const Wallet = lazy(load.wallet)
 const Budget = lazy(load.budget)
+const Friends = lazy(load.friends)
 const Buddy = lazy(load.buddy)
 const Assistant = lazy(load.assistant)
 const Auth = lazy(() => import('./components/Auth'))
 
-const PAGE_VIEWS = { dashboard: Dashboard, analytics: Analytics, transfer: Transfer, wallet: Wallet, budget: Budget }
+const PAGE_VIEWS = { dashboard: Dashboard, analytics: Analytics, transfer: Transfer, wallet: Wallet, budget: Budget, friends: Friends }
 
 /* A new account starts empty: no money, no history. Only a few budget
    categories are suggested so the Budget page has something to adjust. */
@@ -197,7 +202,10 @@ export default function App() {
   }, [bootKey])
 
   /* ---------- routing ---------- */
-  const [route, setRoute] = useState(fromHash)
+  const [route, setRoute] = useState(() => {
+    stashInvite()
+    return fromHash()
+  })
   useEffect(() => {
     const onHash = () => setRoute(fromHash())
     window.addEventListener('hashchange', onHash)
@@ -251,6 +259,8 @@ export default function App() {
   const [guard, setGuardState] = useState(DEMO_GUARD)
   const setGuard = useCallback((patch) => setGuardState((g) => ({ ...g, ...patch })), [])
   const [sentToday, setSentToday] = useState(0)
+  // friend transfers from before this moment aren't counted again (set when the data is cleared)
+  const [socialSince, setSocialSince] = useState(null)
 
   /* ---------- accounts (Supabase) ----------
      session: undefined while checking, null when logged out.
@@ -301,6 +311,7 @@ export default function App() {
     setWatchlist(data.watchlist ?? DEFAULT_WATCHLIST)
     setHoldings(data.holdings ?? [])
     setGuardState({ ...DEFAULT_GUARD, ...(data.guard ?? {}) })
+    setSocialSince(data.socialSince ?? null)
     setDrift(0)
     setSentToday(0)
   }, [])
@@ -353,8 +364,8 @@ export default function App() {
 
   // save the dashboard back to the account a moment after anything changes
   const saved = useMemo(
-    () => ({ balance, transactions, goals, budgets, bills, notifications, contacts, pots, activity, watchlist, holdings, guard }),
-    [balance, transactions, goals, budgets, bills, notifications, contacts, pots, activity, watchlist, holdings, guard],
+    () => ({ balance, transactions, goals, budgets, bills, notifications, contacts, pots, activity, watchlist, holdings, guard, socialSince }),
+    [balance, transactions, goals, budgets, bills, notifications, contacts, pots, activity, watchlist, holdings, guard, socialSince],
   )
   const [saveFailed, setSaveFailed] = useState(false)
   useEffect(() => {
@@ -568,6 +579,19 @@ export default function App() {
     },
     [toast],
   )
+
+  /* ---------- friends: chat, send, request and split with real accounts ---------- */
+  const social = useSocial({
+    enabled: accountsEnabled && !demo && Boolean(userId) && loadedFor === userId,
+    userId,
+    userName: session?.user ? profileOf(session.user).name : '',
+    transactions,
+    since: socialSince,
+    setBalance,
+    addTx,
+    notify,
+    toast,
+  })
 
   /* ---------- pots ---------- */
   const inPots = useMemo(() => Math.round(pots.reduce((s, p) => s + p.amount, 0) * 100) / 100, [pots])
@@ -784,7 +808,7 @@ export default function App() {
 
   /** Wipe this account back to a fresh, empty dashboard. */
   const clearData = useCallback(() => {
-    applyState(freshState())
+    applyState({ ...freshState(), socialSince: new Date().toISOString() })
     toast(t('Your data was cleared'), t('You’re starting fresh.'), { icon: 'trash' })
   }, [applyState, toast])
 
@@ -1021,6 +1045,7 @@ export default function App() {
       setBudgetLimit,
       toast,
       openModal,
+      social,
     }),
     [
       route,
@@ -1088,6 +1113,7 @@ export default function App() {
       setBudgetLimit,
       toast,
       openModal,
+      social,
     ],
   )
 
@@ -1210,6 +1236,9 @@ export default function App() {
       <ActivityModal open={modal?.type === 'activity'} onClose={closeModal} />
       <InvestModal open={modal?.type === 'invest'} payload={modal?.payload} onClose={closeModal} />
       <SellModal open={modal?.type === 'sell'} payload={modal?.payload} onClose={closeModal} />
+      <FriendPayModal open={modal?.type === 'friendPay'} payload={modal?.payload} onClose={closeModal} />
+      <FriendAskModal open={modal?.type === 'friendAsk'} payload={modal?.payload} onClose={closeModal} />
+      <SplitModal open={modal?.type === 'split'} payload={modal?.payload} onClose={closeModal} />
       <GuardModal open={modal?.type === 'guard'} onClose={closeModal} />
       <AccountModal open={modal?.type === 'account'} onClose={closeModal} />
       {hidden && !lock ? (

@@ -32,6 +32,16 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 - Currency switcher (USD, EUR, GBP, JPY) and period switcher (week, month, quarter, year).
 - Export transactions and reports as CSV.
 
+### Friends
+
+- **Add friends** by the email they signed up with, or share your **invite link**. They accept, and you're connected.
+- **Chat** with each friend. New messages, payments and requests arrive live, with a badge on the Friends tab.
+- **Send money** to a friend: it leaves your balance and lands in theirs, and both of you see it in your transactions.
+- **Request money**: your friend gets a card in the chat and pays it in one tap, or declines.
+- **Split a bill** like dinner or rent: pick friends, include your own share or not, and each friend gets a request for an equal share (leftover cents go to you). You can also add the full bill to your own spending.
+- **Who owes who**: each friend shows "owes you" or "you owe" from the open requests.
+- Grace's payment guard (large-payment check, first-payment warning) works on friend payments too.
+
 ### Markets and investing
 
 At the bottom of the Overview tab:
@@ -145,6 +155,18 @@ Crypto prices and exchange rates work with no setup. Stock prices need an API ke
 With the Supabase CLI instead: `supabase secrets set FINNHUB_KEY=your-key` then `supabase functions deploy stocks` (`supabase/config.toml` already turns off JWT verification).
 
 Finnhub's free plan covers US stocks and ETFs.
+
+## Friends, chat and shared money
+
+Friends work between real accounts, so they live in Supabase. If you set up Supabase before this feature, run the latest [`supabase/schema.sql`](supabase/schema.sql) again (**SQL Editor > New query > paste > Run**). It's safe to run more than once: it only adds what's missing. Until then, the Friends page shows a setup note.
+
+- Row level security shows each person only their own friends, messages, requests and transfers. People who aren't friends can't see each other, chat or send money.
+- Money only moves through SQL functions (`send_to_friend`, `request_from_friend`, `create_split`) that check both people are friends, the amount is between $0.01 and $10,000, and a request is still open, so it can't be paid twice.
+- Each transfer is added to both people's balances exactly once: the transaction keeps the transfer's id.
+- Live updates use Supabase Realtime; the script adds the tables to the `supabase_realtime` publication for you.
+- Deleting an account removes its profile, friendships, messages, requests and transfers.
+
+The demo shows a "create an account" card on the Friends page, because friends need two real accounts.
 
 ## Card payments (Stripe)
 

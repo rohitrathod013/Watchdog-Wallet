@@ -1068,17 +1068,18 @@
 /* ============================================================
    Responsive: shell
    ============================================================ */
-@media (max-width: 1180px) {
-  .topbar {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-  }
+/* six pages: slimmer pills until there's room, then the nav gets its own row */
+@media (max-width: 1480px) {
   .nav {
-    justify-self: center;
-    max-width: 100%;
+    gap: 6px;
+  }
+  .nav button {
+    padding: 0 15px;
+    font-size: 15px;
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1180px) {
   .topbar {
     grid-template-columns: 1fr auto;
     row-gap: 14px;
@@ -1088,6 +1089,9 @@
     grid-row: 2;
     justify-self: stretch;
   }
+}
+
+@media (max-width: 900px) {
   .page-head h1 {
     font-size: 34px;
   }

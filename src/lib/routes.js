@@ -5,6 +5,7 @@ export const PAGES = [
   { id: 'dashboard', label: 'Dashboard', icon: 'category' },
   { id: 'analytics', label: 'Analytics', icon: 'chart' },
   { id: 'transfer', label: 'Transfer', icon: 'transfer' },
+  { id: 'friends', label: 'Friends', icon: 'users' },
   { id: 'wallet', label: 'Wallet', icon: 'wallet' },
   { id: 'budget', label: 'Budget', icon: 'pie' },
 ]
