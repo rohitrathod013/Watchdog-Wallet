@@ -9,6 +9,7 @@ import { graceVoice } from '../lib/voice'
 import { signed, uid } from '../lib/format'
 import { ASSISTANT, BRAND } from '../config'
 import { getLocale, LOCALES, t, tName } from '../lib/i18n'
+import { parseReceipt, readReceipt, receiptReply } from '../lib/receipt'
 
 /* "**bold**", newlines and "• " bullets, cut off after `limit` visible characters */
 const plainLength = (text) => text.replace(/\*\*/g, '').replace(/^• /gm, '').length
@@ -177,7 +178,7 @@ function BotMessage({ m, last, onTyped, onConfirm, onCancel, onAsk }) {
             )}
           </div>
         ) : null}
-        {typed && m.links?.length ? (
+        {typed && m.links?.length && !(m.links.some((l) => l.once) && m.status) ? (
           <div className="ai-links">
             {m.links.map((l, k) => (
               <button key={l.label} type="button" className="go" style={{ '--k': k }} onClick={l.run}>
@@ -217,6 +218,9 @@ export default function Assistant({ open, onClose, prompt }) {
   // what Grace remembers within this conversation ("and last month?", "make it $80")
   const memory = useRef({})
   const [listening, setListening] = useState(false)
+  // reading a receipt photo: 0..1 while Tesseract works, null otherwise
+  const [scanning, setScanning] = useState(null)
+  const photo = useRef(null)
   const recognizer = useRef(null)
   // read every reply aloud (remembered per browser)
   const [spoken, setSpoken] = useState(() => {
@@ -393,6 +397,41 @@ export default function Assistant({ open, onClose, prompt }) {
     window.setTimeout(() => pushBot({ text: t('No worries, cancelled. Anything else?') }), 300)
   }
 
+  /* a photo of a receipt or bill: read it here in the browser, then offer to add it */
+  const scan = async (file) => {
+    if (!file || thinking) return
+    if (!file.type.startsWith('image/')) {
+      pushBot({ text: t('Send me a photo of a receipt or bill (a picture, not a PDF) and I’ll read it.') })
+      return
+    }
+    const url = URL.createObjectURL(file)
+    setMsgs((list) => [...list, { id: uid(), from: 'me', text: t('Here’s a receipt'), image: url }])
+    setThinking(true)
+    setScanning(0)
+    setMood('think')
+    let r
+    try {
+      const text = await readReceipt(file, (p) => setScanning(p))
+      r = receiptReply(parseReceipt(text, appRef.current.now ?? new Date()), appRef.current)
+    } catch {
+      r = { text: t('I couldn’t read that photo. Check your connection (the reader downloads the first time) and try again.') }
+    }
+    setThinking(false)
+    setScanning(null)
+    const id = uid()
+    // the "add it the other way" link works once, then the message is settled like a confirm
+    const links = r.links?.map((l) => ({
+      ...l,
+      once: true,
+      run: () => {
+        l.run()
+        setMsgs((list) => list.map((x) => (x.id === id ? { ...x, status: 'done' } : x)))
+      },
+    }))
+    if (spoken) say(r.text)
+    pushBot({ ...r, id, links, request: t('Here’s a receipt') })
+  }
+
   /* voice: the browser's own speech recognition, in the current language */
   const listen = () => {
     if (!Speech) return
@@ -471,6 +510,7 @@ export default function Assistant({ open, onClose, prompt }) {
             m.from === 'me' ? (
               <div key={m.id} className="msg me">
                 <div className="msg-col">
+                  {m.image ? <img className="ai-photo" src={m.image} alt={t('Your receipt photo')} /> : null}
                   <div className="bubble">{m.text}</div>
                 </div>
               </div>
@@ -483,11 +523,17 @@ export default function Assistant({ open, onClose, prompt }) {
               <span className="msg-dot">
                 <BuddyArt size={26} mood="think" />
               </span>
-              <div className="bubble typing" aria-label={t('{name} is typing', { name: ASSISTANT.name })}>
-                <i />
-                <i />
-                <i />
-              </div>
+              {scanning !== null ? (
+                <div className="bubble scan-note" role="status">
+                  🧾 {t('Reading your receipt…')} {Math.round(scanning * 100)}%
+                </div>
+              ) : (
+                <div className="bubble typing" aria-label={t('{name} is typing', { name: ASSISTANT.name })}>
+                  <i />
+                  <i />
+                  <i />
+                </div>
+              )}
             </div>
           ) : null}
         </div>
@@ -509,8 +555,35 @@ export default function Assistant({ open, onClose, prompt }) {
           }}
         >
           <input
+            ref={photo}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              scan(e.target.files?.[0])
+              e.target.value = ''
+            }}
+          />
+          <button
+            type="button"
+            className="ai-mic ai-photo-btn"
+            onClick={() => photo.current?.click()}
+            disabled={thinking}
+            aria-label={t('Send {name} a photo of a receipt or bill', { name: ASSISTANT.name })}
+            title={t('Send {name} a photo of a receipt or bill', { name: ASSISTANT.name })}
+          >
+            <Icon name="receipt" size={18} />
+          </button>
+          <input
             ref={input}
             value={text}
+            onPaste={(e) => {
+              const file = e.clipboardData?.files?.[0]
+              if (file?.type.startsWith('image/')) {
+                e.preventDefault()
+                scan(file)
+              }
+            }}
             onChange={(e) => setText(e.target.value)}
             placeholder={t('Ask {name} anything…', { name: ASSISTANT.name })}
             aria-label={t('Message {name}', { name: ASSISTANT.name })}

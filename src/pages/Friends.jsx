@@ -8,9 +8,10 @@ import { Persona } from '../components/Brand'
 import { PageHead, Stage } from '../components/ui'
 import { useApp } from '../lib/store'
 import { accountsEnabled } from '../lib/supabase'
-import { chatRows, emojiOnly, friendError, mediaLabel, typingChannel } from '../lib/social'
+import { chatRows, emojiOnly, friendError, mediaLabel, roomOf, systemText, typingChannel } from '../lib/social'
 import { canRecord, durationLabel, MAX_VOICE_SECONDS, prepareFile, removeMedia, sizeLabel, startRecording, uploadMedia } from '../lib/media'
 import { MediaBubble } from '../components/ChatMedia'
+import { MAX_GROUP } from '../lib/social'
 import { money, shortDate } from '../lib/format'
 import { t, tMonths } from '../lib/i18n'
 import { BRAND } from '../config'
@@ -145,7 +146,7 @@ function Waiting() {
       <div className="wait-list">
         {incoming.map((f) => (
           <div key={f.connId} className="wait-row">
-            <Persona name={f.name} hue={f.hue} size={40} />
+            <Persona name={f.name} hue={f.hue} src={f.avatar} size={40} />
             <div>
               <b>{f.name}</b>
               <small>{t('wants to be friends')}</small>
@@ -190,8 +191,12 @@ function Waiting() {
 function preview(m, me, social) {
   if (!m) return t('Say hello 👋')
   const mine = m.sender === me
-  if (m.kind === 'text') return `${mine ? `${t('You')}: ` : ''}${m.body}`
-  if (m.kind === 'media') return `${mine ? `${t('You')}: ` : ''}${m.body || mediaLabel(m.media)}`
+  const who = mine ? `${t('You')}: ` : m.group_id ? `${social.nameOf(m.sender).split(' ')[0]}: ` : ''
+  if (m.kind === 'system') return systemText(m, me, social.nameOf)
+  if (m.kind === 'text') return `${who}${m.body}`
+  if (m.kind === 'media') return `${who}${m.body || mediaLabel(m.media)}`
+  if (m.group_id && m.kind === 'split') return `${who}${t('Split “{title}”', { title: m.body })}`
+  if (m.group_id && m.kind === 'payment') return `${who}${t('paid their share')}`
   if (m.kind === 'payment') {
     const x = social.transfers.get(m.ref)
     const amount = money(Number(x?.amount ?? 0))
@@ -204,12 +209,61 @@ function preview(m, me, social) {
   return mine ? t('You asked for {amount}', { amount }) : t('Asked you for {amount}', { amount })
 }
 
+/** A group's picture: the first two members' initials, overlapping. */
+function GroupAvatar({ group, size = 42 }) {
+  const others = group.members.filter((x) => !x.me)
+  const [a, b] = others.length ? others : group.members
+  return (
+    <span className="group-avatar" style={{ width: size, height: size }} aria-hidden="true">
+      {a ? <Persona name={a.name} hue={a.hue} src={a.avatar} size={Math.round(size * 0.7)} /> : null}
+      {b ? <Persona name={b.name} hue={b.hue} src={b.avatar} size={Math.round(size * 0.7)} /> : <Icon name="users" size={Math.round(size * 0.4)} />}
+    </span>
+  )
+}
+
 function FriendList({ selected, onPick }) {
-  const { social } = useApp()
+  const { social, openModal } = useApp()
   const [busy, setBusy] = useState(null)
   const list = social.friends.filter((f) => f.status !== 'incoming')
+  const canGroup = social.friends.some((f) => f.status === 'friend')
   return (
     <section className="card friend-list rv" style={{ '--i': 3 }}>
+      <div className="c-head">
+        <h2 className="card-h">{t('Groups')}</h2>
+        <button
+          type="button"
+          className="btn sm"
+          onClick={() => openModal('newGroup')}
+          disabled={!canGroup}
+          title={canGroup ? undefined : t('Add a friend first')}
+        >
+          <Icon name="plus" size={15} stroke={2} />
+          {t('New group')}
+        </button>
+      </div>
+      {social.groups.length ? (
+        <ul className="group-list">
+          {social.groups.map((g) => (
+            <li key={g.id}>
+              <button type="button" className={`friend-row ${selected === `g:${g.id}` ? 'on' : ''}`} onClick={() => onPick(`g:${g.id}`)}>
+                <GroupAvatar group={g} />
+                <div className="fr-main">
+                  <b>{g.name}</b>
+                  <small>{g.last ? preview(g.last, social.me, social) : t('{count} people', { count: g.members.length })}</small>
+                </div>
+                <div className="fr-side">{g.unread ? <em className="badge">{g.unread}</em> : null}</div>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="friend-empty">
+          {canGroup
+            ? t('Make a group for a trip, a flat or a team, and split bills with everyone at once.')
+            : t('Add a friend first, then you can make a group.')}
+        </p>
+      )}
+      <hr className="list-sep" />
       <div className="c-head">
         <h2 className="card-h">{t('Friends')}</h2>
         <span className="pill-tag">{social.friends.filter((f) => f.status === 'friend').length}</span>
@@ -222,7 +276,7 @@ function FriendList({ selected, onPick }) {
             <li key={f.connId}>
               {f.status === 'outgoing' ? (
                 <div className="friend-row muted">
-                  <Persona name={f.name} hue={f.hue} size={42} />
+                  <Persona name={f.name} hue={f.hue} src={f.avatar} size={42} />
                   <div className="fr-main">
                     <b>{f.name}</b>
                     <small>{t('Friend request sent')}</small>
@@ -241,8 +295,8 @@ function FriendList({ selected, onPick }) {
                   </button>
                 </div>
               ) : (
-                <button type="button" className={`friend-row ${selected === f.id ? 'on' : ''}`} onClick={() => onPick(f.id)}>
-                  <Persona name={f.name} hue={f.hue} size={42} />
+                <button type="button" className={`friend-row ${selected === `f:${f.id}` ? 'on' : ''}`} onClick={() => onPick(`f:${f.id}`)}>
+                  <Persona name={f.name} hue={f.hue} src={f.avatar} size={42} />
                   <div className="fr-main">
                     <b>{f.name}</b>
                     <small>{preview(f.last, social.me, social)}</small>
@@ -263,10 +317,109 @@ function FriendList({ selected, onPick }) {
 }
 
 /* ---------------- chat ---------------- */
+/** Someone in a group, shaped like a friend for the pay window. */
+const personFor = (social, id) => ({ id, name: social.nameOf(id), hue: [...id].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7), email: '' })
+
+/** A bill split inside a group: everyone sees it; each payer gets Pay on their own share. */
+function GroupSplitCard({ m }) {
+  const { social, openModal } = useApp()
+  const [busy, setBusy] = useState(false)
+  const split = social.splits.get(m.ref)
+  const shares = [...social.requests.values()].filter((r) => r.split_id === m.ref)
+  const mine = shares.find((r) => r.payer === social.me)
+  const creator = m.sender === social.me
+  const paid = shares.filter((r) => r.status === 'paid').length
+  const who = creator ? t('You') : social.nameOf(m.sender).split(' ')[0]
+  return (
+    <div className={`money-msg request group-split ${creator ? 'mine' : ''}`}>
+      <span className="mm-ic">
+        <Icon name="receipt" size={17} />
+      </span>
+      <div>
+        <b>{t('Split: {title}', { title: m.body })}</b>
+        <small>
+          {split ? `${t('Bill {total}', { total: money(Number(split.total)) })} · ` : ''}
+          {t('{name} paid the bill', { name: who })}
+        </small>
+        {creator && shares.length ? (
+          <ul className="split-shares">
+            {shares.map((r) => (
+              <li key={r.id} className={r.status}>
+                <span>{social.nameOf(r.payer).split(' ')[0]}</span>
+                <b>{money(Number(r.amount))}</b>
+                <em>{t(STATUS[r.status])}</em>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="mm-foot">
+          {creator ? (
+            <span className={`status ${paid === shares.length ? 'paid' : 'pending'}`}>
+              {t('{paid} of {count} paid', { paid, count: shares.length })}
+            </span>
+          ) : null}
+          {mine ? (
+            <>
+              <span className={`status ${mine.status}`}>{t('your share is {amount}', { amount: money(Number(mine.amount)) })}</span>
+              {mine.status === 'pending' ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn sm solid"
+                    onClick={() => openModal('friendPay', { friend: personFor(social, mine.requester), request: mine })}
+                  >
+                    {t('Pay {amount}', { amount: money(Number(mine.amount)) })}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn sm"
+                    disabled={busy}
+                    onClick={async () => {
+                      setBusy(true)
+                      await social.decline(mine.id).catch(() => null)
+                      setBusy(false)
+                    }}
+                  >
+                    {t('Decline')}
+                  </button>
+                </>
+              ) : null}
+            </>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function MoneyCard({ m, friend }) {
   const { social, openModal } = useApp()
   const [busy, setBusy] = useState(false)
   const mine = m.sender === social.me
+  if (m.group_id && m.kind === 'split') return <GroupSplitCard m={m} />
+  if (m.group_id && m.kind === 'payment') {
+    const x = social.transfers.get(m.ref)
+    const who = mine ? t('You') : social.nameOf(m.sender).split(' ')[0]
+    return (
+      <div className={`money-msg payment ${mine ? 'mine' : ''}`}>
+        <span className="mm-ic">
+          <Icon name="check" size={17} />
+        </span>
+        <div>
+          <b>
+            {x
+              ? t('{name} paid {other} {amount}', {
+                  name: who,
+                  other: x.recipient === social.me ? t('you') : social.nameOf(x.recipient).split(' ')[0],
+                  amount: money(Number(x.amount)),
+                })
+              : t('{name} paid their share', { name: who })}
+          </b>
+          {m.body ? <small>{m.body}</small> : null}
+        </div>
+      </div>
+    )
+  }
   if (m.kind === 'payment') {
     const x = social.transfers.get(m.ref)
     const amount = money(Number(x?.amount ?? 0))
@@ -448,7 +601,7 @@ function Recorder({ onDone, onCancel, onError }) {
 }
 
 /* ---------------- the message box ---------------- */
-function Composer({ friend, onSend, onSendMedia, onTyping, attachment, setAttachment, onError, showQuick, onMoney }) {
+function Composer({ friend, onSend, onSendMedia, onTyping, attachment, setAttachment, onError, showQuick, onMoney, group = false }) {
   const [text, setText] = useState('')
   const [emoji, setEmoji] = useState(false)
   const [menu, setMenu] = useState(false)
@@ -457,7 +610,7 @@ function Composer({ friend, onSend, onSendMedia, onTyping, attachment, setAttach
   const photoInput = useRef(null)
   const fileInput = useRef(null)
   const cameraInput = useRef(null)
-  const first = friend.name.split(' ')[0]
+  const first = group ? friend.name : friend.name.split(' ')[0]
 
   // the box grows with the message, up to about five lines
   useLayoutEffect(() => {
@@ -586,14 +739,18 @@ function Composer({ friend, onSend, onSendMedia, onTyping, attachment, setAttach
             {t('File')}
           </button>
           <hr />
-          <button type="button" role="menuitem" onClick={() => (setMenu(false), onMoney('pay'))}>
-            <Icon name="send" size={18} />
-            {t('Send money')}
-          </button>
-          <button type="button" role="menuitem" onClick={() => (setMenu(false), onMoney('ask'))}>
-            <Icon name="request" size={18} />
-            {t('Request money')}
-          </button>
+          {group ? null : (
+            <>
+              <button type="button" role="menuitem" onClick={() => (setMenu(false), onMoney('pay'))}>
+                <Icon name="send" size={18} />
+                {t('Send money')}
+              </button>
+              <button type="button" role="menuitem" onClick={() => (setMenu(false), onMoney('ask'))}>
+                <Icon name="request" size={18} />
+                {t('Request money')}
+              </button>
+            </>
+          )}
           <button type="button" role="menuitem" onClick={() => (setMenu(false), onMoney('split'))}>
             <Icon name="receipt" size={18} />
             {t('Split a bill')}
@@ -684,7 +841,129 @@ function Composer({ friend, onSend, onSendMedia, onTyping, attachment, setAttach
   )
 }
 
-function Chat({ friend, onBack }) {
+/* ---------------- group settings: members, rename, leave ---------------- */
+function GroupInfo({ group, onClose, onLeft }) {
+  const { social } = useApp()
+  const [name, setName] = useState(group.name)
+  const [adding, setAdding] = useState([])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [leaving, setLeaving] = useState(false)
+  const inGroup = new Set(group.members.map((x) => x.id))
+  const addable = social.friends.filter((f) => f.status === 'friend' && !inGroup.has(f.id))
+  const room = MAX_GROUP - group.members.length
+  const run = async (work) => {
+    setBusy(true)
+    setError('')
+    try {
+      await work()
+    } catch (err) {
+      setError(friendError(err))
+    }
+    setBusy(false)
+  }
+  return (
+    <div className="group-info">
+      <div className="gi-head">
+        <b>{t('Group info')}</b>
+        <button type="button" className="icon-btn soft" onClick={onClose} aria-label={t('Close')}>
+          <Icon name="close" size={16} />
+        </button>
+      </div>
+      {group.admin ? (
+        <form
+          className="add-row"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (name.trim() && name.trim() !== group.name) run(() => social.renameGroup(group.id, name.trim()))
+          }}
+        >
+          <input value={name} maxLength={60} onChange={(e) => setName(e.target.value)} aria-label={t('Group name')} />
+          <button type="submit" className="btn sm" disabled={busy || !name.trim() || name.trim() === group.name}>
+            {t('Rename')}
+          </button>
+        </form>
+      ) : null}
+      <small className="gi-label">{t('{count} of {max} people', { count: group.members.length, max: MAX_GROUP })}</small>
+      <ul className="gi-members">
+        {group.members.map((x) => (
+          <li key={x.id}>
+            <Persona name={x.name} hue={x.hue} src={x.avatar} size={32} />
+            <span>{x.name}</span>
+            {x.role === 'admin' ? <em className="pill-tag">{t('Admin')}</em> : null}
+            {group.admin && !x.me ? (
+              <button type="button" className="btn sm" disabled={busy} onClick={() => run(() => social.removeFromGroup(group.id, x.id))}>
+                {t('Remove')}
+              </button>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      {group.admin && addable.length && room > 0 ? (
+        <>
+          <small className="gi-label">{t('Add friends')}</small>
+          <div className="people split-people">
+            {addable.map((f, i) => (
+              <button
+                key={f.id}
+                type="button"
+                className={`person ${adding.includes(f.id) ? 'on' : ''}`}
+                style={{ '--i': i }}
+                aria-pressed={adding.includes(f.id)}
+                onClick={() =>
+                  setAdding((list) => (list.includes(f.id) ? list.filter((x) => x !== f.id) : list.length < room ? [...list, f.id] : list))
+                }
+              >
+                <Persona name={f.name} hue={f.hue} src={f.avatar} size={40} />
+                {f.name.split(' ')[0]}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="btn solid sm"
+            disabled={busy || !adding.length}
+            onClick={() => run(async () => (await social.addToGroup(group.id, adding), setAdding([])))}
+          >
+            {adding.length ? t('Add {count} to the group', { count: adding.length }) : t('Pick friends to add')}
+          </button>
+        </>
+      ) : null}
+      {error ? (
+        <p className="auth-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {leaving ? (
+        <div className="acct-confirm danger">
+          <p>{t('Leave {name}? You won’t see new messages, and someone will need to add you back.', { name: group.name })}</p>
+          <div>
+            <button
+              type="button"
+              className="btn solid danger"
+              disabled={busy}
+              onClick={() => run(async () => (await social.leaveGroup(group.id), onLeft()))}
+            >
+              {t('Leave group')}
+            </button>
+            <button type="button" className="btn" onClick={() => setLeaving(false)}>
+              {t('Cancel')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="btn sm danger gi-leave" onClick={() => setLeaving(true)}>
+          <Icon name="logout" size={15} />
+          {t('Leave group')}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function Chat({ peer, onBack }) {
+  const friend = peer
+  const isGroup = Boolean(peer.group)
   const { social, openModal } = useApp()
   const [error, setError] = useState('')
   const [confirmRemove, setConfirmRemove] = useState(false)
@@ -692,8 +971,9 @@ function Chat({ friend, onBack }) {
   const [outbox, setOutbox] = useState([])
   const [attachment, setAttachmentState] = useState(null)
   const [dragging, setDragging] = useState(false)
-  // they are typing: the id of their latest message when it started, so a new message from them ends it
+  // who is typing, and the id of the latest message from others when they started, so a new message ends it
   const [typingAfter, setTypingAfter] = useState(null)
+  const [typer, setTyper] = useState(null)
   const [below, setBelow] = useState(0) // new messages that arrived while scrolled up
   const scroller = useRef(null)
   const atBottom = useRef(true)
@@ -708,12 +988,14 @@ function Chat({ friend, onBack }) {
     })
   }, [])
 
-  const thread = social.messages.filter((m) => m.sender === friend.id || m.recipient === friend.id)
+  const thread = isGroup
+    ? social.messages.filter((m) => m.group_id === peer.id)
+    : social.messages.filter((m) => !m.group_id && (m.sender === peer.id || m.recipient === peer.id))
   const all = [...thread, ...outbox]
   const rows = chatRows(all)
   const lastMine = [...thread].reverse().find((m) => m.sender === social.me)
   const lastId = all[all.length - 1]?.id
-  const lastFromThem = [...thread].reverse().find((m) => m.sender === friend.id)?.id ?? ''
+  const lastFromThem = [...thread].reverse().find((m) => m.sender !== social.me && m.kind !== 'system')?.id ?? ''
   const theirLast = useRef(lastFromThem)
   useEffect(() => {
     theirLast.current = lastFromThem
@@ -725,8 +1007,9 @@ function Chat({ friend, onBack }) {
   useEffect(() => {
     let alive = true
     let hide = 0
-    typingChannel(social.me, friend.id, (on) => {
+    typingChannel(social.me, roomOf(social.me, peer), (from, on) => {
       window.clearTimeout(hide)
+      setTyper(on ? from : null)
       setTypingAfter(on ? (theirLast.current ?? '') : null)
       // in case their "stopped" never arrives
       if (on) hide = window.setTimeout(() => setTypingAfter(null), 6000)
@@ -740,7 +1023,8 @@ function Chat({ friend, onBack }) {
       typing.current?.stop()
       typing.current = null
     }
-  }, [social.me, friend.id])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [social.me, peer.id])
   const onTyping = useCallback((on) => {
     if (typingSent.current === on) return
     typingSent.current = on
@@ -781,17 +1065,29 @@ function Chat({ friend, onBack }) {
   }
 
   useEffect(() => {
-    if (friend.unread) social.read(friend.id)
-  }, [friend.id, friend.unread, social])
+    if (!peer.unread) return
+    if (isGroup) social.readGroup(peer.id)
+    else social.read(peer.id)
+  }, [peer.id, peer.unread, isGroup, social])
 
   const draftId = () => `out-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
   const sendText = async (body, retry) => {
     const id = retry ?? draftId()
-    const draft = { id, sender: social.me, recipient: friend.id, kind: 'text', body, created_at: new Date().toISOString(), sending: true }
+    const draft = {
+      id,
+      sender: social.me,
+      recipient: isGroup ? null : peer.id,
+      group_id: isGroup ? peer.id : null,
+      kind: 'text',
+      body,
+      created_at: new Date().toISOString(),
+      sending: true,
+    }
     setOutbox((list) => [...list.filter((m) => m.id !== id), draft])
     setError('')
     try {
-      await social.chat(friend.id, body)
+      if (isGroup) await social.groupChat(peer.id, body)
+      else await social.chat(peer.id, body)
       setOutbox((list) => list.filter((m) => m.id !== id))
     } catch (err) {
       setOutbox((list) => list.map((m) => (m.id === id ? { ...m, sending: false, failed: true } : m)))
@@ -813,7 +1109,8 @@ function Chat({ friend, onBack }) {
     const draft = {
       id,
       sender: social.me,
-      recipient: friend.id,
+      recipient: isGroup ? null : peer.id,
+      group_id: isGroup ? peer.id : null,
       kind: 'media',
       body: caption,
       media: preview,
@@ -826,8 +1123,9 @@ function Chat({ friend, onBack }) {
     setError('')
     let media = null
     try {
-      media = await uploadMedia(social.me, friend.id, prepared, extra)
-      await social.chatMedia(friend.id, media, caption)
+      media = await uploadMedia(social.me, isGroup ? `g-${peer.id}` : peer.id, prepared, extra)
+      if (isGroup) await social.groupMedia(peer.id, media, caption)
+      else await social.chatMedia(peer.id, media, caption)
       setOutbox((list) => list.filter((m) => m.id !== id))
       window.setTimeout(() => URL.revokeObjectURL(local), 4000)
     } catch (err) {
@@ -852,8 +1150,11 @@ function Chat({ friend, onBack }) {
     }
   }
 
+  const typerName = typer ? social.nameOf(typer).split(' ')[0] : first
   const sub = theyType ? (
-    <small className="typing-line">{t('typing…')}</small>
+    <small className="typing-line">{isGroup ? t('{name} is typing…', { name: typerName }) : t('typing…')}</small>
+  ) : isGroup ? (
+    <small>{peer.members.map((x) => x.name.split(' ')[0]).join(', ')}</small>
   ) : friend.owesMe ? (
     <small className="owe in">{t('{name} owes you {amount}', { name: first, amount: money(friend.owesMe) })}</small>
   ) : friend.iOwe ? (
@@ -879,36 +1180,57 @@ function Chat({ friend, onBack }) {
         <button type="button" className="icon-btn soft chat-back" onClick={onBack} aria-label={t('Back to friends')}>
           <Icon name="chevLeft" size={18} />
         </button>
-        <Persona name={friend.name} hue={friend.hue} size={42} />
+        {isGroup ? <GroupAvatar group={peer} size={42} /> : <Persona name={friend.name} hue={friend.hue} src={friend.avatar} size={42} />}
         <div className="ch-main">
           <b>{friend.name}</b>
           {sub}
         </div>
         <div className="ch-actions">
-          <button type="button" className="ch-act solid" onClick={() => openModal('friendPay', { friend })} title={t('Send money')}>
-            <Icon name="send" size={16} />
-            <span>{t('Send')}</span>
-          </button>
-          <button type="button" className="ch-act extra" onClick={() => openModal('friendAsk', { friend })} title={t('Request money')}>
-            <Icon name="request" size={16} />
-            <span>{t('Request')}</span>
-          </button>
-          <button type="button" className="ch-act extra" onClick={() => openModal('split', { friend: friend.id })} title={t('Split a bill')}>
-            <Icon name="receipt" size={16} />
-            <span>{t('Split')}</span>
-          </button>
-          <button
-            type="button"
-            className="ch-act more"
-            onClick={() => setConfirmRemove((v) => !v)}
-            aria-label={t('Remove friend')}
-            aria-expanded={confirmRemove}
-          >
-            <Icon name="dotsH" size={17} />
-          </button>
+          {isGroup ? (
+            <>
+              <button type="button" className="ch-act solid" onClick={() => openModal('split', { group: peer.id })} title={t('Split a bill')}>
+                <Icon name="receipt" size={16} />
+                <span>{t('Split a bill')}</span>
+              </button>
+              <button
+                type="button"
+                className="ch-act more"
+                onClick={() => setConfirmRemove((v) => !v)}
+                aria-label={t('Group info')}
+                aria-expanded={confirmRemove}
+              >
+                <Icon name="users" size={17} />
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="ch-act solid" onClick={() => openModal('friendPay', { friend })} title={t('Send money')}>
+                <Icon name="send" size={16} />
+                <span>{t('Send')}</span>
+              </button>
+              <button type="button" className="ch-act extra" onClick={() => openModal('friendAsk', { friend })} title={t('Request money')}>
+                <Icon name="request" size={16} />
+                <span>{t('Request')}</span>
+              </button>
+              <button type="button" className="ch-act extra" onClick={() => openModal('split', { friend: friend.id })} title={t('Split a bill')}>
+                <Icon name="receipt" size={16} />
+                <span>{t('Split')}</span>
+              </button>
+              <button
+                type="button"
+                className="ch-act more"
+                onClick={() => setConfirmRemove((v) => !v)}
+                aria-label={t('Remove friend')}
+                aria-expanded={confirmRemove}
+              >
+                <Icon name="dotsH" size={17} />
+              </button>
+            </>
+          )}
         </div>
       </header>
-      {confirmRemove ? (
+      {confirmRemove && isGroup ? <GroupInfo group={peer} onClose={() => setConfirmRemove(false)} onLeft={onBack} /> : null}
+      {confirmRemove && !isGroup ? (
         <div className="acct-confirm danger chat-remove">
           <p>{t('Remove {name} from your friends? Your chat and past payments stay in your history.', { name: friend.name })}</p>
           <div>
@@ -934,7 +1256,7 @@ function Chat({ friend, onBack }) {
         <div className="chat-scroll" ref={scroller} onScroll={onScroll} onLoadCapture={keepBottom} aria-live="polite">
           {!all.length ? (
             <div className="chat-empty">
-              <Persona name={friend.name} hue={friend.hue} size={56} />
+              {isGroup ? <GroupAvatar group={peer} size={56} /> : <Persona name={friend.name} hue={friend.hue} src={friend.avatar} size={56} />}
               <p>{t('No messages yet. Say hello, or split your next dinner.')}</p>
             </div>
           ) : null}
@@ -946,14 +1268,39 @@ function Chat({ friend, onBack }) {
                 </div>
               )
             const { m, first: start, last: end } = row
+            if (m.kind === 'system')
+              return (
+                <div key={row.key} className="sys-msg">
+                  <span>{systemText(m, social.me, social.nameOf)}</span>
+                </div>
+              )
             const mine = m.sender === social.me
             const big = m.kind === 'text' && emojiOnly(m.body)
-            const status = m.failed ? 'failed' : m.sending ? 'sending' : m.id === lastMine?.id ? (m.read_at ? 'seen' : 'sent') : null
+            const seenBy = isGroup && m.id === lastMine?.id ? peer.members.filter((x) => !x.me && x.last_read_at >= m.created_at).length : 0
+            const status = m.failed
+              ? 'failed'
+              : m.sending
+                ? 'sending'
+                : m.id === lastMine?.id
+                  ? isGroup
+                    ? seenBy
+                      ? 'seenBy'
+                      : 'sent'
+                    : m.read_at
+                      ? 'seen'
+                      : 'sent'
+                  : null
+            const sender = isGroup && !mine && start ? personFor(social, m.sender) : null
             return (
               <div
                 key={row.key}
                 className={`msg ${mine ? 'mine' : ''} ${start ? 'start' : ''} ${end ? 'end' : ''} ${m.sending ? 'sending' : ''} ${m.failed ? 'failed' : ''}`}
               >
+                {sender ? (
+                  <span className="msg-from" style={{ '--hue': sender.hue }}>
+                    {sender.name}
+                  </span>
+                ) : null}
                 {m.kind === 'text' ? (
                   <p className={`bubble ${big ? 'big' : ''}`} title={new Date(m.created_at).toLocaleString()}>
                     {big ? m.body : <Linked text={m.body} />}
@@ -967,6 +1314,11 @@ function Chat({ friend, onBack }) {
                   <span className="msg-meta">
                     <time dateTime={m.created_at}>{clock(m.created_at)}</time>
                     {status === 'seen' ? <em className="seen">· {t('Seen')}</em> : null}
+                    {status === 'seenBy' ? (
+                      <em className="seen">
+                        · {seenBy >= peer.members.length - 1 ? t('Seen by everyone') : t('Seen by {count}', { count: seenBy })}
+                      </em>
+                    ) : null}
                     {status === 'sent' ? <em>· {t('Sent')}</em> : null}
                     {status === 'sending' ? <em>· {m.kind === 'media' ? t('Uploading…') : t('Sending…')}</em> : null}
                     {status === 'failed' ? (
@@ -1018,13 +1370,16 @@ function Chat({ friend, onBack }) {
         attachment={attachment}
         setAttachment={setAttachment}
         onError={setError}
-        showQuick={!thread.length || thread[thread.length - 1]?.sender === friend.id}
+        showQuick={!thread.length || thread[thread.length - 1]?.sender !== social.me}
+        group={isGroup}
         onMoney={(what) =>
-          what === 'pay'
-            ? openModal('friendPay', { friend })
-            : what === 'ask'
-              ? openModal('friendAsk', { friend })
-              : openModal('split', { friend: friend.id })
+          isGroup
+            ? openModal('split', { group: peer.id })
+            : what === 'pay'
+              ? openModal('friendPay', { friend })
+              : what === 'ask'
+                ? openModal('friendAsk', { friend })
+                : openModal('split', { friend: friend.id })
         }
       />
     </section>
@@ -1033,9 +1388,19 @@ function Chat({ friend, onBack }) {
 
 export default function Friends() {
   const { social, demo, leaveDemo, openModal } = useApp()
-  const [picked, setPicked] = useState(null)
+  const [chosen, setChosen] = useState(null)
+  // a group you just made opens straight away, until you pick something else
+  const [handled, setHandled] = useState(null)
+  const { justMade } = social
+  const picked = justMade && justMade !== handled ? `g:${justMade}` : chosen
+  const setPicked = (key) => {
+    setHandled(justMade)
+    setChosen(key)
+  }
   const friends = social.friends.filter((f) => f.status === 'friend')
-  const current = friends.find((f) => f.id === picked) ?? null
+  const [kind, pickedId] = picked ? picked.split(':') : []
+  const current =
+    kind === 'g' ? (social.groups.find((g) => g.id === pickedId) ?? null) : kind === 'f' ? (friends.find((f) => f.id === pickedId) ?? null) : null
   const { setOpenChat } = social
   useEffect(() => {
     setOpenChat(current?.id ?? null)
@@ -1089,12 +1454,12 @@ export default function Friends() {
       <div className={`friends-grid ${current ? 'chatting' : ''}`}>
         <div className="stack friends-side">
           <Waiting />
-          <FriendList selected={current?.id} onPick={setPicked} />
+          <FriendList selected={picked} onPick={setPicked} />
           <AddFriend />
         </div>
         <div className="friends-main">
           {current ? (
-            <Chat key={current.id} friend={current} onBack={() => setPicked(null)} />
+            <Chat key={current.id} peer={current} onBack={() => setPicked(null)} />
           ) : (
             <Gate
               icon="chat"

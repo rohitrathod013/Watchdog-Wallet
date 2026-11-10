@@ -15,7 +15,7 @@ import { useApp } from '../lib/store'
 import { money } from '../lib/format'
 import { t } from '../lib/i18n'
 import { EXPENSE_CATEGORIES } from '../lib/stats'
-import { friendError, MAX_FRIEND_PAYMENT, splitEqually } from '../lib/social'
+import { friendError, MAX_FRIEND_PAYMENT, MAX_GROUP, splitEqually } from '../lib/social'
 
 const QUICK = [10, 25, 50, 100]
 const round = (n) => Math.round(n * 100) / 100
@@ -57,7 +57,7 @@ function PayBody({ payload, onClose }) {
   return (
     <form className="form" onSubmit={submit}>
       <div className="friend-to">
-        <Persona name={friend.name} hue={friend.hue} size={44} />
+        <Persona name={friend.name} hue={friend.hue} src={friend.avatar} size={44} />
         <div>
           <b>{friend.name}</b>
           <small>{request ? t('Paying their request{note}', { note: request.note ? `: ${request.note}` : '' }) : friend.email}</small>
@@ -149,7 +149,7 @@ function AskBody({ payload, onClose }) {
   return (
     <form className="form" onSubmit={submit}>
       <div className="friend-to">
-        <Persona name={friend.name} hue={friend.hue} size={44} />
+        <Persona name={friend.name} hue={friend.hue} src={friend.avatar} size={44} />
         <div>
           <b>{friend.name}</b>
           <small>{friend.email}</small>
@@ -196,10 +196,12 @@ export function FriendAskModal({ open, payload, onClose }) {
 /* ---------------- split a bill ---------------- */
 function SplitBody({ payload, onClose }) {
   const { social, addTransaction, toast } = useApp()
-  const friends = social.friends.filter((f) => f.status === 'friend')
+  // in a group: everyone else in it (they needn't be my friends), all picked to start with
+  const group = payload?.group ? social.groups.find((g) => g.id === payload.group) : null
+  const friends = group ? group.members.filter((x) => !x.me) : social.friends.filter((f) => f.status === 'friend')
   const [title, setTitle] = useState('')
   const [amount, setAmount] = useState('')
-  const [picked, setPicked] = useState(() => (payload?.friend ? [payload.friend] : []))
+  const [picked, setPicked] = useState(() => (group ? friends.map((f) => f.id) : payload?.friend ? [payload.friend] : []))
   const [includeMe, setIncludeMe] = useState(true)
   const [record, setRecord] = useState(true)
   const [category, setCategory] = useState('Food & Dining')
@@ -229,7 +231,7 @@ function SplitBody({ payload, onClose }) {
     setBusy(true)
     setError('')
     try {
-      await social.split({ title: title.trim(), total, shares })
+      await social.split({ title: title.trim(), total, shares, group: group?.id ?? null })
       if (record) addTransaction({ name: title.trim(), amount: -total, category, method: 'Split with friends' })
       toast(
         t('Bill split'),
@@ -271,7 +273,7 @@ function SplitBody({ payload, onClose }) {
               onClick={() => toggle(f.id)}
               aria-pressed={picked.includes(f.id)}
             >
-              <Persona name={f.name} hue={f.hue} size={46} />
+              <Persona name={f.name} hue={f.hue} src={f.avatar} size={46} />
               {f.name.split(' ')[0]}
             </button>
           ))}
@@ -323,9 +325,109 @@ function SplitBody({ payload, onClose }) {
 }
 
 export function SplitModal({ open, payload, onClose }) {
+  const { social } = useApp()
+  const group = payload?.group ? social.groups.find((g) => g.id === payload.group) : null
   return (
-    <Modal open={open} onClose={onClose} title={t('Split a bill')} sub={t('Each friend gets a request for their share')} width={500}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={group ? t('Split a bill in {name}', { name: group.name }) : t('Split a bill')}
+      sub={t('Each friend gets a request for their share')}
+      width={500}
+    >
       {open ? <SplitBody payload={payload} onClose={onClose} /> : null}
+    </Modal>
+  )
+}
+
+/* ---------------- start a group ---------------- */
+function GroupBody({ onClose }) {
+  const { social, toast } = useApp()
+  const friends = social.friends.filter((f) => f.status === 'friend')
+  const [name, setName] = useState('')
+  const [picked, setPicked] = useState([])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const room = MAX_GROUP - 1
+  const ok = name.trim() && picked.length && !busy
+
+  if (!friends.length)
+    return (
+      <div className="card-empty">
+        <span>
+          <Icon name="users" size={20} />
+        </span>
+        <strong>{t('No friends yet')}</strong>
+        <p>{t('Add a friend first, then you can make a group.')}</p>
+      </div>
+    )
+
+  const toggle = (id) => setPicked((list) => (list.includes(id) ? list.filter((x) => x !== id) : list.length < room ? [...list, id] : list))
+  const submit = async (e) => {
+    e.preventDefault()
+    if (!ok) return
+    setBusy(true)
+    setError('')
+    try {
+      await social.newGroup({ name: name.trim(), members: picked })
+      toast(t('Group created'), t('{name} is ready with {count} people.', { name: name.trim(), count: picked.length + 1 }), { icon: 'users' })
+      onClose()
+    } catch (err) {
+      setError(friendError(err))
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form className="form" onSubmit={submit}>
+      <label className="field">
+        <span>{t('Group name')}</span>
+        <input value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder={t('Goa trip, Flat 4B, Football team…')} autoFocus />
+      </label>
+      <div className="field">
+        <span>
+          {t('Who’s in it?')} <em className="field-count">{t('{count} of {max}', { count: picked.length + 1, max: MAX_GROUP })}</em>
+        </span>
+        <div className="people split-people">
+          {friends.map((f, i) => (
+            <button
+              key={f.id}
+              type="button"
+              className={`person ${picked.includes(f.id) ? 'on' : ''}`}
+              style={{ '--i': i }}
+              onClick={() => toggle(f.id)}
+              aria-pressed={picked.includes(f.id)}
+            >
+              <Persona name={f.name} hue={f.hue} src={f.avatar} size={46} />
+              {f.name.split(' ')[0]}
+            </button>
+          ))}
+        </div>
+        <small>{t('You can add up to {count} friends. Everyone in the group can chat and split bills together.', { count: room })}</small>
+      </div>
+      {error ? (
+        <p className="auth-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <button type="submit" className="btn solid lg block" disabled={!ok}>
+        <Icon name="users" size={18} />
+        {busy ? t('Creating…') : picked.length ? t('Create group with {count} people', { count: picked.length + 1 }) : t('Pick friends to add')}
+      </button>
+    </form>
+  )
+}
+
+export function GroupModal({ open, onClose }) {
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t('New group')}
+      sub={t('Chat and split bills with up to {count} people', { count: MAX_GROUP })}
+      width={500}
+    >
+      {open ? <GroupBody onClose={onClose} /> : null}
     </Modal>
   )
 }

@@ -16,6 +16,7 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 - Every account has its own private dashboard, saved automatically. Row level security means no one can read anyone else's data.
 - A new account starts empty: $0, with no transactions, goals, bills or contacts.
 - **Clear my data** in the account menu resets an account.
+- **Your profile** (account menu): a profile photo (cropped square, and shown to your friends), your name, your **email** (a confirmation link goes to the new address and nothing changes until it's clicked), your **phone number** (verified with a 6-digit code by SMS) and your **address**.
 - **Account settings** (account menu):
   - **Download my data**: everything in the account as a JSON file.
   - **Deactivate account**: pauses the account and logs out. The data is kept, and logging in again shows a **Reactivate** button.
@@ -51,6 +52,11 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 - **Request money**: your friend gets a card in the chat and pays it in one tap, or declines.
 - **Split a bill** like dinner or rent: pick friends, include your own share or not, and each friend gets a request for an equal share (leftover cents go to you). You can also add the full bill to your own spending.
 - **Who owes who**: each friend shows "owes you" or "you owe" from the open requests.
+- **Groups** of up to 25 people for a trip, a flat or a team:
+  - start one with **New group**, give it a name and pick friends;
+  - the same chat as with one friend (photos, videos, files, voice notes, typing…), with each person's name on their messages and **Seen by** on yours;
+  - **Split a bill** with the group: every member gets a request for their share and pays it right in the group, even if they aren't your friend directly. The person who paid sees who has paid and who hasn't;
+  - admins can rename the group and add or remove people; anyone can leave, and if the last admin leaves, the longest member takes over.
 - Grace's payment guard (large-payment check, first-payment warning) works on friend payments too.
 
 ### Markets and investing
@@ -72,7 +78,7 @@ Investing here is **tracked, not traded**: Watchdog Wallet records what you boug
   - **Reports**: income by source and downloadable statements.
 - **Analytics**: KPI sparklines, cash flow, earnings, spending and the heatmap.
 - **Transfer**: quick transfer, recent transfers and transfer limits.
-- **Friends**: friend requests, your friends with who owes who, invite link, and a chat with each friend.
+- **Friends**: friend requests, groups, your friends with who owes who, invite link, and a chat with each friend or group.
 - **Wallet**: your card, balances by currency and bills.
 - **Budget**: category budgets with a one-tap smart rebalance.
 
@@ -106,6 +112,7 @@ Grace wears a guard cap and a gold shield badge, and she guards the account (**G
   - **Stock prices** for any US stock or ETF via Finnhub (needs the [one-time setup](#stock-prices)): "nvidia stock price", "$AAPL", "my stocks".
   - **Watchlist and investing**: "add chainlink to my watchlist", "buy $200 of bitcoin", "buy 2 shares of apple", "sell half my ethereum", "how are my investments". Buying and selling always ask for a confirm, and Grace still won't recommend what to buy.
   - **Public holidays** from [Nager.Date](https://date.nager.at): "any bank holidays soon?", "are banks open on Monday?", "holidays in the UK". Grace also warns when a bill falls on a bank holiday.
+- **Reads receipts and bills**: tap the 🧾 button next to the message box (or paste a picture) and send Grace a photo. She reads it right in your browser with [Tesseract.js](https://tesseract.projectnaptha.com) (free, the photo isn't uploaded), finds the shop, total, date and any due date, and offers to **add it as spending** in the right category, or as a **bill** with its due date so she can remind you. Nothing is added until you confirm. Clear, straight-on photos of printed receipts work best; the reader downloads once (a few MB) the first time.
 - **Talks back**: the speaker button in the chat header reads every reply aloud, and questions asked with the microphone are always answered out loud.
 - **Forgives typos**: "whats my balnce", "I spnet $30 on dinnr" and "send $50 to varsah" all work. [Fuse.js](https://www.fusejs.io) matches each unknown word against Grace's vocabulary and the names on your account (`src/lib/typos.js`), with strict rules so real words like "tax" or "crash" are never changed.
 - Understands some Roman Urdu, such as "balance kitna hai" and "kal 300 ka khana kharch kiya".
@@ -124,7 +131,7 @@ English, Español, Français, Deutsch and العربية. Everything is translat
 
 ## Tech stack
 
-React 19, Vite 8, Framer Motion 12, Supabase (auth, database, Realtime and Edge Functions), Stripe Checkout (card top-ups), Fuse.js (Grace's typo matching), and plain CSS with design tokens. No UI kit and no chart library: every chart is hand-built SVG.
+React 19, Vite 8, Framer Motion 12, Supabase (auth, database, storage, Realtime and Edge Functions), Stripe Checkout (card top-ups), Fuse.js (Grace's typo matching), Tesseract.js (Grace reading receipts), and plain CSS with design tokens. No UI kit and no chart library: every chart is hand-built SVG.
 
 ## Getting started
 
@@ -177,9 +184,19 @@ Friends work between real accounts, so they live in Supabase. If you set up Supa
 - Each transfer is added to both people's balances exactly once: the transaction keeps the transfer's id.
 - Live updates use Supabase Realtime; the script adds the tables to the `supabase_realtime` publication for you.
 - Photos, videos, files and voice notes go in a private Storage bucket, `chat-media`, which the script creates. Files sit in a folder per pair of friends, only those two can open them, and links to them expire after an hour.
+- Groups live in `groups` and `group_members`; only members can see a group, its messages and its files (`<sender>/g-<group id>/` in the bucket). The functions `create_group`, `add_group_members`, `remove_group_member`, `leave_group` and `rename_group` enforce the 25-person limit and the admin rules.
 - Deleting an account removes its profile, friendships, messages, requests, transfers and uploaded files.
 
 The demo shows a "create an account" card on the Friends page, because friends need two real accounts.
+
+## Profile: email and phone verification
+
+Changing the email or phone in **Your profile** goes through Supabase Auth, so it's always verified:
+
+- **Email**: Supabase sends a confirmation link to the new address (and to the old one too, if **Authentication > Providers > Email > Secure email change** is on). The email only changes once the link is clicked. Links come back to the **Site URL** set in [Setting up Supabase](#setting-up-supabase).
+- **Phone**: a 6-digit code is texted to the new number and must be entered. This needs an SMS provider: in **Authentication > Providers > Phone**, turn it on and connect Twilio, MessageBird, Vonage or Textlocal (each text is billed by that provider). Until then, the profile explains that phone verification isn't switched on yet.
+- **Photo**: stored in a public `avatars` bucket (created by `schema.sql`), one folder per user, so only you can change yours. Photos are cropped to a 320px square JPEG before upload.
+- **Address**: saved on your login (`user_metadata`), visible only to you.
 
 ## Card payments (Stripe)
 
@@ -256,6 +273,7 @@ src/
     FriendModals.jsx   pay a friend, request from a friend, split a bill
     ChatMedia.jsx      photos, videos, files and voice notes in the chat, and the photo viewer
     Account.jsx        account settings: download, deactivate, delete
+    Profile.jsx        your profile: photo, name, email, phone, address
     TopBar.jsx         navigation, notifications, settings, language, account
     Assistant.jsx      Grace's chat panel
     Guard.jsx          lock screen and guard settings
@@ -266,6 +284,8 @@ src/
     supabase.js        Supabase client, loading and saving each user's data
     social.js          friends, chat, requests and splits in Supabase, plus the chat layout helpers
     media.js           photo, video, file and voice note uploads, signed links, voice recording
+    profile.js         profile photo, name, email and phone changes (verified), address
+    receipt.js         Grace reading receipts and bills from a photo (Tesseract.js) and offering to add them
     useSocial.js       the Friends state: live updates, and each transfer counted once
     payments.js        card top-ups through the payments Edge Function
     voice.js           Grace's voice
@@ -284,7 +304,7 @@ src/
 supabase/schema.sql    tables, security rules and functions (accounts, deletion, friends)
 supabase/functions/stocks/    Edge Function that fetches stock prices with a hidden Finnhub key
 supabase/functions/payments/  Edge Function for Stripe card top-ups, with a hidden Stripe key
-tests/                 Grace's questions, her voice, and the Friends maths
+tests/                 Grace's questions, her voice, receipts, and the Friends and groups maths
 ```
 
 ## Scripts

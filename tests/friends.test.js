@@ -1,6 +1,6 @@
 /* Friends: splitting a bill fairly, and working out who owes whom. */
 import { describe, expect, it } from 'vitest'
-import { chatRows, emojiOnly, shapeSocial, splitEqually } from '../src/lib/social'
+import { chatRows, emojiOnly, shapeSocial, splitEqually, systemText } from '../src/lib/social'
 import { peaksOf } from '../src/lib/media'
 
 describe('splitEqually', () => {
@@ -127,5 +127,52 @@ describe('voice note waveform', () => {
   })
   it('draws a flat line for silence', () => {
     expect(peaksOf([], 5)).toEqual([1, 1, 1, 1, 1])
+  })
+})
+
+describe('groups', () => {
+  const me = 'me'
+  const data = {
+    profiles: [
+      { id: me, name: 'Me', email: 'me@x.com' },
+      { id: 'bob', name: 'Bob Brown', email: 'bob@x.com' },
+      { id: 'cat', name: 'Cat Lee', email: 'cat@x.com' },
+    ],
+    connections: [],
+    messages: [
+      { id: 'g1', sender: me, group_id: 'g', kind: 'system', body: 'created', created_at: '2026-11-01T10:00:00Z' },
+      { id: 'g2', sender: 'bob', group_id: 'g', kind: 'text', body: 'hi all', created_at: '2026-11-02T10:00:00Z' },
+      { id: 'g3', sender: 'cat', group_id: 'g', kind: 'text', body: 'hey', created_at: '2026-11-03T10:00:00Z' },
+      { id: 'd1', sender: 'bob', recipient: me, kind: 'text', body: 'direct', created_at: '2026-11-03T11:00:00Z' },
+    ],
+    requests: [],
+    splits: [],
+    transfers: [],
+    groups: [{ id: 'g', name: 'Trip', created_at: '2026-11-01T10:00:00Z' }],
+    members: [
+      { group_id: 'g', user_id: me, role: 'admin', last_read_at: '2026-11-02T12:00:00Z' },
+      { group_id: 'g', user_id: 'bob', role: 'member', last_read_at: '2026-11-03T12:00:00Z' },
+      { group_id: 'g', user_id: 'cat', role: 'member', last_read_at: '2026-11-01T12:00:00Z' },
+    ],
+  }
+  const s = shapeSocial(me, data)
+  const g = s.groups[0]
+  it('lists the group with its members, me first, and my role', () => {
+    expect(g.name).toBe('Trip')
+    expect(g.admin).toBe(true)
+    expect(g.members.map((x) => x.id)).toEqual([me, 'bob', 'cat'])
+  })
+  it('counts unread group messages since I last read, not system ones', () => {
+    expect(g.unread).toBe(1)
+    expect(g.last.id).toBe('g3')
+  })
+  it('adds group unread to the Friends badge', () => {
+    expect(s.unread).toBe(1)
+  })
+  it('says what happened in a group', () => {
+    const nameOf = (id) => ({ bob: 'Bob Brown', cat: 'Cat Lee' })[id] ?? 'Someone'
+    expect(systemText({ sender: 'bob', body: 'added:cat' }, me, nameOf)).toBe('Bob Brown added Cat Lee')
+    expect(systemText({ sender: me, body: 'created' }, me, nameOf)).toBe('You created the group')
+    expect(systemText({ sender: 'cat', body: 'renamed:Goa 2026' }, me, nameOf)).toBe('Cat Lee renamed the group to “Goa 2026”')
   })
 })

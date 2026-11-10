@@ -25,6 +25,14 @@ import {
   requestFromFriend,
   respondRequest,
   sendChat,
+  addGroupMembers,
+  createGroup,
+  leaveGroup,
+  markGroupRead,
+  removeGroupMember,
+  renameGroup,
+  sendGroupChat,
+  sendGroupMedia,
   sendMediaMessage,
   sendToFriend,
   shapeSocial,
@@ -43,6 +51,8 @@ export function useSocial({ enabled, userId, userName, transactions, since, setB
   const [failed, setFailed] = useState(false)
   // the friend whose chat is open, so their messages don't also pop up as toasts
   const [openChat, setOpenChat] = useState(null)
+  // the group just created here, so the page can open it
+  const [justMade, setJustMade] = useState(null)
 
   // the latest values, for callbacks that run later (realtime, timers)
   const live = useRef({})
@@ -117,6 +127,22 @@ export function useSocial({ enabled, userId, userName, transactions, since, setB
       for (const { table, payload } of events) {
         const row = payload.new
         if (payload.eventType !== 'INSERT' || !row) continue
+        if (
+          table === 'messages' &&
+          row.group_id &&
+          ['text', 'media'].includes(row.kind) &&
+          row.sender !== userId &&
+          live.current.openChat !== row.group_id
+        ) {
+          const g = shaped.groups.find((x) => x.id === row.group_id)
+          toast(
+            t('{name} in {group}', { name: shaped.nameOf(row.sender), group: g?.name ?? t('a group') }),
+            row.kind === 'media' ? mediaLabel(row.media) : row.body.slice(0, 90),
+            {
+              icon: 'users',
+            },
+          )
+        }
         if (table === 'messages' && ['text', 'media'].includes(row.kind) && row.recipient === userId && live.current.openChat !== row.sender)
           toast(
             t('New message from {name}', { name: shaped.nameOf(row.sender) }),
@@ -207,7 +233,7 @@ export function useSocial({ enabled, userId, userName, transactions, since, setB
       failed,
       ready: Boolean(data),
       me: userId,
-      ...(shaped ?? { friends: [], toPay: [], waiting: [], unread: 0, messages: [], nameOf: () => 'Someone' }),
+      ...(shaped ?? { friends: [], groups: [], toPay: [], waiting: [], unread: 0, messages: [], nameOf: () => 'Someone' }),
       inviteUrl: shaped?.self?.invite_code ? inviteLink(shaped.self.invite_code) : null,
       openChat,
       setOpenChat,
@@ -217,6 +243,32 @@ export function useSocial({ enabled, userId, userName, transactions, since, setB
       removeFriend: after(removeConnection),
       chat: after(sendChat),
       chatMedia: after(sendMediaMessage),
+      groupChat: after(sendGroupChat),
+      groupMedia: after(sendGroupMedia),
+      newGroup: async (args) => {
+        const id = await createGroup(args)
+        await refresh()
+        setJustMade(id)
+        return id
+      },
+      justMade,
+      addToGroup: after(addGroupMembers),
+      removeFromGroup: after(removeGroupMember),
+      leaveGroup: after(leaveGroup),
+      renameGroup: after(renameGroup),
+      // after a profile edit: friends see the new name and photo
+      refreshProfile: async (name) => {
+        await ensureProfile(name || userName).catch(() => null)
+        refresh()
+      },
+      readGroup: async (group) => {
+        const g = shaped?.groups.find((x) => x.id === group)
+        if (!g?.unread || reading.current.has(group)) return
+        reading.current.add(group)
+        await markGroupRead(group).catch(() => null)
+        await refresh()
+        reading.current.delete(group)
+      },
       pay: after(sendToFriend),
       ask: after(requestFromFriend),
       decline: after((id) => respondRequest(id, 'decline')),
@@ -230,6 +282,6 @@ export function useSocial({ enabled, userId, userName, transactions, since, setB
         reading.current.delete(friend)
       },
     }),
-    [enabled, setup, failed, data, userId, shaped, openChat, refresh, after, unreadFor],
+    [enabled, setup, failed, data, userId, shaped, openChat, refresh, after, unreadFor, justMade, userName],
   )
 }

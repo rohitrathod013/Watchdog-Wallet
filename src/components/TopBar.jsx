@@ -259,7 +259,10 @@ export default function TopBar() {
             <MenuItem icon="replay" i={2} onClick={() => (close(), app.replayIntro())}>
               {t('Replay intro animation')}
             </MenuItem>
-            <MenuItem icon="user" i={2.6} onClick={() => (close(), app.openModal('account'))}>
+            <MenuItem icon="edit" i={2.4} onClick={() => (close(), app.openModal('profile'))}>
+              {t('Your profile')}
+            </MenuItem>
+            <MenuItem icon="gear" i={2.6} onClick={() => (close(), app.openModal('account'))}>
               {t('Account settings')}
             </MenuItem>
             <MenuItem icon="shield" i={3} onClick={() => (close(), app.openModal('guard'))}>

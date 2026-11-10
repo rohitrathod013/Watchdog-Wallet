@@ -79,5 +79,15 @@ export function profileOf(user) {
   const meta = user?.user_metadata ?? {}
   const email = user?.email ?? ''
   const name = (meta.full_name || meta.name || email.split('@')[0] || '').trim()
-  return { id: user.id, name, first: name.split(' ')[0] || name, email, avatar: meta.avatar_url || null }
+  return {
+    id: user.id,
+    name,
+    first: name.split(' ')[0] || name,
+    email,
+    avatar: meta.avatar_url || null,
+    phone: user?.phone || '',
+    phoneVerified: Boolean(user?.phone_confirmed_at),
+    newEmail: user?.new_email || null,
+    address: meta.address || null,
+  }
 }

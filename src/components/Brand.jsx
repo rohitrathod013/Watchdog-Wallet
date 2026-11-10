@@ -170,7 +170,11 @@ export function MerchantLogo({ kind, size = 42 }) {
 }
 
 /** Initials avatar for contacts. */
-export function Persona({ name, hue = 20, size = 46 }) {
+export function Persona({ name, hue = 20, size = 46, src = null }) {
+  if (src)
+    return (
+      <img className="persona" src={src} alt="" width={size} height={size} style={{ width: size, height: size, objectFit: 'cover' }} loading="lazy" />
+    )
   return (
     <span
       className="persona"

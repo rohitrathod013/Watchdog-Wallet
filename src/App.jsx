@@ -34,11 +34,12 @@ import { LOCALES, setLocale, t, tMonths } from './lib/i18n'
 import { applyRates, loadRates } from './lib/live'
 import { accountsEnabled, confirmPassword, deleteMyAccount, getSupabase, loadUserState, profileOf, SAVED_KEYS, saveUserState } from './lib/supabase'
 import { AccountModal } from './components/Account'
+import { ProfileModal } from './components/Profile'
 import { confirmCardPayment, takePaymentReturn } from './lib/payments'
 import { stashInvite } from './lib/social'
 import { removeAllMyMedia } from './lib/media'
 import { useSocial } from './lib/useSocial'
-import { FriendAskModal, FriendPayModal, SplitModal } from './components/FriendModals'
+import { FriendAskModal, FriendPayModal, GroupModal, SplitModal } from './components/FriendModals'
 import * as seed from './data/seed'
 import { ASSISTANT, BRAND, FEATURES, THEME } from './config'
 
@@ -1242,8 +1243,10 @@ export default function App() {
       <FriendPayModal open={modal?.type === 'friendPay'} payload={modal?.payload} onClose={closeModal} />
       <FriendAskModal open={modal?.type === 'friendAsk'} payload={modal?.payload} onClose={closeModal} />
       <SplitModal open={modal?.type === 'split'} payload={modal?.payload} onClose={closeModal} />
+      <GroupModal open={modal?.type === 'newGroup'} onClose={closeModal} />
       <GuardModal open={modal?.type === 'guard'} onClose={closeModal} />
       <AccountModal open={modal?.type === 'account'} onClose={closeModal} />
+      <ProfileModal open={modal?.type === 'profile'} onClose={closeModal} />
       {hidden && !lock ? (
         <div className="guard-veil" aria-hidden="true">
           <span>
