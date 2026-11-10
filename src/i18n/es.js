@@ -1478,4 +1478,7 @@ export default {
   'Your phone number is verified and saved.': 'Tu teléfono está verificado y guardado.',
   'Your profile': 'Tu perfil',
   'Your receipt photo': 'La foto de tu recibo',
+  'Phone number saved.': 'Teléfono guardado.',
+  'Phone number removed.': 'Teléfono eliminado.',
+  'With the country code. Leave it empty and save to remove it.': 'Con el prefijo del país. Déjalo vacío y guarda para quitarlo.',
 }

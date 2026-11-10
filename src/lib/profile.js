@@ -1,21 +1,13 @@
 /* ------------------------------------------------------------------
    Editing your own profile: photo, name, email, phone and address.
-   Email and phone changes are verified by Supabase Auth: a new email
-   only takes effect after the link in the confirmation email is
-   clicked, and a new phone number only after the 6-digit code sent by
-   SMS is entered (that needs an SMS provider connected in Supabase).
+   An email change is verified by Supabase Auth: the new email only
+   takes effect after the link in the confirmation email is clicked.
+   The phone number and address are saved on the login as they are.
    The photo sits in the public "avatars" bucket, in your own folder.
    ------------------------------------------------------------------ */
 import { getSupabase, siteUrl } from './supabase'
 
 export const AVATARS = 'avatars'
-
-/** Thrown when the project has no SMS provider for phone codes yet. */
-export class PhoneNotSetUp extends Error {
-  setup = true
-}
-
-const isPhoneSetup = (e) => /provider|sms|twilio|messagebird|vonage|textlocal|not enabled|disabled|unsupported phone/i.test(e?.message ?? '')
 
 async function update(attrs, options) {
   const supabase = await getSupabase()
@@ -80,23 +72,8 @@ export const setName = (name) => update({ data: { full_name: name, name } })
 /** Ask for an email change: Supabase emails a confirmation link, and nothing changes until it's clicked. */
 export const changeEmail = (email) => update({ email }, { emailRedirectTo: siteUrl() })
 
-/** Ask for a phone change: Supabase texts a 6-digit code to the new number. */
-export async function changePhone(phone) {
-  try {
-    return await update({ phone })
-  } catch (err) {
-    if (isPhoneSetup(err)) throw new PhoneNotSetUp(err.message)
-    throw err
-  }
-}
-
-/** Enter the texted code; only then is the number saved on the account. */
-export async function verifyPhone(phone, token) {
-  const supabase = await getSupabase()
-  const { data, error } = await supabase.auth.verifyOtp({ phone, token, type: 'phone_change' })
-  if (error) throw error
-  return data.user
-}
+/** Save a phone number on the profile (no SMS check), or null to remove it. */
+export const setPhoneNumber = (phone) => update({ data: { phone } })
 
 export const setAddress = (address) => update({ data: { address } })
 

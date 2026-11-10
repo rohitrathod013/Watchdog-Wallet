@@ -1,7 +1,7 @@
 /* ------------------------------------------------------------------
    Your profile: photo, name, email, phone and address.
-   Email and phone changes only take effect once verified (a link in an
-   email, a code by SMS); see lib/profile.js.
+   An email change only takes effect once the link emailed to the new
+   address is clicked; see lib/profile.js.
    ------------------------------------------------------------------ */
 import { useRef, useState } from 'react'
 import Icon from './Icon'
@@ -9,7 +9,7 @@ import { Avatar } from './Brand'
 import { Modal } from './ui'
 import { useApp } from '../lib/store'
 import { t } from '../lib/i18n'
-import { changeEmail, changePhone, clearAvatar, EMAIL_RE, normalisePhone, setAddress, setAvatar, setName, verifyPhone } from '../lib/profile'
+import { changeEmail, clearAvatar, EMAIL_RE, normalisePhone, setAddress, setAvatar, setName, setPhoneNumber } from '../lib/profile'
 
 const blankAddress = { line1: '', line2: '', city: '', region: '', postcode: '', country: '' }
 
@@ -56,9 +56,7 @@ function ProfileBody() {
   const [emailNote, setEmailNote] = useState(null)
   const [emailBusy, setEmailBusy] = useState(false)
 
-  const [phone, setPhone] = useState('')
-  const [code, setCode] = useState('')
-  const [sentTo, setSentTo] = useState(null) // the number a code went to
+  const [phone, setPhone] = useState(user.phone ? `+${user.phone.replace(/^\+/, '')}` : '')
   const [phoneNote, setPhoneNote] = useState(null)
   const [phoneBusy, setPhoneBusy] = useState(false)
 
@@ -137,42 +135,17 @@ function ProfileBody() {
     setEmailBusy(false)
   }
 
-  const sendCode = async (e) => {
-    e?.preventDefault()
-    const number = normalisePhone(phone)
-    if (!number) return setPhoneNote({ tone: 'bad', text: t('Enter the number with its country code, like +1 555 123 4567.') })
+  const savePhone = async (e) => {
+    e.preventDefault()
+    const number = phone.trim() ? normalisePhone(phone) : ''
+    if (phone.trim() && !number) return setPhoneNote({ tone: 'bad', text: t('Enter the number with its country code, like +1 555 123 4567.') })
     setPhoneBusy(true)
     setPhoneNote(null)
     try {
-      await changePhone(number)
-      setSentTo(number)
-      setCode('')
-      setPhoneNote({ tone: 'info', text: t('We texted a 6-digit code to {phone}.', { phone: number }) })
+      await setPhoneNumber(number || null)
+      setPhoneNote({ tone: 'good', text: number ? t('Phone number saved.') : t('Phone number removed.') })
     } catch (err) {
-      setPhoneNote({
-        tone: 'bad',
-        text: err?.setup
-          ? t('Phone verification isn’t switched on yet: connect an SMS provider in Supabase (Authentication > Providers > Phone).')
-          : failed(err),
-      })
-    }
-    setPhoneBusy(false)
-  }
-  const checkCode = async (e) => {
-    e.preventDefault()
-    if (!/^\d{6}$/.test(code.trim())) return setPhoneNote({ tone: 'bad', text: t('Enter the 6-digit code from the text.') })
-    setPhoneBusy(true)
-    try {
-      await verifyPhone(sentTo, code.trim())
-      setSentTo(null)
-      setPhone('')
-      setCode('')
-      setPhoneNote({ tone: 'good', text: t('Your phone number is verified and saved.') })
-    } catch (err) {
-      setPhoneNote({
-        tone: 'bad',
-        text: /expired|invalid|token/i.test(err?.message ?? '') ? t('That code didn’t work. Check it, or send a new one.') : failed(err),
-      })
+      setPhoneNote({ tone: 'bad', text: failed(err) })
     }
     setPhoneBusy(false)
   }
@@ -254,52 +227,21 @@ function ProfileBody() {
         <Note note={emailNote} />
       </Section>
 
-      <Section
-        title={t('Phone')}
-        sub={
-          user.phone ? (
-            <span className="pf-verified">
-              +{user.phone} <em>{user.phoneVerified ? `✓ ${t('Verified')}` : t('Not verified')}</em>
-            </span>
-          ) : (
-            t('No phone number yet')
-          )
-        }
-      >
-        {sentTo ? (
-          <form className="pf-row" onSubmit={checkCode}>
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder="123456"
-              aria-label={t('Code from the text')}
-              className="pf-code"
-            />
-            <button type="submit" className="btn sm solid" disabled={code.length !== 6 || phoneBusy}>
-              {t('Verify')}
-            </button>
-            <button type="button" className="btn sm" disabled={phoneBusy} onClick={() => sendCode()}>
-              {t('Send again')}
-            </button>
-          </form>
-        ) : (
-          <form className="pf-row" onSubmit={sendCode}>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+1 555 123 4567"
-              aria-label={t('New phone number')}
-              autoComplete="tel"
-            />
-            <button type="submit" className="btn sm" disabled={!phone.trim() || phoneBusy}>
-              {phoneBusy ? t('Sending…') : t('Send code')}
-            </button>
-          </form>
-        )}
-        <small className="pf-hint">{t('We’ll text a 6-digit code to check it’s yours.')}</small>
+      <Section title={t('Phone')} sub={user.phone ? `+${user.phone.replace(/^\+/, '')}` : t('No phone number yet')}>
+        <form className="pf-row" onSubmit={savePhone}>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+1 555 123 4567"
+            aria-label={t('Phone')}
+            autoComplete="tel"
+          />
+          <button type="submit" className="btn sm" disabled={phoneBusy}>
+            {phoneBusy ? t('Saving…') : t('Save')}
+          </button>
+        </form>
+        <small className="pf-hint">{t('With the country code. Leave it empty and save to remove it.')}</small>
         <Note note={phoneNote} />
       </Section>
 

@@ -1485,4 +1485,7 @@ export default {
   'Your phone number is verified and saved.': 'Deine Telefonnummer ist bestätigt und gespeichert.',
   'Your profile': 'Dein Profil',
   'Your receipt photo': 'Dein Belegfoto',
+  'Phone number saved.': 'Telefonnummer gespeichert.',
+  'Phone number removed.': 'Telefonnummer entfernt.',
+  'With the country code. Leave it empty and save to remove it.': 'Mit Ländervorwahl. Leer lassen und speichern, um sie zu entfernen.',
 }

@@ -16,7 +16,7 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 - Every account has its own private dashboard, saved automatically. Row level security means no one can read anyone else's data.
 - A new account starts empty: $0, with no transactions, goals, bills or contacts.
 - **Clear my data** in the account menu resets an account.
-- **Your profile** (account menu): a profile photo (cropped square, and shown to your friends), your name, your **email** (a confirmation link goes to the new address and nothing changes until it's clicked), your **phone number** (verified with a 6-digit code by SMS) and your **address**.
+- **Your profile** (account menu): a profile photo (cropped square, and shown to your friends), your name, your **email** (a confirmation link goes to the new address and nothing changes until it's clicked), your **phone number** and your **address**.
 - **Account settings** (account menu):
   - **Download my data**: everything in the account as a JSON file.
   - **Deactivate account**: pauses the account and logs out. The data is kept, and logging in again shows a **Reactivate** button.
@@ -189,14 +189,13 @@ Friends work between real accounts, so they live in Supabase. If you set up Supa
 
 The demo shows a "create an account" card on the Friends page, because friends need two real accounts.
 
-## Profile: email and phone verification
+## Profile: email verification and photos
 
-Changing the email or phone in **Your profile** goes through Supabase Auth, so it's always verified:
+Changing the email in **Your profile** goes through Supabase Auth, so it's always verified:
 
 - **Email**: Supabase sends a confirmation link to the new address (and to the old one too, if **Authentication > Providers > Email > Secure email change** is on). The email only changes once the link is clicked. Links come back to the **Site URL** set in [Setting up Supabase](#setting-up-supabase).
-- **Phone**: a 6-digit code is texted to the new number and must be entered. This needs an SMS provider: in **Authentication > Providers > Phone**, turn it on and connect Twilio, MessageBird, Vonage or Textlocal (each text is billed by that provider). Until then, the profile explains that phone verification isn't switched on yet.
 - **Photo**: stored in a public `avatars` bucket (created by `schema.sql`), one folder per user, so only you can change yours. Photos are cropped to a 320px square JPEG before upload.
-- **Address**: saved on your login (`user_metadata`), visible only to you.
+- **Phone and address**: saved on your login (`user_metadata`) as you type them, visible only to you.
 
 ## Card payments (Stripe)
 
@@ -284,7 +283,7 @@ src/
     supabase.js        Supabase client, loading and saving each user's data
     social.js          friends, chat, requests and splits in Supabase, plus the chat layout helpers
     media.js           photo, video, file and voice note uploads, signed links, voice recording
-    profile.js         profile photo, name, email and phone changes (verified), address
+    profile.js         profile photo, name, email change (verified), phone and address
     receipt.js         Grace reading receipts and bills from a photo (Tesseract.js) and offering to add them
     useSocial.js       the Friends state: live updates, and each transfer counted once
     payments.js        card top-ups through the payments Edge Function

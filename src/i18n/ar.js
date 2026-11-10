@@ -1443,4 +1443,7 @@ export default {
   'Your phone number is verified and saved.': 'تم التحقق من رقمك وحفظه.',
   'Your profile': 'ملفك الشخصي',
   'Your receipt photo': 'صورة إيصالك',
+  'Phone number saved.': 'تم حفظ رقم الهاتف.',
+  'Phone number removed.': 'تمت إزالة رقم الهاتف.',
+  'With the country code. Leave it empty and save to remove it.': 'مع رمز الدولة. اتركه فارغًا واحفظ لإزالته.',
 }

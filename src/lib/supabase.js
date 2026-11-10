@@ -85,8 +85,7 @@ export function profileOf(user) {
     first: name.split(' ')[0] || name,
     email,
     avatar: meta.avatar_url || null,
-    phone: user?.phone || '',
-    phoneVerified: Boolean(user?.phone_confirmed_at),
+    phone: meta.phone || user?.phone || '',
     newEmail: user?.new_email || null,
     address: meta.address || null,
   }

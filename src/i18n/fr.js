@@ -1491,4 +1491,7 @@ export default {
   'Your phone number is verified and saved.': 'Votre numéro est vérifié et enregistré.',
   'Your profile': 'Votre profil',
   'Your receipt photo': 'La photo de votre ticket',
+  'Phone number saved.': 'Numéro enregistré.',
+  'Phone number removed.': 'Numéro retiré.',
+  'With the country code. Leave it empty and save to remove it.': 'Avec l’indicatif du pays. Laissez vide et enregistrez pour le retirer.',
 }

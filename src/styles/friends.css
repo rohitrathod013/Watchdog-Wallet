@@ -1434,11 +1434,6 @@ button.friend-row:hover,
 .pf-row .btn {
   height: 42px;
 }
-.pf-code {
-  letter-spacing: 6px;
-  font-variant-numeric: tabular-nums;
-  max-width: 180px;
-}
 .pf-hint {
   font-size: 12px;
   color: var(--muted);
@@ -1453,12 +1448,6 @@ button.friend-row:hover,
 }
 .pf-note.bad {
   color: var(--red);
-}
-.pf-verified em {
-  font-style: normal;
-  margin-left: 6px;
-  font-weight: 600;
-  color: var(--muted);
 }
 .pf-address {
   display: flex;
