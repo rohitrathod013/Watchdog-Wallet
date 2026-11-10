@@ -2,7 +2,7 @@
 
 **Live site:** https://rohitrathod013.github.io/Watchdog-Wallet/
 
-Watchdog Wallet is a personal finance dashboard with accounts, five languages and **Grace**, a German Shepherd puppy assistant who can answer questions about your money and act on it.
+Watchdog Wallet is a personal finance dashboard with accounts, friends you can chat with and pay back, card top-ups, five languages and **Grace**, a German Shepherd puppy assistant who can answer questions about your money and act on it.
 
 Sign up to track your own balance, transactions, budgets, goals and bills, or click **Explore the demo** on the login screen to look around with sample data and no account.
 
@@ -35,7 +35,16 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 ### Friends
 
 - **Add friends** by the email they signed up with, or share your **invite link**. They accept, and you're connected.
-- **Chat** with each friend. New messages, payments and requests arrive live, with a badge on the Friends tab.
+- **Chat** with each friend, live, with a badge on the Friends tab for unread messages and requests:
+  - messages from the same person are grouped with one timestamp, with **Today**, **Yesterday** or date dividers between days;
+  - your latest message shows **Sent**, then **Seen** once your friend has opened the chat;
+  - a **typing…** indicator while your friend writes (a live signal, nothing is stored);
+  - messages appear the moment you send them, and a failed one can be retried with a tap;
+  - the message box grows as you type: **Enter** sends, **Shift+Enter** adds a line;
+  - an **emoji** picker and **quick replies** (👍, Thanks!, On my way, Sounds good, Paid you back 💸);
+  - links are clickable, and emoji-only messages show large;
+  - scrolled up to read? A **new messages** button takes you back down.
+- Payments, requests and splits show as cards in the chat, with **Pay** and **Decline** right there.
 - **Send money** to a friend: it leaves your balance and lands in theirs, and both of you see it in your transactions.
 - **Request money**: your friend gets a card in the chat and pays it in one tap, or declines.
 - **Split a bill** like dinner or rent: pick friends, include your own share or not, and each friend gets a request for an equal share (leftover cents go to you). You can also add the full bill to your own spending.
@@ -61,6 +70,7 @@ Investing here is **tracked, not traded**: Watchdog Wallet records what you boug
   - **Reports**: income by source and downloadable statements.
 - **Analytics**: KPI sparklines, cash flow, earnings, spending and the heatmap.
 - **Transfer**: quick transfer, recent transfers and transfer limits.
+- **Friends**: friend requests, your friends with who owes who, invite link, and a chat with each friend.
 - **Wallet**: your card, balances by currency and bills.
 - **Budget**: category budgets with a one-tap smart rebalance.
 
@@ -97,7 +107,7 @@ Grace wears a guard cap and a gold shield badge, and she guards the account (**G
 - **Talks back**: the speaker button in the chat header reads every reply aloud, and questions asked with the microphone are always answered out loud.
 - **Forgives typos**: "whats my balnce", "I spnet $30 on dinnr" and "send $50 to varsah" all work. [Fuse.js](https://www.fusejs.io) matches each unknown word against Grace's vocabulary and the names on your account (`src/lib/typos.js`), with strict rules so real words like "tax" or "crash" are never changed.
 - Understands some Roman Urdu, such as "balance kitna hai" and "kal 300 ka khana kharch kiya".
-- **Tested**: `npm test` runs 240+ example questions with expected answers (`tests/grace.test.js`), and GitHub runs them before every deploy.
+- **Tested**: `npm test` runs 240+ example questions with expected answers (`tests/grace.test.js`), plus checks for Grace's voice and the Friends money maths, and GitHub runs them all before every deploy.
 
 ### Languages
 
@@ -112,7 +122,7 @@ English, Español, Français, Deutsch and العربية. Everything is translat
 
 ## Tech stack
 
-React 19, Vite 8, Framer Motion 12, Supabase (auth and database), Fuse.js (Grace's typo matching), and plain CSS with design tokens. No UI kit and no chart library: every chart is hand-built SVG.
+React 19, Vite 8, Framer Motion 12, Supabase (auth, database, Realtime and Edge Functions), Stripe Checkout (card top-ups), Fuse.js (Grace's typo matching), and plain CSS with design tokens. No UI kit and no chart library: every chart is hand-built SVG.
 
 ## Getting started
 
@@ -128,7 +138,7 @@ The app connects to the Supabase project set in `src/config.js`. To use your own
 ## Setting up Supabase
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor**, paste the contents of [`supabase/schema.sql`](supabase/schema.sql) and click **Run**. It creates the `user_state` table (one private row per user) and the `delete_my_account` function that **Delete account** uses. It's safe to run again after updates.
+2. Open **SQL Editor**, paste the contents of [`supabase/schema.sql`](supabase/schema.sql) and click **Run**. It creates the `user_state` table (one private row per user), the `delete_my_account` function that **Delete account** uses, and everything **Friends** needs (see [Friends, chat and shared money](#friends-chat-and-shared-money)). It's safe to run again after updates.
 3. In **Authentication > URL Configuration**:
    - set **Site URL** to where the site lives, for example `https://rohitrathod013.github.io/Watchdog-Wallet/`;
    - add `http://localhost:5173/` to **Redirect URLs** for local testing.
@@ -233,13 +243,15 @@ A local intent engine: no API costs, and it works offline.
 src/
   config.js            brand, demo profile, Supabase, theme, assistant
   App.jsx              app state, actions, accounts, routing, lazy loading
-  pages/               Dashboard, Analytics, Transfer, Wallet, Budget
+  pages/               Dashboard, Analytics, Transfer, Friends, Wallet, Budget
   views/               Dashboard tabs: Overview, Transactions, Budgets, Reports
   components/
     Auth.jsx           log in, sign up, password reset, demo entry
     Cards.jsx          every dashboard card, with empty states
     Charts.jsx         earning bars, line chart, donut, heatmap, sparkline
-    Modals.jsx         send, receive, request, goal, transaction, contact, bill
+    Modals.jsx         send, receive, request, add money (and pay by card), goal, transaction, contact, bill, invest
+    FriendModals.jsx   pay a friend, request from a friend, split a bill
+    Account.jsx        account settings: download, deactivate, delete
     TopBar.jsx         navigation, notifications, settings, language, account
     Assistant.jsx      Grace's chat panel
     Guard.jsx          lock screen and guard settings
@@ -248,6 +260,10 @@ src/
     ui.jsx             CountUp, Stage, Reveal, Modal, Popover, Segmented, Ring…
   lib/
     supabase.js        Supabase client, loading and saving each user's data
+    social.js          friends, chat, requests and splits in Supabase, plus the chat layout helpers
+    useSocial.js       the Friends state: live updates, and each transfer counted once
+    payments.js        card top-ups through the payments Edge Function
+    voice.js           Grace's voice
     stats.js           charts and totals worked out from transactions
     insights.js        search, forecasts, unusual charges, subscriptions, afford and goal plans
     assistant.js       Grace's intent engine
@@ -259,10 +275,11 @@ src/
     themeTransition.js liquid theme switch
   i18n/                es, fr, de, ar translations
   data/seed.js         demo data
-  styles/              base (tokens), shell, dashboard, pages, assistant, auth, mobile
-supabase/schema.sql    database table and security rules
-supabase/functions/stocks/  Edge Function that fetches stock prices with a hidden Finnhub key
-tests/grace.test.js    Grace's test set
+  styles/              base (tokens), shell, dashboard, pages, assistant, auth, friends, mobile
+supabase/schema.sql    tables, security rules and functions (accounts, deletion, friends)
+supabase/functions/stocks/    Edge Function that fetches stock prices with a hidden Finnhub key
+supabase/functions/payments/  Edge Function for Stripe card top-ups, with a hidden Stripe key
+tests/                 Grace's questions, her voice, and the Friends maths
 ```
 
 ## Scripts
