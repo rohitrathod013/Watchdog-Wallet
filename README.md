@@ -25,6 +25,7 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 ### Your money
 
 - **Add transaction**: record money in or out with a description, category and date.
+- **Pay by card**: top up your balance with a card through Stripe Checkout (see [Card payments](#card-payments-stripe)).
 - **Add contact**, **Add bill** and **Add Goal**.
 - **Send money** and **request money** from your contacts. **Pay bills** and **top up goals** in one tap.
 - All charts and totals are worked out from your own transactions: income, expenses, net profit, savings rate, earnings by month, 12-month cash flow, spending by category, budget usage and a 52-week spending heatmap.
@@ -144,6 +145,19 @@ Crypto prices and exchange rates work with no setup. Stock prices need an API ke
 With the Supabase CLI instead: `supabase secrets set FINNHUB_KEY=your-key` then `supabase functions deploy stocks` (`supabase/config.toml` already turns off JWT verification).
 
 Finnhub's free plan covers US stocks and ETFs.
+
+## Card payments (Stripe)
+
+**Add money > Pay by card** tops up the balance with a card payment on Stripe's own Checkout page, so card numbers never touch the site. The Stripe secret key lives only in a Supabase Edge Function ([`supabase/functions/payments`](supabase/functions/payments/index.ts)). It creates the payment page and, when Stripe sends the user back, checks that the payment is paid and belongs to that account. Each payment is saved with its Stripe id, so it can't be counted twice. Card payments only show for signed-in accounts, not the demo.
+
+1. Create a free account at [stripe.com](https://stripe.com) and stay in **Test mode**. Open **Developers > API keys** and copy the **Secret key** (`sk_test_...`).
+2. In the Supabase dashboard, open **Edge Functions > Secrets** and add a secret named `STRIPE_SECRET_KEY` with that key.
+3. Open **Edge Functions > Deploy a new function > Via Editor**, name it `payments`, paste the contents of `supabase/functions/payments/index.ts` and deploy.
+4. In the function's **Settings**, turn **off** "Verify JWT with legacy secret" (the function checks the signed-in user itself) and save.
+
+With the Supabase CLI instead: `supabase secrets set STRIPE_SECRET_KEY=sk_test_...` then `supabase functions deploy payments`.
+
+In test mode, pay with card `4242 4242 4242 4242`, any future expiry date and any CVC. No real money moves. Stripe only sends people back to `https://rohitrathod013.github.io` or a local dev server; to allow another site, add a `SITE_ORIGINS` secret (comma-separated origins). Going live later means swapping in the live secret key (`sk_live_...`) after Stripe approves the account.
 
 ## Make it yours
 

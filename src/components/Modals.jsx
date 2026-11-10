@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import Icon from './Icon'
 import { Persona } from './Brand'
-import { Modal, Success } from './ui'
+import { Modal, Segmented, Success } from './ui'
+import { accountsEnabled } from '../lib/supabase'
+import { MAX_TOPUP, MIN_TOPUP, startCardPayment } from '../lib/payments'
 import { useApp } from '../lib/store'
 import { isoDay, localIso, money } from '../lib/format'
 import { BRAND } from '../config'
@@ -535,7 +537,110 @@ export function BillModal({ open, onClose }) {
 /* ---------------- Add money (just the numbers, no bank) ---------------- */
 const SOURCES = [...INCOME_CATEGORIES.slice(0, 3), 'Gift', 'Refund', 'Savings', 'Other income']
 
+/** Top up with a real card payment through Stripe Checkout (test mode until live keys are set). */
+function CardTopUp({ payload }) {
+  const { pots, balance } = useApp()
+  const [amount, setAmount] = useState('')
+  const [potId, setPotId] = useState(payload?.potId ?? '')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const n = Number(amount)
+  const ok = n >= MIN_TOPUP && n <= MAX_TOPUP
+
+  const submit = async (e) => {
+    e.preventDefault()
+    if (!ok || busy) return
+    setBusy(true)
+    setError('')
+    try {
+      // leaves the site for Stripe's payment page; the money is added when Stripe sends the user back
+      await startCardPayment({ amount: Math.round(n * 100) / 100, potId })
+    } catch (err) {
+      setError(
+        err?.setup
+          ? t('Card payments need a one-time setup: deploy the payments function in Supabase and add your Stripe key.')
+          : t('Couldn’t open the payment page. Try again in a minute.'),
+      )
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form className="form" onSubmit={submit}>
+      <AmountField
+        value={amount}
+        onChange={setAmount}
+        bad={amount !== '' && !ok}
+        hint={
+          <small>
+            {amount !== '' && !ok
+              ? t('Between {min} and {max}', { min: money(MIN_TOPUP, '$', 0), max: money(MAX_TOPUP, '$', 0) })
+              : t('Your balance after: {amount}', { amount: money(balance + (n || 0)) })}
+          </small>
+        }
+      />
+      <div className="chips">
+        {[25, 50, 100, 250].map((q) => (
+          <button key={q} type="button" className={`chip ${n === q ? 'on' : ''}`} onClick={() => setAmount(String(q))}>
+            ${q}
+          </button>
+        ))}
+      </div>
+      <label className="field">
+        <span>{t('Put it in')}</span>
+        <select value={potId} onChange={(e) => setPotId(e.target.value)}>
+          <option value="">{t('Unassigned (sort it later)')}</option>
+          {pots.map((p) => (
+            <option key={p.id} value={p.id}>
+              {t(p.name)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="pay-note">
+        <Icon name="shield" size={18} />
+        <p>
+          {t('You’ll pay on Stripe’s secure page. {brand} never sees your card number.', { brand: BRAND.name })}
+          <br />
+          <b>{t('Test mode:')}</b> {t('use card 4242 4242 4242 4242, any future date and any CVC. No real money moves.')}
+        </p>
+      </div>
+      {error ? (
+        <p className="auth-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <button type="submit" className="btn solid lg block" disabled={!ok || busy}>
+        <Icon name="card" size={18} />
+        {busy ? t('Opening Stripe…') : ok ? t('Pay {amount} by card', { amount: money(n) }) : t('Enter an amount')}
+      </button>
+    </form>
+  )
+}
+
 function AddMoneyBody({ payload, onClose }) {
+  const { demo } = useApp()
+  const [how, setHow] = useState('record')
+  const cards = accountsEnabled && !demo
+  return (
+    <>
+      {cards ? (
+        <Segmented
+          className="pay-how"
+          value={how}
+          onChange={setHow}
+          items={[
+            { key: 'record', label: t('Record money I have') },
+            { key: 'card', label: t('Pay by card') },
+          ]}
+        />
+      ) : null}
+      {how === 'card' && cards ? <CardTopUp payload={payload} /> : <RecordMoney payload={payload} onClose={onClose} />}
+    </>
+  )
+}
+
+function RecordMoney({ payload, onClose }) {
   const { addMoney, pots, balance } = useApp()
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState('Salary')
@@ -606,8 +711,18 @@ function AddMoneyBody({ payload, onClose }) {
 }
 
 export function AddMoneyModal({ open, payload, onClose }) {
+  const { demo } = useApp()
   return (
-    <Modal open={open} onClose={onClose} title={t('Add money')} sub={t('Type in money you have. No bank needed, it’s just for tracking.')}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t('Add money')}
+      sub={
+        accountsEnabled && !demo
+          ? t('Record money you have, or top up by card.')
+          : t('Type in money you have. No bank needed, it’s just for tracking.')
+      }
+    >
       {open ? <AddMoneyBody payload={payload} onClose={onClose} /> : null}
     </Modal>
   )

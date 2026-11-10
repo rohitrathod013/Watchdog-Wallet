@@ -34,6 +34,7 @@ import { LOCALES, setLocale, t, tMonths } from './lib/i18n'
 import { applyRates, loadRates } from './lib/live'
 import { accountsEnabled, confirmPassword, deleteMyAccount, getSupabase, loadUserState, profileOf, SAVED_KEYS, saveUserState } from './lib/supabase'
 import { AccountModal } from './components/Account'
+import { confirmCardPayment, takePaymentReturn } from './lib/payments'
 import * as seed from './data/seed'
 import { ASSISTANT, BRAND, FEATURES, THEME } from './config'
 
@@ -589,6 +590,74 @@ export default function App() {
     },
     [addTx, pots, toast],
   )
+
+  /* ---------- card top-ups: coming back from Stripe Checkout ----------
+     Stripe sends the user back with ?paid=<session id>. The payments
+     function checks that session is paid and belongs to this account; the
+     transaction keeps the session id so the same payment never counts twice.
+     The id waits in localStorage until it's counted, in case the check fails. */
+  const paidFor = useRef(null)
+  useEffect(() => {
+    if (!accountsEnabled || !userId || loadedFor !== userId || paidFor.current === userId) return
+    paidFor.current = userId
+    const PENDING = 'ww-pending-pay'
+    const keep = (v) => {
+      try {
+        if (v) localStorage.setItem(PENDING, v)
+        else localStorage.removeItem(PENDING)
+      } catch {
+        /* storage blocked */
+      }
+    }
+    let ret = takePaymentReturn()
+    if (ret === 'cancel') {
+      // a moment later, once the dashboard is on screen
+      window.setTimeout(() => toast(t('Payment cancelled'), t('No money was taken from your card.'), { icon: 'info' }), 400)
+      return
+    }
+    try {
+      ret ||= localStorage.getItem(PENDING)
+    } catch {
+      /* storage blocked */
+    }
+    if (!ret) return
+    keep(ret)
+    confirmCardPayment(ret)
+      .then((p) => {
+        keep(null)
+        if (transactions.some((x) => x.ref === p.id)) return
+        const pot = pots.find((x) => x.id === p.potId)
+        setBalance((b) => Math.round((b + p.amount) * 100) / 100)
+        if (pot) setPots((list) => list.map((x) => (x.id === pot.id ? { ...x, amount: Math.round((x.amount + p.amount) * 100) / 100 } : x)))
+        addTx({
+          name: 'Card top-up',
+          category: 'Other income',
+          kind: 'request',
+          method: p.test ? 'Card via Stripe (test)' : 'Card via Stripe',
+          amount: p.amount,
+          ref: p.id,
+        })
+        notify({ icon: 'arrowDown', tone: 'green', title: 'You added {amount}', body: 'Paid by card with Stripe', vars: { amount: money(p.amount) } })
+        toast(
+          t('Payment received'),
+          pot
+            ? t('{amount} from your card went into {name}.', { amount: money(p.amount), name: t(pot.name) })
+            : t('{amount} from your card is in your balance.', { amount: money(p.amount) }),
+          { icon: 'receive' },
+        )
+      })
+      .catch((err) => {
+        // a payment that isn't this account's, or doesn't exist, will never count: stop asking
+        if ([400, 404].includes(err?.status)) keep(null)
+        toast(
+          t('Couldn’t confirm your payment'),
+          err?.status === 409
+            ? t('Stripe is still processing it. It’ll show up next time you open {brand}.', { brand: BRAND.name })
+            : t('If money was taken, it’ll show up next time you open {brand}.', { brand: BRAND.name }),
+          { icon: 'info' },
+        )
+      })
+  }, [userId, loadedFor, transactions, pots, addTx, notify, toast])
 
   const createPot = useCallback(
     ({ name, icon, amount = 0 }) => {

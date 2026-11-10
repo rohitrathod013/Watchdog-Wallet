@@ -1154,4 +1154,33 @@ export default {
   'Your login and all your data are gone for good. Thanks for using {brand}.':
     'Tu acceso y todos tus datos se han eliminado para siempre. Gracias por usar {brand}.',
   'Your password': 'Tu contraseña',
+  // ---------------- card payments ----------------
+  'Payment cancelled': 'Pago cancelado',
+  'No money was taken from your card.': 'No se cobró nada de tu tarjeta.',
+  'Payment received': 'Pago recibido',
+  '{amount} from your card went into {name}.': '{amount} de tu tarjeta fue a {name}.',
+  '{amount} from your card is in your balance.': '{amount} de tu tarjeta ya está en tu saldo.',
+  'Couldn’t confirm your payment': 'No se pudo confirmar tu pago',
+  'Stripe is still processing it. It’ll show up next time you open {brand}.':
+    'Stripe aún lo está procesando. Aparecerá la próxima vez que abras {brand}.',
+  'If money was taken, it’ll show up next time you open {brand}.': 'Si se cobró dinero, aparecerá la próxima vez que abras {brand}.',
+  'Card top-up': 'Recarga con tarjeta',
+  'Card via Stripe': 'Tarjeta vía Stripe',
+  'Card via Stripe (test)': 'Tarjeta vía Stripe (prueba)',
+  'You added {amount}': 'Añadiste {amount}',
+  'Paid by card with Stripe': 'Pagado con tarjeta mediante Stripe',
+  'Card payments need a one-time setup: deploy the payments function in Supabase and add your Stripe key.':
+    'Los pagos con tarjeta necesitan una configuración única: despliega la función payments en Supabase y añade tu clave de Stripe.',
+  'Couldn’t open the payment page. Try again in a minute.': 'No se pudo abrir la página de pago. Inténtalo de nuevo en un minuto.',
+  'Between {min} and {max}': 'Entre {min} y {max}',
+  'You’ll pay on Stripe’s secure page. {brand} never sees your card number.':
+    'Pagarás en la página segura de Stripe. {brand} nunca ve el número de tu tarjeta.',
+  'Test mode:': 'Modo de prueba:',
+  'use card 4242 4242 4242 4242, any future date and any CVC. No real money moves.':
+    'usa la tarjeta 4242 4242 4242 4242, cualquier fecha futura y cualquier CVC. No se mueve dinero real.',
+  'Opening Stripe…': 'Abriendo Stripe…',
+  'Pay {amount} by card': 'Pagar {amount} con tarjeta',
+  'Record money I have': 'Registrar dinero que tengo',
+  'Pay by card': 'Pagar con tarjeta',
+  'Record money you have, or top up by card.': 'Registra el dinero que tienes o recarga con tarjeta.',
 }

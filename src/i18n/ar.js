@@ -1128,4 +1128,32 @@ export default {
   'Your data, and deactivating or deleting your account': 'بياناتك، وإلغاء تفعيل حسابك أو حذفه',
   'Your login and all your data are gone for good. Thanks for using {brand}.': 'حُذف تسجيل دخولك وكل بياناتك نهائيًا. شكرًا لاستخدامك {brand}.',
   'Your password': 'كلمة المرور',
+  // ---------------- card payments ----------------
+  'Payment cancelled': 'أُلغي الدفع',
+  'No money was taken from your card.': 'لم يُخصم أي مبلغ من بطاقتك.',
+  'Payment received': 'تم استلام الدفعة',
+  '{amount} from your card went into {name}.': 'ذهب {amount} من بطاقتك إلى {name}.',
+  '{amount} from your card is in your balance.': 'أصبح {amount} من بطاقتك في رصيدك.',
+  'Couldn’t confirm your payment': 'تعذّر تأكيد دفعتك',
+  'Stripe is still processing it. It’ll show up next time you open {brand}.':
+    'ما زالت Stripe تعالجها. ستظهر في المرة القادمة التي تفتح فيها {brand}.',
+  'If money was taken, it’ll show up next time you open {brand}.': 'إذا خُصم مبلغ، فسيظهر في المرة القادمة التي تفتح فيها {brand}.',
+  'Card top-up': 'شحن بالبطاقة',
+  'Card via Stripe': 'بطاقة عبر Stripe',
+  'Card via Stripe (test)': 'بطاقة عبر Stripe (تجربة)',
+  'You added {amount}': 'أضفت {amount}',
+  'Paid by card with Stripe': 'مدفوع بالبطاقة عبر Stripe',
+  'Card payments need a one-time setup: deploy the payments function in Supabase and add your Stripe key.':
+    'تحتاج المدفوعات بالبطاقة إلى إعداد لمرة واحدة: انشر دالة payments في Supabase وأضف مفتاح Stripe.',
+  'Couldn’t open the payment page. Try again in a minute.': 'تعذّر فتح صفحة الدفع. حاول مرة أخرى بعد دقيقة.',
+  'Between {min} and {max}': 'بين {min} و{max}',
+  'You’ll pay on Stripe’s secure page. {brand} never sees your card number.': 'ستدفع على صفحة Stripe الآمنة. لا يرى {brand} رقم بطاقتك أبدًا.',
+  'Test mode:': 'وضع التجربة:',
+  'use card 4242 4242 4242 4242, any future date and any CVC. No real money moves.':
+    'استخدم البطاقة 4242 4242 4242 4242 وأي تاريخ مستقبلي وأي رمز CVC. لا تنتقل أموال حقيقية.',
+  'Opening Stripe…': 'جارٍ فتح Stripe…',
+  'Pay {amount} by card': 'ادفع {amount} بالبطاقة',
+  'Record money I have': 'سجّل مالًا لديّ',
+  'Pay by card': 'ادفع بالبطاقة',
+  'Record money you have, or top up by card.': 'سجّل المال الذي لديك، أو اشحن بالبطاقة.',
 }

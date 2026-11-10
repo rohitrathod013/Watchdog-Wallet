@@ -963,3 +963,33 @@ hr {
   padding-left: 10px;
   font-weight: 600;
 }
+
+/* ---------------- Add money: record it or pay by card ---------------- */
+.seg.pay-how {
+  display: flex;
+  margin-bottom: 18px;
+}
+.seg.pay-how button {
+  flex: 1;
+  justify-content: center;
+}
+.pay-note {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--soft);
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.pay-note svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--green);
+}
+.pay-note b {
+  color: var(--ink);
+  font-weight: 600;
+}

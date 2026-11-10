@@ -2,3 +2,7 @@
 # The site calls the function with its publishable key, which isn't a JWT.
 [functions.stocks]
 verify_jwt = false
+
+# Checks the signed-in user itself, so the gateway doesn't need to.
+[functions.payments]
+verify_jwt = false

@@ -1166,4 +1166,34 @@ export default {
   'Your login and all your data are gone for good. Thanks for using {brand}.':
     'Votre accès et toutes vos données ont été supprimés pour de bon. Merci d’avoir utilisé {brand}.',
   'Your password': 'Votre mot de passe',
+  // ---------------- card payments ----------------
+  'Payment cancelled': 'Paiement annulé',
+  'No money was taken from your card.': 'Aucun montant n’a été débité de votre carte.',
+  'Payment received': 'Paiement reçu',
+  '{amount} from your card went into {name}.': '{amount} de votre carte est allé dans {name}.',
+  '{amount} from your card is in your balance.': '{amount} de votre carte est sur votre solde.',
+  'Couldn’t confirm your payment': 'Impossible de confirmer votre paiement',
+  'Stripe is still processing it. It’ll show up next time you open {brand}.':
+    'Stripe le traite encore. Il apparaîtra à votre prochaine ouverture de {brand}.',
+  'If money was taken, it’ll show up next time you open {brand}.':
+    'Si un montant a été débité, il apparaîtra à votre prochaine ouverture de {brand}.',
+  'Card top-up': 'Recharge par carte',
+  'Card via Stripe': 'Carte via Stripe',
+  'Card via Stripe (test)': 'Carte via Stripe (test)',
+  'You added {amount}': 'Vous avez ajouté {amount}',
+  'Paid by card with Stripe': 'Payé par carte avec Stripe',
+  'Card payments need a one-time setup: deploy the payments function in Supabase and add your Stripe key.':
+    'Les paiements par carte demandent une configuration unique : déployez la fonction payments dans Supabase et ajoutez votre clé Stripe.',
+  'Couldn’t open the payment page. Try again in a minute.': 'Impossible d’ouvrir la page de paiement. Réessayez dans une minute.',
+  'Between {min} and {max}': 'Entre {min} et {max}',
+  'You’ll pay on Stripe’s secure page. {brand} never sees your card number.':
+    'Vous paierez sur la page sécurisée de Stripe. {brand} ne voit jamais votre numéro de carte.',
+  'Test mode:': 'Mode test :',
+  'use card 4242 4242 4242 4242, any future date and any CVC. No real money moves.':
+    'utilisez la carte 4242 4242 4242 4242, n’importe quelle date future et n’importe quel CVC. Aucun argent réel ne circule.',
+  'Opening Stripe…': 'Ouverture de Stripe…',
+  'Pay {amount} by card': 'Payer {amount} par carte',
+  'Record money I have': 'Noter l’argent que j’ai',
+  'Pay by card': 'Payer par carte',
+  'Record money you have, or top up by card.': 'Notez l’argent que vous avez, ou rechargez par carte.',
 }
