@@ -24,6 +24,7 @@ function makeApp(base) {
     period: 'month',
     currency: 'USD',
     theme: 'light',
+    themeMode: 'light',
     contacts: [],
     goals: [],
     bills: [],

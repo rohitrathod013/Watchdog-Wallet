@@ -28,6 +28,7 @@ import Dashboard from './pages/Dashboard'
 import { AppContext } from './lib/store'
 import { PAGES, TABS } from './lib/routes'
 import { liquidSwitch } from './lib/themeTransition'
+import { msUntilSwitch, resolveTheme } from './lib/dayTheme'
 import { localIso, MONTHS, money, uid } from './lib/format'
 import { accountCards, billDue, computeStats, DEFAULT_BUDGETS, demoStats, KIND_FOR } from './lib/stats'
 import { LOCALES, setLocale, t, tMonths } from './lib/i18n'
@@ -152,7 +153,12 @@ const store = (key, value) => {
 
 export default function App() {
   /* ---------- appearance ---------- */
-  const [theme, setTheme] = useState(() => stored('codexr-theme', THEME.defaultTheme))
+  // themeMode is the choice ('light' | 'dark' | 'auto'); theme is what's on screen right now
+  const [themeMode, setThemeMode] = useState(() => {
+    const saved = stored('codexr-theme', THEME.defaultTheme)
+    return ['light', 'dark', 'auto'].includes(saved) ? saved : 'auto'
+  })
+  const [theme, setTheme] = useState(() => resolveTheme(themeMode))
   const [accent, setAccent] = useState(() => stored('codexr-accent', THEME.defaultAccent))
   const [reduceMotion, setReduceMotion] = useState(() => stored('codexr-motion', 'full') === 'reduced')
   const [lang, setLang] = useState(() => {
@@ -171,8 +177,10 @@ export default function App() {
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme
-    store('codexr-theme', theme)
   }, [theme])
+  useEffect(() => {
+    store('codexr-theme', themeMode)
+  }, [themeMode])
   useLayoutEffect(() => {
     document.documentElement.dataset.accent = accent
     store('codexr-accent', accent)
@@ -182,18 +190,41 @@ export default function App() {
     store('codexr-motion', reduceMotion ? 'reduced' : 'full')
   }, [reduceMotion])
 
+  /** Show a theme with the liquid transition (from the given point, or the top centre). */
+  const showTheme = useCallback((next, origin) => {
+    if (next === document.documentElement.dataset.theme) return setTheme(next)
+    const x = origin?.x ?? window.innerWidth / 2
+    const y = origin?.y ?? 0
+    liquidSwitch(x, y, () => {
+      document.documentElement.dataset.theme = next
+      flushSync(() => setTheme(next))
+    })
+  }, [])
+  /** Pick 'light', 'dark' or 'auto' (day and night by the clock). */
   const switchTheme = useCallback(
-    (next, origin) => {
-      if (next === theme) return
-      const x = origin?.x ?? window.innerWidth / 2
-      const y = origin?.y ?? 0
-      liquidSwitch(x, y, () => {
-        document.documentElement.dataset.theme = next
-        flushSync(() => setTheme(next))
-      })
+    (mode, origin) => {
+      setThemeMode(mode)
+      showTheme(resolveTheme(mode), origin)
     },
-    [theme],
+    [showTheme],
   )
+  // Auto: switch at 7am and 7pm (THEME.day), and check again when the tab comes back after a sleep
+  useEffect(() => {
+    if (themeMode !== 'auto') return undefined
+    let timer = 0
+    const check = () => {
+      showTheme(resolveTheme('auto'))
+      window.clearTimeout(timer)
+      timer = window.setTimeout(check, msUntilSwitch())
+    }
+    timer = window.setTimeout(check, msUntilSwitch())
+    const onVisible = () => document.visibilityState === 'visible' && check()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [themeMode, showTheme])
 
   /* ---------- intro choreography (plays on every fresh load) ---------- */
   const [bootKey, setBootKey] = useState(0)
@@ -978,6 +1009,7 @@ export default function App() {
       setTab,
       booting,
       theme,
+      themeMode,
       switchTheme,
       accent,
       setAccent,
@@ -1057,6 +1089,7 @@ export default function App() {
       setTab,
       booting,
       theme,
+      themeMode,
       switchTheme,
       accent,
       reduceMotion,

@@ -1488,4 +1488,10 @@ export default {
   'Phone number saved.': 'Telefonnummer gespeichert.',
   'Phone number removed.': 'Telefonnummer entfernt.',
   'With the country code. Leave it empty and save to remove it.': 'Mit Ländervorwahl. Leer lassen und speichern, um sie zu entfernen.',
+  Auto: 'Auto',
+  'Light in the day, dark from 7pm to 7am.': 'Tagsüber hell, von 19 bis 7 Uhr dunkel.',
+  'Auto theme is already on 🌗 Light in the day, dark from 7pm to 7am.':
+    'Das automatische Design ist schon an 🌗 Tagsüber hell, von 19 bis 7 Uhr dunkel.',
+  'Done 🌗 Light in the day, dark from 7pm to 7am, switching by itself.':
+    'Erledigt 🌗 Tagsüber hell, von 19 bis 7 Uhr dunkel, es wechselt von selbst.',
 }

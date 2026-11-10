@@ -245,12 +245,20 @@ function core(raw, app) {
   }
 
   /* ---------------- appearance & controls ---------------- */
+  if (
+    /\b(auto(matic)?|by (the )?time|day and night)\b.*\b(theme|mode|dark|light)\b|\b(theme|mode)\b.*\bauto(matic)?\b|follow (the )?(time|clock|sun)/.test(
+      s,
+    )
+  ) {
+    if (app.themeMode === 'auto') return { text: t('Auto theme is already on 🌗 Light in the day, dark from 7pm to 7am.') }
+    return { text: t('Done 🌗 Light in the day, dark from 7pm to 7am, switching by itself.'), run: () => app.switchTheme('auto'), mood: 'happy' }
+  }
   if (/\bdark\b/.test(s) || /(lights? off|night mode)/.test(s)) {
-    if (app.theme === 'dark') return { text: t('We’re already in dark mode 🌙') }
+    if (app.themeMode === 'dark') return { text: t('We’re already in dark mode 🌙') }
     return { text: t('Lights off 🌙 Switching to dark mode.'), run: () => app.switchTheme('dark'), mood: 'happy' }
   }
   if (/\blight (mode|theme)|light karo|lights? on|day mode|\bwhite (mode|theme)/.test(s)) {
-    if (app.theme === 'light') return { text: t('We’re already in light mode ☀️') }
+    if (app.themeMode === 'light') return { text: t('We’re already in light mode ☀️') }
     return { text: t('Good morning ☀️ Switching to light mode.'), run: () => app.switchTheme('light'), mood: 'happy' }
   }
   const ACCENT = { orange: 'orange', blue: 'blue', green: 'green', violet: 'violet', purple: 'violet', rose: 'rose', pink: 'rose' }

@@ -124,7 +124,8 @@ English, Español, Français, Deutsch and العربية. Everything is translat
 
 ### Look and feel
 
-- Light and dark mode with a liquid theme transition, and 5 accent colours.
+- Light, dark and **Auto** themes, with a liquid transition between them. Auto (the default) is light in the daytime and dark from 7pm to 7am by your device's clock, and switches by itself at those times. Grace can turn it on ("auto theme"). The hours are `THEME.day` in `src/config.js`.
+- 5 accent colours.
 - Staggered entrances, counting numbers, self-drawing charts and sections that reveal as you scroll.
 - Reduce motion setting, and respect for the system reduced-motion preference.
 - Works on phones (tested down to 360px wide), tablets and desktops.

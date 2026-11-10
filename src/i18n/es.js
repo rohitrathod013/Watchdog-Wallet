@@ -1481,4 +1481,9 @@ export default {
   'Phone number saved.': 'Teléfono guardado.',
   'Phone number removed.': 'Teléfono eliminado.',
   'With the country code. Leave it empty and save to remove it.': 'Con el prefijo del país. Déjalo vacío y guarda para quitarlo.',
+  Auto: 'Auto',
+  'Light in the day, dark from 7pm to 7am.': 'Claro de día, oscuro de 19:00 a 7:00.',
+  'Auto theme is already on 🌗 Light in the day, dark from 7pm to 7am.':
+    'El tema automático ya está activado 🌗 Claro de día, oscuro de 19:00 a 7:00.',
+  'Done 🌗 Light in the day, dark from 7pm to 7am, switching by itself.': 'Hecho 🌗 Claro de día y oscuro de 19:00 a 7:00, cambia solo.',
 }

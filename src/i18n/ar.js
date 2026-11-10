@@ -1446,4 +1446,9 @@ export default {
   'Phone number saved.': 'تم حفظ رقم الهاتف.',
   'Phone number removed.': 'تمت إزالة رقم الهاتف.',
   'With the country code. Leave it empty and save to remove it.': 'مع رمز الدولة. اتركه فارغًا واحفظ لإزالته.',
+  Auto: 'تلقائي',
+  'Light in the day, dark from 7pm to 7am.': 'فاتح في النهار، داكن من 7 مساءً إلى 7 صباحًا.',
+  'Auto theme is already on 🌗 Light in the day, dark from 7pm to 7am.':
+    'السمة التلقائية مفعّلة بالفعل 🌗 فاتحة في النهار وداكنة من 7 مساءً إلى 7 صباحًا.',
+  'Done 🌗 Light in the day, dark from 7pm to 7am, switching by itself.': 'تم 🌗 فاتح في النهار وداكن من 7 مساءً إلى 7 صباحًا، ويتبدّل وحده.',
 }

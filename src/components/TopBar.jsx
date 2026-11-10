@@ -161,12 +161,14 @@ export default function TopBar() {
             <h6>{t('Appearance')}</h6>
             <Segmented
               items={[
+                { key: 'auto', label: t('Auto') },
                 { key: 'light', label: t('Light') },
                 { key: 'dark', label: t('Dark') },
               ]}
-              value={app.theme}
+              value={app.themeMode ?? app.theme}
               onChange={themeFromGear}
             />
+            {app.themeMode === 'auto' ? <p className="set-note">{t('Light in the day, dark from 7pm to 7am.')}</p> : null}
             <div className="set-gap" />
             <h6>{t('Accent')}</h6>
             <div className="swatches">

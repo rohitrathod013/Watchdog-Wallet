@@ -23,7 +23,10 @@
     <script>
       // apply the saved theme before first paint so there is no flash
       try {
-        document.documentElement.dataset.theme = localStorage.getItem('codexr-theme') || 'light'
+        // "auto" (the default) is light from 7am to 7pm and dark otherwise, like THEME.day in src/config.js
+        var mode = localStorage.getItem('codexr-theme') || 'auto'
+        var hour = new Date().getHours()
+        document.documentElement.dataset.theme = mode === 'auto' ? (hour >= 7 && hour < 19 ? 'light' : 'dark') : mode
         document.documentElement.dataset.accent = localStorage.getItem('codexr-accent') || 'orange'
       } catch (e) {}
     </script>

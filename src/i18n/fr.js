@@ -1494,4 +1494,9 @@ export default {
   'Phone number saved.': 'Numéro enregistré.',
   'Phone number removed.': 'Numéro retiré.',
   'With the country code. Leave it empty and save to remove it.': 'Avec l’indicatif du pays. Laissez vide et enregistrez pour le retirer.',
+  Auto: 'Auto',
+  'Light in the day, dark from 7pm to 7am.': 'Clair le jour, sombre de 19 h à 7 h.',
+  'Auto theme is already on 🌗 Light in the day, dark from 7pm to 7am.':
+    'Le thème automatique est déjà activé 🌗 Clair le jour, sombre de 19 h à 7 h.',
+  'Done 🌗 Light in the day, dark from 7pm to 7am, switching by itself.': 'C’est fait 🌗 Clair le jour, sombre de 19 h à 7 h, ça change tout seul.',
 }
