@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
@@ -6,7 +7,10 @@ import { defineConfig } from 'vite'
    patterns look for, plus the English in her replies and comments).
    Built at compile time so only the word list ships, not the source.
    Typo correction (src/lib/typos.js) treats these as correctly spelled. */
-const VOCAB_FILES = ['src/lib/assistant.js', 'src/lib/insights.js', 'src/lib/stats.js', 'src/lib/live.js', 'src/data/seed.js']
+// full paths: the dev server treats watched files as imports, and a bare 'src/...' can't be resolved
+const VOCAB_FILES = ['src/lib/assistant.js', 'src/lib/insights.js', 'src/lib/stats.js', 'src/lib/live.js', 'src/data/seed.js'].map((f) =>
+  fileURLToPath(new URL(f, import.meta.url)),
+)
 function graceVocab() {
   const id = 'virtual:grace-vocab'
   return {
