@@ -307,4 +307,3 @@ The latest Chrome, Edge, Safari and Firefox, on desktop and mobile. The liquid t
 
 © 2026 Rohit Rathod · Watchdog Wallet. All rights reserved.
 
-The owner shown in the site footer is set in `COPYRIGHT` in `src/config.js`.
