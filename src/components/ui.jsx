@@ -209,6 +209,20 @@ export function Popover({ open, onClose, anchor = 'right', className = '', child
       document.removeEventListener('keydown', key)
     }
   }, [open, onClose])
+  // on narrow screens the button can sit at either edge: slide the menu back inside the window
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!open || !el) return
+    el.style.translate = ''
+    const gap = 12
+    // the opening animation scales from the anchored corner, so measure from that edge
+    const box = el.getBoundingClientRect()
+    const left = anchor === 'left' ? box.left : box.right - el.offsetWidth
+    const right = left + el.offsetWidth
+    const vw = document.documentElement.clientWidth
+    const shift = left < gap ? gap - left : right > vw - gap ? vw - gap - right : 0
+    if (shift) el.style.translate = `${Math.round(shift)}px 0`
+  }, [open, anchor])
   if (!open) return null
   return (
     <div ref={ref} className={`pop ${anchor} ${className}`} role="menu">
