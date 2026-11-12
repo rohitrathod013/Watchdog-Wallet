@@ -149,3 +149,48 @@ describe('anomaly detection', async () => {
     expect(r.status).toBe('ok')
   })
 })
+
+describe('forecast with a range', async () => {
+  const { forecastMonth, balanceAt, recurring } = await import('../src/lib/ml/forecast')
+  const a = syntheticAccount({ seed: 3, incidents: false })
+  const now = new Date(2026, 9, 15, 12)
+  const known = a.transactions.filter((x) => new Date(x.date) < now)
+  const balance = balanceAt(a.transactions, a.opening, now)
+  it('orders its percentiles and is deterministic', () => {
+    const f = forecastMonth({ transactions: known, balance, now })
+    expect(f.p10).toBeLessThanOrEqual(f.p50)
+    expect(f.p50).toBeLessThanOrEqual(f.p90)
+    expect(f.p10).toBeLessThan(f.p90)
+    expect(f.pBelowZero).toBeGreaterThanOrEqual(0)
+    expect(f.rough).toBe(false)
+    expect(forecastMonth({ transactions: known, balance, now })).toEqual(f)
+    expect(f.trace.value).toBe(f.p50)
+  })
+  it('spots pay, rent and subscriptions as repeat items', () => {
+    const names = recurring(known, now).map((r) => r.name)
+    expect(names).toEqual(expect.arrayContaining(['Northwind Payroll', 'Oakwood Apartments', 'Spotify']))
+  })
+  it('widens the band and says “rough” with under 60 days of history', () => {
+    const full = forecastMonth({ transactions: known, balance, now })
+    const short = known.filter((x) => new Date(x.date) >= new Date(2026, 8, 1))
+    const brief = forecastMonth({ transactions: short, balance, now })
+    expect(brief.rough).toBe(true)
+    expect(brief.p90 - brief.p10).toBeGreaterThan(full.p90 - full.p10)
+  })
+  it('counts unpaid bills, and warns when the balance could dip below zero', () => {
+    const tight = forecastMonth({
+      transactions: known,
+      balance: 200,
+      bills: [{ name: 'Car repair', amount: 600, dueDate: '2026-10-20', paid: false }],
+      now,
+    })
+    expect(tight.scheduled.map((s) => s.name)).toContain('Car repair')
+    expect(tight.pBelowZero).toBeGreaterThan(0.5)
+    expect(tight.dipDay).toBeGreaterThanOrEqual(16)
+  })
+  it('an empty account gives its balance back, with no spread', () => {
+    const f = forecastMonth({ transactions: [], balance: 0, now })
+    expect([f.p10, f.p50, f.p90]).toEqual([0, 0, 0])
+    expect(f.pBelowZero).toBe(0)
+  })
+})
