@@ -210,6 +210,21 @@ export function useSocial({ enabled, userId, userName, transactions, since, setB
     }
   }, [enabled, userName, refresh, announce, toast])
 
+  // the live connection can drop (a sleeping laptop, a phone tab in the background), so also
+  // reload when the user comes back to the tab, and once a minute while it's open
+  useEffect(() => {
+    if (!enabled) return undefined
+    const back = () => document.visibilityState === 'visible' && refresh()
+    const tick = window.setInterval(back, 60000)
+    document.addEventListener('visibilitychange', back)
+    window.addEventListener('focus', back)
+    return () => {
+      window.clearInterval(tick)
+      document.removeEventListener('visibilitychange', back)
+      window.removeEventListener('focus', back)
+    }
+  }, [enabled, refresh])
+
   /* ---------- actions: each one checks with Supabase, then reloads ---------- */
   const after = useCallback(
     (work) =>
