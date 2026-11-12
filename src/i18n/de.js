@@ -1632,4 +1632,88 @@ export default {
   '3 months': '3 Monaten',
   '2 months': '2 Monaten',
   '1 months': '1 Monat',
+  'If you’re unsure, stop and check with the company or person directly. You can always say no.':
+    'Wenn du unsicher bist, halte an und frag direkt bei der Firma oder Person nach. Du kannst immer Nein sagen.',
+  'Nothing in my checks stood out. Rules can’t catch everything, so trust your gut if something feels off.':
+    'Bei meinen Prüfungen ist nichts aufgefallen. Regeln erkennen nicht alles, also vertrau deinem Gefühl, wenn etwas komisch wirkt.',
+  'This looks risky': 'Das wirkt riskant',
+  'Some things here look suspicious': 'Einiges hier wirkt verdächtig',
+  'Nothing obvious looks risky': 'Nichts wirkt offensichtlich riskant',
+  'You haven’t paid {name} before': 'Du hast {name} noch nie bezahlt',
+  'Before you pay it:': 'Bevor du zahlst:',
+  '{headline} ({score}/100). Here’s what I checked:': '{headline} ({score}/100). Das habe ich geprüft:',
+  '🛡 **{headline}** ({score}/100). Here’s why:': '🛡 **{headline}** ({score}/100). Darum:',
+  'How much this counts towards the score': 'Wie stark das in die Punktzahl eingeht',
+  'None of my checks matched: payment requests, codes, secrecy, pressure, prizes, look-alike or hidden links.':
+    'Keine meiner Prüfungen hat angeschlagen: Zahlungsaufforderungen, Codes, Geheimhaltung, Druck, Gewinne, nachgemachte oder versteckte Links.',
+  'Show all {n} reasons': 'Alle {n} Gründe anzeigen',
+  'Checked on this device with fixed rules. Nothing you pasted was sent anywhere.':
+    'Auf diesem Gerät mit festen Regeln geprüft. Nichts von dem Eingefügten wurde verschickt.',
+  'Get a plain-language explanation': 'Einfache Erklärung holen',
+  'This will be sent to the AI model (Google Gemini):': 'Das wird an das KI-Modell (Google Gemini) gesendet:',
+  'No account data is included. The score above comes from my rules and won’t change.':
+    'Es sind keine Kontodaten dabei. Die Punktzahl stammt aus meinen Regeln und ändert sich nicht.',
+  'Send it': 'Senden',
+  'Asking the AI model…': 'Ich frage das KI-Modell…',
+  'I couldn’t get an explanation right now. Sign in, or try again in a minute.':
+    'Ich konnte gerade keine Erklärung holen. Melde dich an oder versuch es gleich noch einmal.',
+  'Written by the AI model, not checked. The score and reasons above are from my rules.':
+    'Vom KI-Modell geschrieben, nicht geprüft. Punktzahl und Gründe oben stammen aus meinen Regeln.',
+  'Thanks. Saved on this device only, to help measure how often I’m wrong.':
+    'Danke. Nur auf diesem Gerät gespeichert, um zu messen, wie oft ich danebenliege.',
+  'Was I right?': 'Lag ich richtig?',
+  'Report as safe': 'Als sicher melden',
+  'Report as scam': 'Als Betrug melden',
+  'Asks for an unusual way to pay': 'Verlangt eine ungewöhnliche Zahlungsart',
+  'Asks for passwords, PINs or codes': 'Fragt nach Passwörtern, PINs oder Codes',
+  'Wants remote access to your device': 'Will Fernzugriff auf dein Gerät',
+  'Says the bank details have changed': 'Behauptet, die Bankdaten hätten sich geändert',
+  'Asks you to keep it secret': 'Bittet dich, es geheim zu halten',
+  'Promises a prize or easy money': 'Verspricht einen Gewinn oder leichtes Geld',
+  'Pressures you to act fast': 'Setzt dich unter Zeitdruck',
+  'Asks for a small fee to release something': 'Verlangt eine kleine Gebühr zur Freigabe',
+  'Claims to be a company, an authority or family': 'Gibt sich als Firma, Behörde oder Familie aus',
+  'Asks for Zelle or a cash app': 'Verlangt Zelle oder eine Bezahl-App',
+  'Odd writing, like mass messages': 'Seltsamer Stil wie bei Massennachrichten',
+  'Link goes to a bare number address': 'Der Link führt zu einer reinen Zahlenadresse',
+  'Link uses look-alike letters (punycode)': 'Der Link nutzt ähnlich aussehende Zeichen (Punycode)',
+  'Shortened link hides where it goes': 'Der Kurzlink verbirgt sein Ziel',
+  'Link looks like {brand} but isn’t theirs': 'Der Link sieht aus wie {brand}, gehört aber nicht dazu',
+  'Unusual website ending': 'Ungewöhnliche Domain-Endung',
+  'The link text and where it really goes don’t match': 'Linktext und echtes Ziel passen nicht zusammen',
+  '{amount} is over 3× your usual payment': '{amount} ist mehr als das 3-Fache deiner üblichen Zahlung',
+  'At or above your {limit} guard limit': 'Bei oder über deinem Limit von {limit}',
+  '{name} is very close to your contact {contact}, but not the same': '{name} ähnelt deinem Kontakt {contact} sehr, ist aber nicht gleich',
+  '{name} is {pct}% more than last time': '{name} ist {pct} % teurer als beim letzten Mal',
+  'Real companies and government offices never ask to be paid in gift cards, crypto or by wire.':
+    'Echte Firmen und Behörden verlangen nie Zahlung per Geschenkkarte, Krypto oder Blitzüberweisung.',
+  'Never share passwords, PINs or one-time codes, even with someone who says they’re your bank.':
+    'Gib nie Passwörter, PINs oder Einmalcodes weiter, auch nicht an jemanden, der sich als deine Bank ausgibt.',
+  'Don’t install apps or share your screen because someone asked you to.':
+    'Installiere keine Apps und teile nicht deinen Bildschirm, nur weil jemand darum bittet.',
+  'Call the company on a number you already have (not one in this message) before paying a new account.':
+    'Ruf die Firma unter einer Nummer an, die du schon hast (nicht aus dieser Nachricht), bevor du an ein neues Konto zahlst.',
+  'Anyone who asks you to keep a payment secret is a warning sign. Talk to someone you trust first.':
+    'Wer verlangt, eine Zahlung geheim zu halten, ist ein Warnsignal. Sprich zuerst mit jemandem, dem du vertraust.',
+  'If you didn’t enter, you didn’t win. Never pay to collect a prize.':
+    'Wer nicht teilgenommen hat, hat nicht gewonnen. Zahl nie, um einen Gewinn abzuholen.',
+  'Slow down. Pressure to act right now is how scams stop you checking.': 'Langsam. Druck, sofort zu handeln, soll dich vom Prüfen abhalten.',
+  'Couriers and customs don’t text you for small fees. Check the tracking on the real company’s website.':
+    'Paketdienste und Zoll schreiben dir nicht wegen kleiner Gebühren. Prüf die Sendungsverfolgung auf der echten Website.',
+  'Contact them yourself using the app, the website you normally use or the number on your card.':
+    'Kontaktiere sie selbst über die App, die übliche Website oder die Nummer auf deiner Karte.',
+  'Don’t tap the link. Type the real website address yourself.': 'Tipp nicht auf den Link. Gib die echte Adresse selbst ein.',
+  'The link doesn’t go where it says. Don’t tap it.': 'Der Link führt nicht dorthin, wo er vorgibt. Nicht antippen.',
+  'Don’t tap links that are just a string of numbers.': 'Tipp keine Links an, die nur aus Zahlen bestehen.',
+  'Don’t tap it: some letters are look-alikes from another alphabet.': 'Nicht antippen: Manche Buchstaben stammen aus einem anderen Alphabet.',
+  'Short links hide where they go. Be careful before tapping.': 'Kurzlinks verbergen ihr Ziel. Vorsicht beim Antippen.',
+  'Check you picked the right person: the name is almost the same as someone you know.':
+    'Prüf, ob du die richtige Person gewählt hast: Der Name ähnelt fast jemandem, den du kennst.',
+  'For a first payment, check the details with them another way, like a call.':
+    'Prüf bei einer ersten Zahlung die Daten auf anderem Weg, etwa per Anruf.',
+  'That’s much more than you usually pay. Double-check the amount.': 'Das ist viel mehr als sonst. Prüf den Betrag.',
+  'Compare it with your last bill, and ask the company if the jump isn’t explained.':
+    'Vergleich sie mit deiner letzten Rechnung und frag nach, wenn der Anstieg nicht erklärt ist.',
+  'Paste the message, email, link, invoice or payee here and I’ll check it 🛡 It stays on this device: my checks are rules, nothing is sent anywhere.':
+    'Füge die Nachricht, E-Mail, den Link, die Rechnung oder den Empfänger hier ein und ich prüfe es 🛡 Alles bleibt auf diesem Gerät: Ich prüfe mit Regeln, nichts wird verschickt.',
 }

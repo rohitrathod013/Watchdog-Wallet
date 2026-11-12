@@ -1586,4 +1586,82 @@ export default {
   '3 months': '3 أشهر',
   '2 months': 'شهرين',
   '1 months': 'شهر واحد',
+  'If you’re unsure, stop and check with the company or person directly. You can always say no.':
+    'إن لم تكن متأكدًا، توقّف وتحقّق مباشرةً مع الشركة أو الشخص. يمكنك دائمًا أن تقول لا.',
+  'Nothing in my checks stood out. Rules can’t catch everything, so trust your gut if something feels off.':
+    'لم يلفت شيء انتباهي في فحوصاتي. القواعد لا تكشف كل شيء، فثق بحدسك إن بدا لك أمر غريب.',
+  'This looks risky': 'يبدو هذا محفوفًا بالمخاطر',
+  'Some things here look suspicious': 'بعض الأمور هنا تبدو مريبة',
+  'Nothing obvious looks risky': 'لا يبدو شيء خطِرًا بوضوح',
+  'You haven’t paid {name} before': 'لم تدفع لـ{name} من قبل',
+  'Before you pay it:': 'قبل أن تدفعها:',
+  '{headline} ({score}/100). Here’s what I checked:': '{headline} ({score}/100). إليك ما فحصته:',
+  '🛡 **{headline}** ({score}/100). Here’s why:': '🛡 **{headline}** ({score}/100). إليك السبب:',
+  'How much this counts towards the score': 'مقدار تأثير هذا في النتيجة',
+  'None of my checks matched: payment requests, codes, secrecy, pressure, prizes, look-alike or hidden links.':
+    'لم يتطابق أي فحص: طلبات دفع، رموز، سرّية، ضغط، جوائز، روابط مقلّدة أو مخفية.',
+  'Show all {n} reasons': 'عرض كل الأسباب ({n})',
+  'Checked on this device with fixed rules. Nothing you pasted was sent anywhere.':
+    'فُحص على هذا الجهاز بقواعد ثابتة. لم يُرسل أي شيء ألصقته إلى أي مكان.',
+  'Get a plain-language explanation': 'احصل على شرح مبسّط',
+  'This will be sent to the AI model (Google Gemini):': 'سيُرسل هذا إلى نموذج الذكاء الاصطناعي (Google Gemini):',
+  'No account data is included. The score above comes from my rules and won’t change.':
+    'لا تُضمَّن أي بيانات من حسابك. النتيجة أعلاه من قواعدي ولن تتغير.',
+  'Send it': 'أرسله',
+  'Asking the AI model…': 'أسأل نموذج الذكاء الاصطناعي…',
+  'I couldn’t get an explanation right now. Sign in, or try again in a minute.': 'تعذّر الحصول على شرح الآن. سجّل الدخول أو حاول بعد دقيقة.',
+  'Written by the AI model, not checked. The score and reasons above are from my rules.':
+    'كتبه نموذج الذكاء الاصطناعي دون تحقق. النتيجة والأسباب أعلاه من قواعدي.',
+  'Thanks. Saved on this device only, to help measure how often I’m wrong.': 'شكرًا. حُفظ على هذا الجهاز فقط لقياس مدى أخطائي.',
+  'Was I right?': 'هل كنت محقًا؟',
+  'Report as safe': 'أبلغ بأنه آمن',
+  'Report as scam': 'أبلغ بأنه احتيال',
+  'Asks for an unusual way to pay': 'يطلب طريقة دفع غير معتادة',
+  'Asks for passwords, PINs or codes': 'يطلب كلمات مرور أو أرقامًا سرية أو رموزًا',
+  'Wants remote access to your device': 'يريد وصولًا عن بُعد إلى جهازك',
+  'Says the bank details have changed': 'يقول إن البيانات المصرفية تغيّرت',
+  'Asks you to keep it secret': 'يطلب منك الكتمان',
+  'Promises a prize or easy money': 'يعد بجائزة أو مال سهل',
+  'Pressures you to act fast': 'يضغط عليك للتصرّف بسرعة',
+  'Asks for a small fee to release something': 'يطلب رسومًا صغيرة للإفراج عن شيء',
+  'Claims to be a company, an authority or family': 'يدّعي أنه شركة أو جهة رسمية أو قريب',
+  'Asks for Zelle or a cash app': 'يطلب Zelle أو تطبيق دفع',
+  'Odd writing, like mass messages': 'صياغة غريبة كالرسائل الجماعية',
+  'Link goes to a bare number address': 'الرابط يقود إلى عنوان رقمي',
+  'Link uses look-alike letters (punycode)': 'الرابط يستخدم أحرفًا مشابهة (punycode)',
+  'Shortened link hides where it goes': 'الرابط المختصر يخفي وجهته',
+  'Link looks like {brand} but isn’t theirs': 'الرابط يشبه {brand} لكنه ليس تابعًا لهم',
+  'Unusual website ending': 'نهاية موقع غير مألوفة',
+  'The link text and where it really goes don’t match': 'نص الرابط لا يطابق وجهته الحقيقية',
+  '{amount} is over 3× your usual payment': '{amount} أكثر من 3 أضعاف دفعتك المعتادة',
+  'At or above your {limit} guard limit': 'عند حد الحماية {limit} أو فوقه',
+  '{name} is very close to your contact {contact}, but not the same': '{name} قريب جدًا من جهة اتصالك {contact} لكنه ليس هو',
+  '{name} is {pct}% more than last time': '{name} أعلى بنسبة {pct}% من المرة الماضية',
+  'Real companies and government offices never ask to be paid in gift cards, crypto or by wire.':
+    'الشركات والجهات الحكومية الحقيقية لا تطلب الدفع ببطاقات الهدايا أو العملات المشفرة أو الحوالات.',
+  'Never share passwords, PINs or one-time codes, even with someone who says they’re your bank.':
+    'لا تشارك كلمات المرور أو الأرقام السرية أو الرموز المؤقتة أبدًا، حتى مع من يدّعي أنه مصرفك.',
+  'Don’t install apps or share your screen because someone asked you to.': 'لا تثبّت تطبيقات ولا تشارك شاشتك لأن أحدًا طلب ذلك.',
+  'Call the company on a number you already have (not one in this message) before paying a new account.':
+    'اتصل بالشركة على رقم لديك مسبقًا (لا الرقم في هذه الرسالة) قبل الدفع لحساب جديد.',
+  'Anyone who asks you to keep a payment secret is a warning sign. Talk to someone you trust first.':
+    'من يطلب منك كتمان دفعة فهذه علامة تحذير. تحدّث أولًا مع شخص تثق به.',
+  'If you didn’t enter, you didn’t win. Never pay to collect a prize.': 'إن لم تشارك فلم تربح. لا تدفع أبدًا لاستلام جائزة.',
+  'Slow down. Pressure to act right now is how scams stop you checking.': 'تمهّل. الضغط للتصرّف فورًا هو ما يمنعك من التحقق.',
+  'Couriers and customs don’t text you for small fees. Check the tracking on the real company’s website.':
+    'شركات الشحن والجمارك لا تراسلك لطلب رسوم صغيرة. تحقّق من التتبع على الموقع الحقيقي.',
+  'Contact them yourself using the app, the website you normally use or the number on your card.':
+    'تواصل معهم بنفسك عبر التطبيق أو الموقع المعتاد أو الرقم على بطاقتك.',
+  'Don’t tap the link. Type the real website address yourself.': 'لا تضغط على الرابط. اكتب عنوان الموقع الحقيقي بنفسك.',
+  'The link doesn’t go where it says. Don’t tap it.': 'الرابط لا يقود إلى حيث يدّعي. لا تضغط عليه.',
+  'Don’t tap links that are just a string of numbers.': 'لا تضغط على روابط هي مجرد أرقام.',
+  'Don’t tap it: some letters are look-alikes from another alphabet.': 'لا تضغط عليه: بعض الأحرف مقلّدة من أبجدية أخرى.',
+  'Short links hide where they go. Be careful before tapping.': 'الروابط المختصرة تخفي وجهتها. احذر قبل الضغط.',
+  'Check you picked the right person: the name is almost the same as someone you know.': 'تأكّد أنك اخترت الشخص الصحيح: الاسم شبه مطابق لشخص تعرفه.',
+  'For a first payment, check the details with them another way, like a call.': 'في الدفعة الأولى، تحقّق من التفاصيل بطريقة أخرى كالاتصال.',
+  'That’s much more than you usually pay. Double-check the amount.': 'هذا أكثر بكثير مما تدفعه عادةً. تحقّق من المبلغ.',
+  'Compare it with your last bill, and ask the company if the jump isn’t explained.':
+    'قارنها بفاتورتك الأخيرة واسأل الشركة إن لم تكن الزيادة مبرّرة.',
+  'Paste the message, email, link, invoice or payee here and I’ll check it 🛡 It stays on this device: my checks are rules, nothing is sent anywhere.':
+    'ألصق هنا الرسالة أو البريد أو الرابط أو الفاتورة أو المستفيد وسأفحصه 🛡 يبقى على هذا الجهاز: فحوصاتي قواعد ولا يُرسل شيء.',
 }

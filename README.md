@@ -93,6 +93,7 @@ Grace wears a guard cap and a gold shield badge, and she guards the account (**G
 - **First payment warning**: before you pay someone for the first time, Grace asks you to check it's really them.
 - **Privacy blur**: optional. Blurs your numbers whenever you switch to another tab or app, for screen sharing.
 - **Scam warnings**: messages like "someone asked me to buy gift cards", "move my money to a safe account" or "install AnyDesk" get a clear warning and what to do.
+- **Watchdog scam shield**: ask "is this a scam?" and paste a message, email, link, invoice or payee (or just paste a link or a long suspicious message) and Grace scores it 0 to 100 as low, medium or high, with every reason shown next to the exact words that triggered it and how much it counts. It's **rule-based, explainable and local**: about 20 weighted signals (unusual payment methods, requests for codes, remote-access apps, secrecy, pressure, prizes, small "release" fees, changed bank details, impersonation) plus static link checks (look-alike domains against 50 well-known brands, short links, bare number addresses, punycode, link text that doesn't match the target), combined with diminishing returns so one weak signal never reads as high. Links are only read as text, never opened. Before a payment, the same shield checks your own history on this device: a payee you've never paid, an amount over 3× your usual, a name a letter off one of your contacts, or a bill more than 20% above the last one. These show in Grace's confirm and the payment windows as warnings, never blocks. The receipt scanner flags changed bank details and new payees too. **Report as safe** or **Report as scam** keeps your verdict on this device only. Nothing you paste leaves the device unless you tap **Get a plain-language explanation**, which first shows exactly what would be sent to the AI model; the model only explains, it never changes the score. On the small hand-written test set in `tests/shield.test.js` (20 scams, 20 normal messages, not real traffic) it scores 95.2% precision and 100% recall.
 - Settings are saved per account, and Grace can change them: "auto-lock after 5 minutes", "set my guard limit to $300", "turn on privacy blur".
 
 ### Grace, the assistant
@@ -309,6 +310,8 @@ src/
     useSocial.js       the Friends state: live updates, and each transfer counted once
     payments.js        card top-ups through the payments Edge Function
     llm.js             Grace's free-form answers through the grace Edge Function
+    shield.js          the Watchdog scam shield: rule-based scoring of messages, links and payees
+    trace.js           "show your work": cent-exact traces behind every figure Grace states
     contacts.js        adding friends from the phone's contacts (Contact Picker)
     voice.js           Grace's voice
     stats.js           charts and totals worked out from transactions

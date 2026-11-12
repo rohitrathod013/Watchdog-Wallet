@@ -1208,7 +1208,7 @@ describe('scam shield in the chat', () => {
     expect(c.text).not.toMatch(/is this a scam/i)
     expect(c.result.reasons[0].evidence.length).toBeGreaterThan(0)
     expect(plain(r)).toMatch(/looks risky/)
-    expect(plain(r)).not.toMatch(/is a scam/)
+    expect(plain(r)).not.toMatch(/\bis a scam\b/)
   })
   it('checks a link on its own, before typo fixing could “correct” it', () => {
     const r = respond('paypa1.com/login', demo(), {})
