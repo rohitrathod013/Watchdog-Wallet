@@ -72,3 +72,80 @@ describe('synthetic accounts', () => {
     expect(syntheticAccount({ seed: 5, incidents: false }).incidents).toEqual([])
   })
 })
+
+describe('anomaly detection', async () => {
+  const { detectAnomalies, eligible, MIN_HISTORY } = await import('../src/lib/ml/anomaly')
+  const { traceAddsUp } = await import('../src/lib/trace')
+  const quiet = (n = 60, extra = []) => {
+    const out = []
+    for (let i = 0; i < n; i++) {
+      const d = new Date(2026, 8, 1 + Math.floor(i / 2), 12 + (i % 3), 0)
+      const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:00`
+      out.push({
+        id: `q${i}`,
+        date: day,
+        name: ['Cafe', 'Market', 'Metro'][i % 3],
+        amount: -[8, 40, 3][i % 3],
+        category: ['Food & Dining', 'Groceries', 'Transport'][i % 3],
+        status: 'Completed',
+      })
+    }
+    return [...out, ...extra]
+  }
+  it('needs at least 30 transactions, and says how many more', () => {
+    const r = detectAnomalies(quiet(12))
+    expect(r).toEqual({ status: 'insufficient_data', needed: MIN_HISTORY - 12, have: 12 })
+  })
+  it('a quiet, regular history raises nothing', () => {
+    expect(detectAnomalies(quiet(60)).flags).toEqual([])
+  })
+  it('a planted outlier is flagged with a reason, a confidence and a trace', () => {
+    const r = detectAnomalies(
+      quiet(60, [{ id: 'big', date: '2026-10-02T13:00', name: 'Cafe', amount: -240, category: 'Food & Dining', status: 'Completed' }]),
+    )
+    const f = r.flags.find((x) => x.txId === 'big')
+    expect(f).toBeTruthy()
+    expect(f.reasons.join(' ')).toMatch(/Amount \$240\.00 vs typical \$8\.00 for Cafe/)
+    expect(f.confidence).toBeGreaterThan(0.5)
+    expect(['low', 'medium', 'high']).toContain(f.severity)
+    expect(f.trace.rows[0].id).toBe('big')
+    expect(traceAddsUp(f.trace)).toBe(true)
+  })
+  it('is deterministic', () => {
+    const a = syntheticAccount({ seed: 9 })
+    expect(detectAnomalies(a.transactions)).toEqual(detectAnomalies(a.transactions))
+  })
+  it('catches the planted duplicate, 10× outlier, new merchant and price rise', () => {
+    const a = syntheticAccount({ seed: 1 })
+    const r = detectAnomalies(a.transactions)
+    for (const inc of a.incidents.filter((i) => i.type !== 'subtle'))
+      expect(
+        r.flags.some((f) => f.txId === inc.txId),
+        inc.type,
+      ).toBe(true)
+  })
+  it('investments and moves between pots never produce flags', () => {
+    const odd = [
+      { id: 'inv', date: '2026-10-02T03:00', name: 'Bitcoin', amount: -5000, category: 'Investment', status: 'Invested' },
+      { id: 'inv2', date: '2026-10-03T03:00', name: 'Apple shares', amount: -4000, category: 'Investment', status: 'Completed' },
+      { id: 'pot', date: '2026-10-03T03:00', name: 'Moved to Holiday pot', amount: -3000, category: 'Transfer', status: 'Completed', kind: 'pot' },
+    ]
+    for (const x of odd) expect(eligible(x)).toBe(false)
+    const r = detectAnomalies(quiet(60, odd))
+    expect(r.flags.filter((f) => ['inv', 'inv2', 'pot'].includes(f.txId))).toEqual([])
+  })
+  it('dismissed patterns stop alerting', () => {
+    const big = { id: 'big', date: '2026-10-02T13:00', name: 'Cafe', amount: -240, category: 'Food & Dining', status: 'Completed' }
+    const r = detectAnomalies(quiet(60, [big]), { dismissed: new Set(['outlier:cafe']) })
+    expect(r.flags.some((f) => f.txId === 'big')).toBe(false)
+  })
+  it('runs 5,000 transactions in under 500ms', () => {
+    const many = []
+    for (let s = 1; many.length < 5000; s++) many.push(...syntheticAccount({ seed: s }).transactions)
+    const list = many.slice(0, 5000)
+    const t0 = performance.now()
+    const r = detectAnomalies(list)
+    expect(performance.now() - t0).toBeLessThan(500)
+    expect(r.status).toBe('ok')
+  })
+})
