@@ -4,7 +4,10 @@
    an end-of-month forecast, unusual charges, subscriptions, "can I
    afford it?" checks and goal plans. Pure functions, no UI.
    ------------------------------------------------------------------ */
-import { billDue } from './stats'
+import { billDue, periodRange } from './stats'
+import { money } from './format'
+import { t } from './i18n'
+import { dayLabel, fromCents, makeTrace, periodOf, sumCents, sumSteps, toCents } from './trace'
 
 const DAY = 86400000
 const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
@@ -19,6 +22,7 @@ export const parseDate = (iso) => {
 const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
 const settled = (list) => list.filter((x) => x.status === 'Completed')
 const round2 = (n) => Math.round(n * 100) / 100
+const spanText = (period) => (period ? t('from {from} to {to}', { from: dayLabel(period.from), to: dayLabel(period.to) }) : '')
 
 /** "Today" for Grace: the demo's sample data ends on Oct 28 2026, so the demo pretends it's that day. */
 export const nowFor = (app) => app.now ?? new Date()
@@ -93,7 +97,7 @@ export function findTransactions(transactions, filter) {
     return true
   })
   rows.sort((a, b) => b.date.localeCompare(a.date))
-  return { rows, total: round2(rows.reduce((s, x) => s + x.amount, 0)) }
+  return { rows, total: fromCents(sumCents(rows)) }
 }
 
 /* ---------------- month on month ---------------- */
@@ -109,9 +113,10 @@ export function compareMonths(transactions, now) {
       if (x.amount >= 0 || x.category === 'Transfer') continue
       const d = parseDate(x.date)
       if (d < from || d >= to) continue
-      const e = by.get(x.category) ?? { total: 0, count: 0, biggest: null }
-      e.total += -x.amount
+      const e = by.get(x.category) ?? { total: 0, count: 0, biggest: null, rows: [] }
+      e.total += -toCents(x.amount)
       e.count += 1
+      e.rows.push(x)
       if (!e.biggest || -x.amount > -e.biggest.amount) e.biggest = x
       by.set(x.category, e)
     }
@@ -126,16 +131,52 @@ export function compareMonths(transactions, now) {
       const b = prev.get(c) ?? { total: 0, count: 0 }
       return {
         category: c,
-        now: round2(a.total),
-        before: round2(b.total),
-        change: round2(a.total - b.total),
+        now: fromCents(a.total),
+        before: fromCents(b.total),
+        change: fromCents(a.total - b.total),
         count: a.count,
         biggest: a.biggest ?? null,
       }
     })
     .sort((x, y) => Math.abs(y.change) - Math.abs(x.change))
-  const total = { now: round2(rows.reduce((s, r) => s + r.now, 0)), before: round2(rows.reduce((s, r) => s + r.before, 0)) }
-  return { rows, total, change: round2(total.now - total.before) }
+  const nowRows = [...cur.values()].flatMap((e) => e.rows).sort((a, b) => b.date.localeCompare(a.date))
+  const beforeRows = [...prev.values()].flatMap((e) => e.rows).sort((a, b) => b.date.localeCompare(a.date))
+  const total = { now: fromCents(-sumCents(nowRows)), before: fromCents(-sumCents(beforeRows)) }
+  const change = fromCents(toCents(total.now) - toCents(total.before))
+  const thisPeriod = periodOf({ from: thisFrom, to: new Date(startOfDay(now).getTime() + DAY) })
+  const lastPeriod = periodOf({ from: lastFrom, to: cutoff < thisFrom ? cutoff : thisFrom })
+  const traces = [
+    makeTrace(
+      t('Spending this month so far'),
+      t('Sum of completed spending (not transfers) {span}.', { span: spanText(thisPeriod) }),
+      nowRows,
+      [
+        ...sumSteps(nowRows, total.now),
+        ...rows
+          .filter((r) => r.change)
+          .map((r) =>
+            t('{name}: {now} vs {before} ({change})', {
+              name: t(r.category),
+              now: money(r.now),
+              before: money(r.before),
+              change: `${r.change > 0 ? '+' : '−'}${money(Math.abs(r.change))}`,
+            }),
+          ),
+        t('Change = {now} − {before} = {change}', { now: money(total.now), before: money(total.before), change: money(change) }),
+      ],
+      thisPeriod,
+      { sign: -1 },
+    ),
+    makeTrace(
+      t('Spending last month, to the same day'),
+      t('Sum of completed spending (not transfers) {span}.', { span: spanText(lastPeriod) }),
+      beforeRows,
+      sumSteps(beforeRows, total.before),
+      lastPeriod,
+      { sign: -1 },
+    ),
+  ]
+  return { rows, total, change, traces }
 }
 
 /* ---------------- end of month forecast ---------------- */
@@ -146,16 +187,58 @@ export function forecast(app, now) {
     .filter((b) => !b.paid)
     .map((b) => ({ ...b, ...billDue(b, now) }))
     .filter((b) => b.days >= 0 && b.days <= daysLeft)
-  const billTotal = round2(bills.reduce((s, b) => s + b.amount, 0))
+  const billCents = sumCents(bills)
+  const billTotal = fromCents(billCents)
   // everyday spending, without bills and transfers, over the last 30 days
   const from = new Date(startOfDay(now).getTime() - 29 * DAY)
-  const daily =
-    settled(app.transactions)
-      .filter((x) => x.amount < 0 && !['Bills', 'Transfer', 'Housing'].includes(x.category) && parseDate(x.date) >= from)
-      .reduce((s, x) => s - x.amount, 0) / 30
-  const everyday = round2(daily * daysLeft)
-  const end_balance = round2(app.balance - billTotal - everyday)
-  return { end, daysLeft, bills, billTotal, daily: round2(daily), everyday, endBalance: end_balance }
+  const spent = settled(app.transactions).filter(
+    (x) => x.amount < 0 && !['Bills', 'Transfer', 'Housing'].includes(x.category) && parseDate(x.date) >= from,
+  )
+  const spentCents = -sumCents(spent)
+  const daily = fromCents(Math.round(spentCents / 30))
+  const everydayCents = Math.round((spentCents * daysLeft) / 30)
+  const everyday = fromCents(everydayCents)
+  const endBalance = fromCents(toCents(app.balance) - billCents - everydayCents)
+
+  const billRows = bills.map((b) => ({ id: b.id, date: b.dueDate ?? '', name: `${b.name} (${t('due {date}', { date: b.due })})`, amount: -b.amount }))
+  const last30 = periodOf({ from, to: new Date(startOfDay(now).getTime() + DAY) })
+  const traces = [
+    makeTrace(
+      t('End-of-month forecast'),
+      t('Balance now, minus bills still due, minus average daily spending × days left.'),
+      [],
+      [
+        t('Balance now: {amount}', { amount: money(app.balance) }),
+        t('Bills still due: {amount}', { amount: money(billTotal) }),
+        t('Average daily spending: {daily} × {n} days left = {total}', { daily: money(daily), n: daysLeft, total: money(everyday) }),
+        t('{balance} − {bills} − {spending} = {result}', {
+          balance: money(app.balance),
+          bills: money(billTotal),
+          spending: money(everyday),
+          result: money(endBalance),
+        }),
+      ],
+      periodOf({ from: startOfDay(now), to: new Date(end.getTime() + DAY) }),
+      { value: endBalance },
+    ),
+    makeTrace(
+      t('Bills still due this month'),
+      t('Unpaid bills that fall due before the month ends.'),
+      billRows,
+      sumSteps(billRows, billTotal),
+      null,
+      { sign: -1, empty: t('No unpaid bills are due before the month ends, so this is {amount}.', { amount: money(0) }) },
+    ),
+    makeTrace(
+      t('Everyday spending, last 30 days'),
+      t('Completed spending {span}, not bills, rent or transfers. The daily average is this ÷ 30.', { span: spanText(last30) }),
+      spent,
+      [...sumSteps(spent, fromCents(spentCents)), t('{total} ÷ 30 = {daily} a day', { total: money(fromCents(spentCents)), daily: money(daily) })],
+      last30,
+      { sign: -1 },
+    ),
+  ]
+  return { end, daysLeft, bills, billTotal, daily, everyday, endBalance, traces }
 }
 
 /* ---------------- unusual charges ---------------- */
@@ -210,15 +293,28 @@ export function subscriptions(transactions, bills) {
     list.sort((a, b) => a.date.localeCompare(b.date))
     const last = list[list.length - 1]
     const prev = list.length > 1 ? list[list.length - 2] : null
-    items.push({ name, amount: -last.amount, previous: prev ? -prev.amount : null, last: last.date, kind: last.kind, count: list.length })
+    items.push({ name, amount: -last.amount, previous: prev ? -prev.amount : null, last: last.date, kind: last.kind, count: list.length, tx: last })
   }
   for (const b of bills) {
     if (!SUB_KINDS.includes(b.kind) || items.some((i) => i.name === b.name)) continue
     items.push({ name: b.name, amount: b.amount, previous: null, last: null, kind: b.kind, count: 0 })
   }
   items.sort((a, b) => b.amount - a.amount)
-  const monthly = round2(items.reduce((s, i) => s + i.amount, 0))
-  return { items, monthly, yearly: round2(monthly * 12) }
+  const rows = items.map((i) => i.tx ?? { id: null, date: '', name: `${i.name} (${t('bill')})`, amount: -i.amount })
+  const monthlyCents = -sumCents(rows)
+  const monthly = fromCents(monthlyCents)
+  const yearly = fromCents(monthlyCents * 12)
+  const traces = [
+    makeTrace(
+      t('Subscriptions and repeat charges'),
+      t('The latest charge of each subscription or repeat payment, added up. A year is that × 12.'),
+      rows,
+      [...sumSteps(rows, monthly), t('{monthly} × 12 = {yearly} a year', { monthly: money(monthly), yearly: money(yearly) })],
+      null,
+      { sign: -1 },
+    ),
+  ]
+  return { items, monthly, yearly, traces }
 }
 
 /* ---------------- averages ---------------- */
@@ -235,8 +331,8 @@ export function monthlyAverages(transactions, now) {
       const d = parseDate(x.date)
       if (d < from || d >= to) continue
       any = true
-      if (x.amount > 0) inc += x.amount
-      else out += -x.amount
+      if (x.amount > 0) inc += toCents(x.amount)
+      else out += -toCents(x.amount)
     }
     if (any) months.push({ inc, out })
   }
@@ -248,14 +344,15 @@ export function monthlyAverages(transactions, now) {
     let out = 0
     for (const x of settled(transactions)) {
       if (parseDate(x.date) < from) continue
-      if (x.amount > 0) inc += x.amount
-      else out += -x.amount
+      if (x.amount > 0) inc += toCents(x.amount)
+      else out += -toCents(x.amount)
     }
-    return { income: round2(inc), spending: round2(out / frac), surplus: round2(inc - out / frac), basis: 'this month' }
+    const spend = Math.round(out / frac)
+    return { income: fromCents(inc), spending: fromCents(spend), surplus: fromCents(inc - spend), basis: 'this month' }
   }
-  const income = months.reduce((s, m) => s + m.inc, 0) / months.length
-  const spending = months.reduce((s, m) => s + m.out, 0) / months.length
-  return { income: round2(income), spending: round2(spending), surplus: round2(income - spending), basis: `${months.length} months` }
+  const income = Math.round(months.reduce((s, m) => s + m.inc, 0) / months.length)
+  const spending = Math.round(months.reduce((s, m) => s + m.out, 0) / months.length)
+  return { income: fromCents(income), spending: fromCents(spending), surplus: fromCents(income - spending), basis: `${months.length} months` }
 }
 
 const monthsBetween = (now, until) => Math.max(0, (until.getFullYear() - now.getFullYear()) * 12 + until.getMonth() - now.getMonth())
@@ -267,14 +364,51 @@ export function afford(app, cost, until, now) {
   const avg = monthlyAverages(app.transactions, now)
   const fc = forecast(app, now)
   const free = app.pots?.length ? Math.max(0, app.unassigned) : app.balance
-  const goalMonthly = app.goals.filter((g) => g.saved < g.target).reduce((s, g) => s + (g.monthly || 0), 0)
+  const goalMonthly = fromCents(
+    sumCents(
+      app.goals.filter((g) => g.saved < g.target),
+      (g) => g.monthly || 0,
+    ),
+  )
   // money you can count on by then: what's free now, minus this month's bills, plus what you usually keep each month
-  const available = round2(free - fc.billTotal + Math.max(0, avg.surplus - goalMonthly) * months)
-  const after = round2(available - cost)
+  const keepCents = Math.max(0, toCents(avg.surplus) - toCents(goalMonthly))
+  const availableCents = toCents(free) - toCents(fc.billTotal) + keepCents * months
+  const available = fromCents(availableCents)
+  const after = fromCents(availableCents - toCents(cost))
   const ok = after >= 0
-  const shortBy = ok ? 0 : round2(-after)
-  const perMonth = months ? round2(shortBy / months) : shortBy
-  return { ok, cost, when, months, available, after, shortBy, perMonth, avg, goalMonthly, billTotal: fc.billTotal, free }
+  const shortBy = ok ? 0 : -after
+  const perMonth = months ? fromCents(Math.round(toCents(shortBy) / months)) : shortBy
+  const traces = [
+    makeTrace(
+      t('Can you afford it?'),
+      t('Money free now, minus bills still due, plus what you usually keep each month × months until then, minus the cost.'),
+      [],
+      [
+        t('Free now: {amount}', { amount: money(free) }),
+        t('Bills still due this month: {amount}', { amount: money(fc.billTotal) }),
+        t('Usually kept each month: {surplus} (income {income} − spending {spending}, average of {basis})', {
+          surplus: money(avg.surplus),
+          income: money(avg.income),
+          spending: money(avg.spending),
+          basis: t(avg.basis),
+        }),
+        ...(goalMonthly ? [t('Minus goal contributions: {amount} a month', { amount: money(goalMonthly) })] : []),
+        t('Months until then: {n}', { n: months }),
+        t('Available = {free} − {bills} + {keep} × {n} = {available}', {
+          free: money(free),
+          bills: money(fc.billTotal),
+          keep: money(fromCents(keepCents)),
+          n: months,
+          available: money(available),
+        }),
+        t('{available} − {cost} = {after}', { available: money(available), cost: money(cost), after: money(after) }),
+      ],
+      null,
+      { value: after },
+    ),
+    fc.traces[1],
+  ]
+  return { ok, cost, when, months, available, after, shortBy, perMonth, avg, goalMonthly, billTotal: fc.billTotal, free, traces }
 }
 
 /* ---------------- plan a goal ---------------- */
@@ -285,15 +419,35 @@ export function planGoal(app, target, until, now) {
   const days = Math.max(7, Math.round((startOfDay(when) - startOfDay(now)) / DAY))
   const weeks = Math.max(1, Math.round(days / 7))
   const months = Math.max(1, Math.round(days / 30.4))
-  const weekly = round2(target / weeks)
-  const monthly = round2(target / months)
+  const weekly = fromCents(Math.round(toCents(target) / weeks))
+  const monthly = fromCents(Math.round(toCents(target) / months))
   const avg = monthlyAverages(app.transactions, now)
-  const spare = round2(Math.max(0, avg.surplus))
-  const gap = round2(Math.max(0, monthly - spare))
+  const spare = Math.max(0, avg.surplus)
+  const gap = fromCents(Math.max(0, toCents(monthly) - toCents(spare)))
   // where the extra could come from: the biggest flexible budget this month
   const flexible = app.budgets.filter((b) => TRIMMABLE.includes(b.name) && b.spent > 0).sort((a, b) => b.spent - a.spent)
   const trim = gap && flexible.length ? { budget: flexible[0], cut: round2(Math.min(gap, flexible[0].spent)) } : null
-  return { target, when, weeks, months, weekly, monthly, spare, gap, trim, avg }
+  const traces = [
+    makeTrace(
+      t('Savings plan'),
+      t('The target split evenly over the weeks (and months) until the date, compared with what you usually keep each month.'),
+      [],
+      [
+        t('{target} ÷ {n} weeks = {amount} a week', { target: money(target), n: weeks, amount: money(weekly) }),
+        t('{target} ÷ {n} months = {amount} a month', { target: money(target), n: months, amount: money(monthly) }),
+        t('Usually kept each month: {surplus} (income {income} − spending {spending}, average of {basis})', {
+          surplus: money(spare),
+          income: money(avg.income),
+          spending: money(avg.spending),
+          basis: t(avg.basis),
+        }),
+        ...(gap ? [t('Short each month: {monthly} − {spare} = {gap}', { monthly: money(monthly), spare: money(spare), gap: money(gap) })] : []),
+      ],
+      null,
+      { value: monthly },
+    ),
+  ]
+  return { target, when, weeks, months, weekly, monthly, spare, gap, trim, avg, traces }
 }
 
 /* ---------------- things worth mentioning unprompted ---------------- */
@@ -322,4 +476,90 @@ export function alerts(app, now) {
   const fc = forecast(app, now)
   if (fc.endBalance < 0) out.push({ kind: 'forecast', forecast: fc })
   return out.slice(0, 5)
+}
+
+/* ---------------- the dashboard's totals, with their workings ---------------- */
+const PERIOD_WORDS = { week: 'this week', month: 'this month', quarter: 'this quarter', year: 'this year' }
+
+/** Income, spending and net for a dashboard period, worked out from completed transactions. */
+export function periodTotals(app, key, now = nowFor(app)) {
+  const range = periodRange(key, now)
+  const period = periodOf(range)
+  const rows = settled(app.transactions)
+    .filter((x) => {
+      const d = parseDate(x.date)
+      return d >= range.from && d < range.to
+    })
+    .sort((a, b) => b.date.localeCompare(a.date))
+  const inRows = rows.filter((x) => x.amount > 0)
+  const outRows = rows.filter((x) => x.amount < 0)
+  const when = t(PERIOD_WORDS[key] ?? 'this month')
+  const span = spanText(period)
+  const income = makeTrace(
+    t('Income, {period}', { period: when }),
+    t('Sum of all completed money coming in {span}.', { span }),
+    inRows,
+    sumSteps(inRows, fromCents(sumCents(inRows))),
+    period,
+  )
+  const expenses = makeTrace(
+    t('Spending, {period}', { period: when }),
+    t('Sum of all completed money going out {span}, transfers included.', { span }),
+    outRows,
+    sumSteps(outRows, fromCents(-sumCents(outRows))),
+    period,
+    { sign: -1 },
+  )
+  const net = makeTrace(
+    t('Net, {period}', { period: when }),
+    t('Money in minus money out {span}.', { span }),
+    rows,
+    [t('{income} − {spending} = {net}', { income: money(income.value), spending: money(expenses.value), net: money(fromCents(sumCents(rows))) })],
+    period,
+  )
+  return { income: income.value, expenses: expenses.value, net: net.value, traces: { income, expenses, net } }
+}
+
+/** What's been spent in one category this calendar month (what its budget counts). */
+export function categorySpend(app, category, now = nowFor(app)) {
+  const range = periodRange('month', now)
+  const period = periodOf(range)
+  const rows = settled(app.transactions)
+    .filter((x) => {
+      const d = parseDate(x.date)
+      return x.amount < 0 && x.category === category && d >= range.from && d < range.to
+    })
+    .sort((a, b) => b.date.localeCompare(a.date))
+  const trace = makeTrace(
+    t('{name} spending, this month', { name: t(category) }),
+    t('Sum of completed spending where category = {name} {span}.', { name: t(category), span: spanText(period) }),
+    rows,
+    sumSteps(rows, fromCents(-sumCents(rows))),
+    period,
+    { sign: -1 },
+  )
+  return { value: trace.value, trace }
+}
+
+/** The balance, set beside the sum of every completed transaction (they differ by any starting amount). */
+export function balanceTrace(app) {
+  const rows = settled(app.transactions).sort((a, b) => b.date.localeCompare(a.date))
+  const total = fromCents(sumCents(rows))
+  const gap = fromCents(toCents(app.balance) - toCents(total))
+  return makeTrace(
+    t('Balance'),
+    t('Your balance, compared with the sum of all your completed transactions.'),
+    rows,
+    [
+      ...sumSteps(rows, total),
+      gap
+        ? t('Your balance is {balance}, so {gap} of it came from outside these transactions (a starting amount or an adjustment).', {
+            balance: money(app.balance),
+            gap: money(gap),
+          })
+        : t('That matches your balance of {balance} exactly.', { balance: money(app.balance) }),
+    ],
+    null,
+    { value: app.balance },
+  )
 }

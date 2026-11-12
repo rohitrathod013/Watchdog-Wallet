@@ -33,7 +33,11 @@ import {
   parseTarget,
   planGoal,
   subscriptions,
+  balanceTrace,
+  categorySpend,
+  periodTotals,
 } from './insights'
+import { fromCents, makeTrace, periodOf, sumCents, sumSteps } from './trace'
 import { accountWords, fixTypos } from './typos'
 import { DEFAULT_GUARD, guardState } from './guard'
 import { ASSISTANT, BRAND } from '../config'
@@ -202,6 +206,10 @@ function core(raw, app) {
       app.go(...to)
   const balanceText = money(app.balance * cur.rate, cur.symbol, cur.dp)
   const openBudget = { label: t('Open Budget'), run: go('budget') }
+  // "show your work": the workings behind each figure, from the account's own transactions.
+  // The demo's totals are sample figures, not sums of its transactions, so they get none.
+  const real = !app.stats.demo
+  const totals = () => (real ? periodTotals(app, app.period).traces : null)
 
   /* ---------------- small talk ---------------- */
   if (/^(hi+|hey+|hello|helo|yo|salam|assalam|aoa|hola|sup|good (morning|afternoon|evening))\b/.test(s) && s.split(' ').length <= 5) {
@@ -602,6 +610,7 @@ function core(raw, app) {
           { label: t('Net profit'), value: whole(p.net), note: signedPct(p.netDelta) },
         ],
       },
+      traces: real ? [balanceTrace(app), totals().income, totals().expenses, totals().net] : undefined,
       chips: [chip('Where did my money go?'), chip('Give me a saving tip')],
     }
   }
@@ -611,6 +620,7 @@ function core(raw, app) {
         ? t('Your total balance is **{amount}**, up **+12.4%** vs last week. Nice work, {name}! 💪', { amount: balanceText, name: me })
         : t('Your total balance is **{amount}**, {name}.', { amount: balanceText, name: me }),
       mood: 'happy',
+      traces: real ? [balanceTrace(app)] : undefined,
       chips: [chip('Show it in euros'), chip('Where did my money go?')],
     }
   }
@@ -626,6 +636,7 @@ function core(raw, app) {
     return {
       text: `${t('You’ve spent **{amount}** on {name} this month', { amount: whole(budget.spent), name: bName })}: ${verdict}`,
       card: { type: 'bars', rows: [{ label: bName, value: `${pct(budget.spent, budget.limit)}%`, p: Math.min(100, r * 100), c: tone(r) }] },
+      traces: real ? [categorySpend(app, budget.name).trace] : undefined,
       chips: [
         chip(`Set ${budget.name.split(' ')[0].toLowerCase()} budget to $${next}`, 'Set {name} budget to {amount}', {
           name: bName,
@@ -654,6 +665,7 @@ function core(raw, app) {
         })),
       },
       links: [{ label: t('Open Reports'), run: go('dashboard', { tab: 'reports' }) }],
+      traces: real ? [totals().income] : undefined,
     }
   }
   if (/(biggest|largest|most expensive|highest|sabse bara)/.test(s)) {
@@ -668,6 +680,18 @@ function core(raw, app) {
           })
         : t('No expenses yet!'),
       card: { type: 'tx', rows: out.slice(0, 3) },
+      traces: top
+        ? [
+            makeTrace(
+              t('Biggest expense'),
+              t('The single largest amount going out among all your transactions.'),
+              [top],
+              [t('Compared {n} expenses; this one is the largest.', { n: out.length })],
+              null,
+              { sign: -1 },
+            ),
+          ]
+        : undefined,
     }
   }
   if (/(where.*(money|it).*(go|went)|expense|spent|spending|spend\b|kharch|breakdown)/.test(s)) {
@@ -679,8 +703,10 @@ function core(raw, app) {
           ? t('You spent **{amount}** {period}, none of it in a budget category yet.', { amount: money(p.expenses), period })
           : t('You haven’t spent anything {period} yet. Add an expense and I’ll break it down for you.', { period }),
         links: [{ label: t('Add transaction'), run: () => app.openModal('transaction', { type: 'expense' }) }],
+        traces: real ? [totals().expenses] : undefined,
       }
     return {
+      traces: real ? [totals().expenses, ...top.filter((b) => b.spent > 0).map((b) => categorySpend(app, b.name).trace)] : undefined,
       text: t('You spent **{amount}** {period} ({delta}). **{name}** is the biggest slice:', {
         amount: money(p.expenses),
         period,
@@ -709,6 +735,7 @@ function core(raw, app) {
         rate: ((p.net / p.income) * 100).toFixed(1),
       }),
       mood: 'happy',
+      traces: real ? [totals().net, totals().income] : undefined,
     }
   }
   if (/(budget|over ?spen|over budget|limit)/.test(s)) {
@@ -1128,9 +1155,21 @@ function finderReply(filter, app) {
   const chips = [chip('and last month', 'And last month?'), chip('and this month', 'And this month?')].filter(
     (c) => !filter.range || !filter.range.label.includes(c.q.replace('and ', '')),
   )
-  if (!rows.length) return { text: t('No transactions{when}{what}{size}.', { when, what, size }), memory, chips }
-  const out = rows.filter((x) => x.amount < 0).reduce((s, x) => s - x.amount, 0)
-  const inn = rows.filter((x) => x.amount > 0).reduce((s, x) => s + x.amount, 0)
+  const outRows = rows.filter((x) => x.amount < 0)
+  const inRows = rows.filter((x) => x.amount > 0)
+  const out = fromCents(-sumCents(outRows))
+  const inn = fromCents(sumCents(inRows))
+  const period = periodOf(filter.range)
+  const formula = t('Sum of the transactions that match your search{when}{what}{size}.', { when, what, size })
+  const outTrace = () => makeTrace(`${t('Money out')}${when}${what}`, formula, outRows, sumSteps(outRows, out), period, { sign: -1 })
+  const inTrace = () => makeTrace(`${t('Money in')}${when}${what}`, formula, inRows, sumSteps(inRows, inn), period)
+  if (!rows.length)
+    return {
+      text: t('No transactions{when}{what}{size}.', { when, what, size }),
+      memory,
+      chips,
+      traces: [filter.dir === 'in' ? inTrace() : outTrace()],
+    }
   const sum =
     filter.dir === 'in' || (!out && inn)
       ? t('**{amount}** came in', { amount: money(inn) })
@@ -1144,6 +1183,7 @@ function finderReply(filter, app) {
         : t('Found **{n} transactions**{when}{what}{size}: {sum}.', { n: rows.length, when, what, size, sum }),
     card: { type: 'tx', rows: rows.slice(0, 5) },
     links: rows.length > 5 ? [{ label: t('See all transactions'), run: () => app.go('dashboard', { tab: 'transactions' }) }] : undefined,
+    traces: filter.dir === 'in' || (!out && inn) ? [inTrace()] : filter.dir === 'out' || !inn ? [outTrace()] : [outTrace(), inTrace()],
     memory,
     chips,
   }
@@ -1207,6 +1247,7 @@ function smart(raw, s, app) {
         when: new Date(last.at).toLocaleString(),
         reason: last.reason,
       }),
+      traces: last.traces?.length ? last.traces : undefined,
       links: [{ label: t('See all activity'), run: () => app.openModal('activity') }],
     }
   }
@@ -1275,6 +1316,7 @@ function smart(raw, s, app) {
           ? `\n${hikes.map((h) => `• ${t('**{name}** went up from {from} to {to}.', { name: h.name, from: money(h.previous), to: money(h.amount) })}`).join('\n')}`
           : '') +
         `\n${t('I can’t cancel them for you. If you don’t use one, cancel it with the company directly.')}`,
+      traces: subs.traces,
       card: {
         type: 'bars',
         rows: subs.items.slice(0, 6).map((i, k) => ({
@@ -1302,6 +1344,7 @@ function smart(raw, s, app) {
       return {
         text: `${t('Yes, you can afford **{cost}**{by}. You’d still have about **{left}** after it.', { cost: money(amount), by, left: money(a.after) })}\n${basis}`,
         mood: 'happy',
+        traces: a.traces,
         chips: [chip(`I spent $${amount}`, 'I bought it'), chip('Forecast my month')],
       }
     return {
@@ -1311,6 +1354,7 @@ function smart(raw, s, app) {
           ? t('To make it, set aside about **{perMonth}** a month until then.', { perMonth: money(a.perMonth) })
           : t('You could wait a month or two, or move money from a pot.')) +
         (a.goalMonthly ? ` ${t('Pausing your goal contributions ({amount} a month) would also help.', { amount: money(a.goalMonthly) })}` : ''),
+      traces: a.traces,
       chips: until
         ? [
             chip(
@@ -1349,6 +1393,7 @@ function smart(raw, s, app) {
         monthly: money(plan.monthly),
         weeks: plan.weeks,
       })}\n${fit}`,
+      traces: plan.traces,
       confirm: {
         label: t('Create this goal'),
         note: t('{name} · {amount} a month', { name, amount: money(plan.monthly) }),
@@ -1383,6 +1428,7 @@ function smart(raw, s, app) {
         `${t('By {date} I expect your balance to be about **{amount}**.', { date: `${monthName(fc.end)} ${fc.end.getDate()}`, amount: money(fc.endBalance) })}\n${lines.map((l) => `• ${l}`).join('\n')}` +
         (fc.endBalance < 0 ? `\n${t('That’s below zero, so trim spending or move money from a pot.')}` : ''),
       mood: fc.endBalance >= 0 ? 'happy' : undefined,
+      traces: fc.traces,
       card: fc.bills.length
         ? {
             type: 'bars',
@@ -1420,6 +1466,7 @@ function smart(raw, s, app) {
               before: money(cmp.total.before),
             })
           : t('Your spending is the same as this time last month ({now}).', { now: money(cmp.total.now) })
+    const traces = cmp.traces
     const lines = cmp.rows
       .filter((r) => r.change)
       .slice(0, 3)
@@ -1431,6 +1478,7 @@ function smart(raw, s, app) {
       )
     return {
       text: `${head}${lines.length ? `\n${lines.map((l) => `• ${l}`).join('\n')}` : ''}`,
+      traces,
       card: {
         type: 'bars',
         rows: cmp.rows

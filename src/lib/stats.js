@@ -106,6 +106,12 @@ function sums(list, from, to) {
 }
 
 /* calendar windows: [start of this unit, start of next) and the one before */
+/** The dashboard's window for a period key ('week' | 'month' | 'quarter' | 'year'): { from, to }, to not included. */
+export const periodRange = (key, now = new Date()) => {
+  const [from, to] = windows(now)[key] ?? windows(now).month
+  return { from, to }
+}
+
 function windows(now) {
   const y = now.getFullYear()
   const m = now.getMonth()

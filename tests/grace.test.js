@@ -1096,3 +1096,97 @@ describe('account deletion and deactivation', () => {
     expect(plain(ask(app, 'delete my account'))).toMatch(/This is the demo/)
   })
 })
+
+/* ---------------- "show your work": every figure traces back to transactions ---------------- */
+describe('show your work', async () => {
+  const { toCents, sumCents, traceAddsUp } = await import('../src/lib/trace')
+  const { modelReply } = await import('../src/lib/llm')
+  const { money, whole } = await import('../src/lib/format')
+  const NOW = new Date(2026, 10, 12, 12)
+  const tx = (id, date, name, amount, category, extra = {}) => ({ id, date, name, amount, category, status: 'Completed', kind: 'transfer', ...extra })
+  const TX = [
+    tx('t1', '2026-11-10T09:00', 'Whole Foods', -54.37, 'Food & Dining'),
+    tx('t2', '2026-11-09T19:30', 'Luigi Trattoria', -0.1, 'Food & Dining'),
+    tx('t3', '2026-11-08T13:00', 'Corner Deli', -0.2, 'Food & Dining'),
+    tx('t4', '2026-11-05T08:00', 'Metro Card', -33.33, 'Transport'),
+    tx('t5', '2026-11-04T10:00', 'Streamly', -15.99, 'Entertainment', { kind: 'stream' }),
+    tx('t6', '2026-11-01T09:00', 'Northwind Salary', 4200.01, 'Salary'),
+    tx('t7', '2026-11-02T12:00', 'Laptop Store', -1299.99, 'Shopping'),
+    tx('t8', '2026-10-30T10:00', 'Whole Foods', -61.2, 'Food & Dining'),
+    tx('t9', '2026-10-06T10:00', 'Metro Card', -20.05, 'Transport'),
+    tx('t10', '2026-10-04T10:00', 'Streamly', -15.99, 'Entertainment', { kind: 'stream' }),
+    tx('t11', '2026-10-01T09:00', 'Northwind Salary', 4200.01, 'Salary'),
+    tx('t12', '2026-10-03T09:00', 'Pending thing', -999, 'Shopping', { status: 'Pending' }),
+  ]
+  const balance = TX.filter((x) => x.status === 'Completed').reduce((s, x) => s + toCents(x.amount), 0) / 100
+  const real = () =>
+    makeApp({
+      balance,
+      transactions: TX,
+      budgets: DEFAULT_BUDGETS,
+      bills: [{ id: 'b1', name: 'Electricity', amount: 96.41, dueDate: '2026-11-20', kind: 'fuel', paid: false }],
+      stats: computeStats(TX, DEFAULT_BUDGETS, NOW),
+      now: NOW,
+    })
+  const ask = (q) => respond(q, real(), {})
+
+  // the figure stated in the reply, and the trace it must equal to the cent
+  const CASES = [
+    ['what’s my balance?', (tr) => money(tr.value)],
+    ['how much did I earn', (tr) => money(tr.value)],
+    ['where did my money go?', (tr) => money(tr.value)],
+    ['how much have I spent on food & dining', (tr) => whole(tr.value)],
+    ['what did I spend on food last week', (tr) => money(tr.value)],
+    ['what did I spend last month', (tr) => money(tr.value)],
+    ['what did I spend at whole foods', (tr) => money(tr.value)],
+    ['find payments over $100', (tr) => money(tr.value)],
+    ['what did I earn this month', (tr) => money(tr.value)],
+    ['why is my spending up?', (tr) => money(tr.value)],
+    ['forecast my month', null],
+    ['any subscriptions?', (tr) => money(tr.value)],
+    ['what was my biggest expense?', (tr) => money(tr.value)],
+    ['give me a summary', null],
+    ['what’s my net profit', (tr) => money(tr.value)],
+  ]
+  for (const [q, stated] of CASES)
+    it(`“${q}”: every trace adds up to the cent`, () => {
+      const r = ask(q)
+      expect(r.traces?.length, q).toBeGreaterThan(0)
+      for (const tr of r.traces) {
+        expect(traceAddsUp(tr), `${q}: ${tr.label}`).toBe(true)
+        if (tr.sum) expect(toCents(tr.value)).toBe(tr.sign * sumCents(tr.rows))
+        expect(tr.rows.every((row) => TX.some((x) => x.id === row.id) || row.id === 'b1')).toBe(true)
+      }
+      if (stated) expect(r.text, q).toContain(stated(r.traces[0]))
+    })
+
+  it('the forecast shows its inputs: bills still due, the daily average and the days left', () => {
+    const r = ask('forecast my month')
+    const [main, bills, everyday] = r.traces
+    expect(r.text).toContain(money(main.value))
+    expect(bills.value).toBe(96.41)
+    expect(everyday.rows.map((x) => x.id).sort()).toEqual(['t1', 't2', 't3', 't4', 't5', 't7', 't8'].sort())
+    expect(main.steps.join(' ')).toMatch(/days left/)
+  })
+  it('pending transactions are never counted', () => {
+    for (const tr of ask('give me a summary').traces) expect(tr.rows.some((x) => x.id === 't12')).toBe(false)
+  })
+  it('no matching transactions: $0 with an explanation, not a made-up number', () => {
+    const r = ask('what did I spend on travel last week')
+    expect(r.text).toMatch(/No transactions/)
+    expect(r.traces).toHaveLength(1)
+    expect(r.traces[0].value).toBe(0)
+    expect(r.traces[0].rows).toEqual([])
+    expect(r.traces[0].steps.join(' ')).toMatch(/No transactions matched/)
+  })
+  it('the demo’s sample totals get no trace, so nothing claims to add up when it doesn’t', () => {
+    expect(respond('what’s my balance?', demo(), {}).traces).toBeUndefined()
+  })
+  it('answers from the LLM never get a verified trace, and amounts in them are flagged', () => {
+    const a = modelReply('A Roth IRA grows tax free. You could put in $50 a month.')
+    expect(a.traces).toBeUndefined()
+    expect(a.source).toBe('llm')
+    expect(a.unverified).toBe(true)
+    expect(modelReply('Pay yourself first, then spend what’s left.').unverified).toBe(false)
+  })
+})

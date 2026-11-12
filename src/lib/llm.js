@@ -15,6 +15,15 @@ import { getSupabase } from './supabase'
 const usd = (n) => `$${(Math.round(Number(n || 0) * 100) / 100).toLocaleString('en-US')}`
 const noDigits = (s) => String(s ?? '').replace(/\d{4,}/g, '••••')
 
+/** A money amount in text: "$1,200", "1,200.50 USD", "€30", "30 dollars". */
+const AMOUNT = /[$€£¥₹]\s?\d|\d[\d,.]*\s?(?:usd|eur|gbp|dollars?|euros?|pounds?|rupees?)\b/i
+
+/**
+ * A reply from the model, as Grace shows it. It never gets a trace ("show your work" is only for
+ * figures our own code worked out), and any amount in it is marked as not verified.
+ */
+export const modelReply = (text) => ({ text, source: 'llm', unverified: AMOUNT.test(text) })
+
 /** A few lines about the account, for the model to answer from. */
 export function financeBrief(app) {
   if (!app) return ''
