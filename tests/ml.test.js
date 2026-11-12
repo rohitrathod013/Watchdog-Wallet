@@ -194,3 +194,55 @@ describe('forecast with a range', async () => {
     expect(f.pBelowZero).toBe(0)
   })
 })
+
+describe('categorizer that learns', async () => {
+  const { predict, similarTo, tokens, trainModel } = await import('../src/lib/ml/categorize')
+  it('tokenises names, ignoring numbers and filler', () => {
+    expect(tokens("Trader Joe's #552")).toEqual(['trader', 'joes', '=traderjoes'])
+    expect(tokens('123')).toEqual([])
+  })
+  it('knows common merchants from the seed dictionary', () => {
+    const r = predict(trainModel(), 'TRADER JOE’S #552')
+    expect(r.category).toBe('Groceries')
+    expect(r.ask).toBe(false)
+    expect(r.confidence).toBeGreaterThan(0.6)
+  })
+  it('asks instead of guessing when it isn’t sure', () => {
+    const r = predict(trainModel(), 'Zqx Holdings')
+    expect(r.ask).toBe(true)
+    expect(r.category).toBeNull()
+    const vague = predict(trainModel(), 'Kitchen Store')
+    if (vague.confidence < 0.6) expect(vague.ask).toBe(true)
+  })
+  it('a correction changes the next prediction', () => {
+    const before = predict(trainModel(), 'Netflix')
+    expect(before.category).toBe('Subscriptions')
+    const after = predict(trainModel({ corrections: [{ text: 'Netflix', from: 'Subscriptions', to: 'Entertainment' }] }), 'Netflix')
+    expect(after.category).toBe('Entertainment')
+    expect(after.source).toBe('correction')
+    // and it carries to a name with the same words
+    const near = predict(trainModel({ corrections: [{ text: 'Rosa’s Grocery', to: 'Groceries' }] }), 'Rosas Grocery Store')
+    expect(near.category).toBe('Groceries')
+  })
+  it('learns the user’s own habits from their history', () => {
+    const tx = Array.from({ length: 6 }, (_, i) => ({ name: 'Blue Door Bistro', category: 'Food & Dining', amount: -20 - i }))
+    expect(predict(trainModel({ transactions: tx }), 'Blue Door Bistro').category).toBe('Food & Dining')
+  })
+  it('finds similar past transactions to apply a correction to', () => {
+    const tx = [
+      { id: 1, name: 'Rosa’s Grocery', category: 'Other', amount: -30 },
+      { id: 2, name: 'ROSAS GROCERY', category: 'Other', amount: -12 },
+      { id: 3, name: 'Rosa’s Grocery', category: 'Groceries', amount: -9 },
+      { id: 4, name: 'Rosa Cafe', category: 'Other', amount: -5 },
+    ]
+    expect(similarTo(tx, 'Rosa’s Grocery', 'Groceries').map((x) => x.id)).toEqual([1, 2])
+  })
+  it('is quick to retrain', () => {
+    const many = []
+    for (let s = 1; many.length < 5000; s++) many.push(...syntheticAccount({ seed: s }).transactions)
+    const t0 = performance.now()
+    const model = trainModel({ transactions: many.slice(0, 5000) })
+    for (const x of many.slice(0, 500)) predict(model, x.name)
+    expect(performance.now() - t0).toBeLessThan(500)
+  })
+})
