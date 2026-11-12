@@ -86,3 +86,20 @@ export async function askModel(question, history, app) {
     return null
   }
 }
+
+/**
+ * What "Get a plain-language explanation" sends: the pasted text and the rules' result.
+ * No account data. Built separately so the page can show it word for word first.
+ */
+export function explainRequest(text, result) {
+  const reasons = result.reasons.map((r) => `- ${r.label} (weight ${r.weight}): "${r.evidence}"`).join('\n') || '- nothing stood out'
+  return [
+    'Explain in plain, calm words why this message might or might not be risky, in under 90 words.',
+    `Grace's rule check scored it ${result.score}/100 (${result.level}). Do not change or argue with the score, and don't say it is definitely a scam or definitely safe.`,
+    `Reasons the rules found:\n${reasons}`,
+    `The message (between the lines):\n---\n${String(text).slice(0, 2000)}\n---`,
+  ].join('\n\n')
+}
+
+/** Ask the model to explain a scan. Resolves to its words (shown as unverified), or null. */
+export const explainScan = (text, result) => askModel(explainRequest(text, result), [], null)

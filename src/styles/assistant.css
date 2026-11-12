@@ -1227,3 +1227,168 @@ html:not([lang='en']) .bal-actions .btn.xl {
   flex-shrink: 0;
   margin-top: 2px;
 }
+
+/* Watchdog scam shield */
+.shield-card {
+  gap: 10px;
+  text-align: start;
+}
+.shield-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.shield-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--green-bg);
+  color: var(--green);
+}
+.shield-badge.medium {
+  background: color-mix(in srgb, var(--amber, #d99a00) 16%, var(--card));
+  color: var(--amber, #b07c00);
+}
+.shield-badge.high {
+  background: var(--red-bg);
+  color: var(--red);
+}
+.shield-score {
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.shield-score small {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.shield-meter {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--soft);
+  overflow: hidden;
+}
+.shield-meter i {
+  display: block;
+  height: 100%;
+  width: var(--p);
+  border-radius: inherit;
+  background: var(--green);
+  animation: fillIn 0.9s var(--ease) both;
+}
+.shield-card.medium .shield-meter i {
+  background: var(--amber, #d99a00);
+}
+.shield-card.high .shield-meter i {
+  background: var(--red);
+}
+.shield-reasons,
+.shield-advice {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12.5px;
+}
+.shield-reasons li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.shield-reasons li > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 500;
+}
+.shield-reasons em {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.shield-reasons mark {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--amber, #d99a00) 22%, var(--card));
+  color: var(--ink);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.shield-advice {
+  gap: 5px;
+  padding-inline-start: 16px;
+  list-style: disc;
+  color: var(--ink-2);
+}
+.shield-none,
+.shield-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.shield-more,
+.shield-explain {
+  align-self: flex-start;
+  font-size: 12.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.shield-send,
+.shield-ai {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--soft);
+  font-size: 12.5px;
+}
+.shield-send pre {
+  margin: 0;
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 11.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+}
+.shield-send small,
+.shield-ai small {
+  color: var(--muted);
+}
+.shield-send > div {
+  display: flex;
+  gap: 8px;
+}
+.shield-report {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.shield-report small {
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-inline-end: auto;
+}

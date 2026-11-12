@@ -39,6 +39,7 @@ import {
 } from './insights'
 import { fromCents, makeTrace, periodOf, sumCents, sumSteps } from './trace'
 import { accountWords, fixTypos } from './typos'
+import { findLinks, fingerprint, levelText, scan as shieldScan } from './shield'
 import { DEFAULT_GUARD, guardState } from './guard'
 import { ASSISTANT, BRAND } from '../config'
 import { CAT_COLORS, CURRENCIES } from '../data/seed'
@@ -2306,11 +2307,58 @@ export function respond(typed, app, memory = {}) {
   return guardConfirm(r, app)
 }
 
+/* ---------------- Watchdog scam shield: "is this a scam?" ----------------
+   Runs on what was typed or pasted as it is (before typo fixing, which could
+   "correct" paypa1.com into paypal.com). Rules only: nothing leaves the device. */
+const SHIELD_ASK =
+  /\b(?:is (?:this|it|that) (?:a )?(?:scam|legit|legitimate|real|safe|phishing|fraud|fraudulent|genuine|spam)|scam check|check (?:this|the following|this (?:message|link|email|text|invoice|payee|site|website|number))|does (?:this|it) look (?:like a )?(?:scam|legit|suspicious|safe|real|dodgy)|(?:is|are) (?:this|these|the) (?:link|links|url|email|text|message|invoice|site|website|sms) (?:safe|legit|real|a scam|genuine)|scan (?:this|it)|(?:watchdog|grace),? (?:check|scan))\b\s*[?:.!-]*/i
+
+function shieldIntent(typed, app, memory) {
+  const text = String(typed ?? '').trim()
+  const asked = SHIELD_ASK.test(text)
+  const rest = asked
+    ? text
+        .replace(SHIELD_ASK, ' ')
+        .replace(/^[\s?:.!-]+/, '')
+        .trim()
+    : text
+  // "is this a scam?" with nothing pasted: ask for it, and check whatever comes next
+  if (asked && rest.length < 12)
+    return {
+      text: t(
+        'Paste the message, email, link, invoice or payee here and I’ll check it 🛡 It stays on this device: my checks are rules, nothing is sent anywhere.',
+      ),
+      memory: { shieldNext: true },
+    }
+  const waiting = memory.shieldNext && text.length >= 8
+  const words = text.split(/\s+/).length
+  const justLink = words <= 3 && findLinks(text).length > 0
+  const longPaste = text.length >= 160
+  if (!asked && !waiting && !justLink && !longPaste) return null
+  const result = shieldScan(rest)
+  // a long message that looks fine is probably a question for Grace, not a paste to check
+  if (longPaste && !asked && !waiting && !justLink && result.level === 'low') return null
+  return {
+    text:
+      result.level === 'low'
+        ? t('{headline} ({score}/100). Here’s what I checked:', { headline: levelText(result.level), score: result.score })
+        : t('🛡 **{headline}** ({score}/100). Here’s why:', { headline: levelText(result.level), score: result.score }),
+    mood: result.level === 'high' ? 'idle' : undefined,
+    card: { type: 'shield', result, text: rest, id: fingerprint(rest) },
+    // a pasted message can hold codes or card numbers: don't keep it on screen as the user's bubble
+    mask: /\d{6,}|\b(?:pin|otp|password|cvv)\b/i.test(rest) ? true : undefined,
+    memory: { shieldNext: false },
+  }
+}
+
 function answer(typed, app, memory) {
   // fix typos first (see typos.js); names on the account count as spelled right
   const raw = fixTypos(typed, accountWords(app)).text
   const s = norm(raw)
   const keep = (r, extra = {}) => ({ ...r, memory: { ...memory, ...extra, ...(r.memory ?? {}) } })
+
+  const shield = shieldIntent(typed, app, memory)
+  if (shield) return keep(shield)
 
   const safe = safety(raw, s)
   if (safe) return keep(safe)

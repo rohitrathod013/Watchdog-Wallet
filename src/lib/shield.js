@@ -123,7 +123,7 @@ const TEXT_SIGNALS = [
     weight: 25,
     label: 'Pressures you to act fast',
     res: [
-      /\b(?:act|respond|reply|pay|verify|call) (?:now|immediately|right away|today|asap|urgently)\b/i,
+      /\b(?:act|respond|reply|pay|verify|call|send|transfer|wire)\b[^.!?\n]{0,20}\b(?:now|immediately|right away|today|asap|urgently)\b/i,
       /\bwithin (?:the next )?\d{1,2} ?(?:hours?|hrs?|minutes?|mins?)\b/i,
       /\b(?:account|card|access|service)\b[^.!?\n]{0,25}\b(?:suspended|locked|blocked|closed|deactivated|frozen|disabled|on hold)\b/i,
       /\b(?:final|last) (?:notice|warning|reminder|chance)\b/i,

@@ -10,7 +10,8 @@ import { signed, uid } from '../lib/format'
 import { ASSISTANT, BRAND } from '../config'
 import { getLocale, LOCALES, t, tName } from '../lib/i18n'
 import { parseReceipt, readReceipt, receiptReply } from '../lib/receipt'
-import { askModel, modelReply } from '../lib/llm'
+import { askModel, explainRequest, explainScan, modelReply } from '../lib/llm'
+import { levelText, saveVerdict } from '../lib/shield'
 import { dayLabel, slimTraces, traceAddsUp, traceCsv } from '../lib/trace'
 import { money } from '../lib/format'
 
@@ -76,7 +77,123 @@ function say(text) {
   window.speechSynthesis.speak(u)
 }
 
+/* ---------------- Watchdog scam shield: the result of a check ---------------- */
+function ShieldCard({ card }) {
+  const app = useApp()
+  const { result } = card
+  const [all, setAll] = useState(false)
+  const [verdict, setVerdict] = useState(null)
+  // explain: null → 'preview' (what would be sent) → 'busy' → { text } or 'failed'
+  const [explain, setExplain] = useState(null)
+  const shown = all ? result.reasons : result.reasons.slice(0, 3)
+  const account = app.demo ? 'demo' : app.user?.id
+  const report = (v) => {
+    saveVerdict(account, { id: card.id, verdict: v, score: result.score, level: result.level, codes: result.reasons.map((r) => r.code) })
+    setVerdict(v)
+  }
+  const send = async () => {
+    setExplain('busy')
+    const said = await explainScan(card.text, result)
+    setExplain(said ? modelReply(said) : 'failed')
+  }
+  return (
+    <div className={`ai-card shield-card ${result.level}`}>
+      <div className="shield-top">
+        <span className={`shield-badge ${result.level}`}>
+          <Icon name="shield" size={14} stroke={2.2} />
+          {levelText(result.level)}
+        </span>
+        <b className="shield-score">
+          {result.score}
+          <small>/100</small>
+        </b>
+      </div>
+      <div className="shield-meter" aria-hidden="true">
+        <i style={{ '--p': `${result.score}%` }} />
+      </div>
+      {result.reasons.length ? (
+        <ul className="shield-reasons">
+          {shown.map((r, k) => (
+            <li key={`${r.code}-${k}`}>
+              <div>
+                <span>{r.label}</span>
+                <em title={t('How much this counts towards the score')}>+{r.weight}</em>
+              </div>
+              <mark>{r.evidence}</mark>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="shield-none">
+          {t('None of my checks matched: payment requests, codes, secrecy, pressure, prizes, look-alike or hidden links.')}
+        </p>
+      )}
+      {result.reasons.length > 3 ? (
+        <button type="button" className="link shield-more" onClick={() => setAll((v) => !v)}>
+          {all ? t('Show fewer') : t('Show all {n} reasons', { n: result.reasons.length })}
+        </button>
+      ) : null}
+      <ul className="shield-advice">
+        {result.advice.map((a) => (
+          <li key={a}>{a}</li>
+        ))}
+      </ul>
+      <p className="shield-note">{t('Checked on this device with fixed rules. Nothing you pasted was sent anywhere.')}</p>
+
+      {explain === null ? (
+        <button type="button" className="link shield-explain" onClick={() => setExplain('preview')}>
+          <Icon name="sparkle" size={13} />
+          {t('Get a plain-language explanation')}
+        </button>
+      ) : explain === 'preview' ? (
+        <div className="shield-send">
+          <b>{t('This will be sent to the AI model (Google Gemini):')}</b>
+          <pre>{explainRequest(card.text, result)}</pre>
+          <small>{t('No account data is included. The score above comes from my rules and won’t change.')}</small>
+          <div>
+            <button type="button" className="btn sm solid" onClick={send}>
+              {t('Send it')}
+            </button>
+            <button type="button" className="btn sm" onClick={() => setExplain(null)}>
+              {t('Cancel')}
+            </button>
+          </div>
+        </div>
+      ) : explain === 'busy' ? (
+        <p className="shield-note">{t('Asking the AI model…')}</p>
+      ) : explain === 'failed' ? (
+        <p className="shield-note">{t('I couldn’t get an explanation right now. Sign in, or try again in a minute.')}</p>
+      ) : (
+        <div className="shield-ai">
+          <Rich text={explain.text} limit={Infinity} />
+          <small>{t('Written by the AI model, not checked. The score and reasons above are from my rules.')}</small>
+        </div>
+      )}
+
+      <div className="shield-report">
+        {verdict ? (
+          <small>
+            <Icon name="check" size={13} />
+            {t('Thanks. Saved on this device only, to help measure how often I’m wrong.')}
+          </small>
+        ) : (
+          <>
+            <small>{t('Was I right?')}</small>
+            <button type="button" className="btn sm" onClick={() => report('safe')}>
+              {t('Report as safe')}
+            </button>
+            <button type="button" className="btn sm" onClick={() => report('scam')}>
+              {t('Report as scam')}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function Card({ card }) {
+  if (card.type === 'shield') return <ShieldCard card={card} />
   if (card.type === 'stats') {
     return (
       <div className="ai-card">

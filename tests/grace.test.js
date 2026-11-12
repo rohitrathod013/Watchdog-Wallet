@@ -1056,7 +1056,6 @@ describe('Grace on guard', () => {
     'a caller wants me to install anydesk',
     'I won a lottery but need to pay a release fee',
     'this guy says he can double my bitcoin',
-    'is this a scam?',
     'tech support called and asked for my code',
   ])
     it(`warns about scams: "${c}"`, () => {
@@ -1188,5 +1187,42 @@ describe('show your work', async () => {
     expect(a.source).toBe('llm')
     expect(a.unverified).toBe(true)
     expect(modelReply('Pay yourself first, then spend what’s left.').unverified).toBe(false)
+  })
+})
+
+/* ---------------- Watchdog scam shield in the chat ---------------- */
+describe('scam shield in the chat', () => {
+  const card = (r) => r.card?.type === 'shield' && r.card
+  it('“is this a scam?” alone asks for the message, then checks the next one', () => {
+    const first = respond('is this a scam?', demo(), {})
+    expect(plain(first)).toMatch(/Paste the message/)
+    expect(first.memory.shieldNext).toBe(true)
+    const next = respond('Your PayPal account is locked. Verify now at http://paypa1.com/login', demo(), first.memory)
+    expect(card(next).result.level).not.toBe('low')
+    expect(next.memory.shieldNext).toBe(false)
+  })
+  it('checks text pasted after the question, with reasons and evidence', () => {
+    const r = respond('is this a scam: Hi mum it’s me, new number. Send £300 now and don’t tell dad', demo(), {})
+    const c = card(r)
+    expect(c.result.level).toBe('high')
+    expect(c.text).not.toMatch(/is this a scam/i)
+    expect(c.result.reasons[0].evidence.length).toBeGreaterThan(0)
+    expect(plain(r)).toMatch(/looks risky/)
+    expect(plain(r)).not.toMatch(/is a scam/)
+  })
+  it('checks a link on its own, before typo fixing could “correct” it', () => {
+    const r = respond('paypa1.com/login', demo(), {})
+    expect(card(r).result.reasons.map((x) => x.code)).toContain('lookalike')
+  })
+  it('checks a long pasted message that looks risky, and leaves a long ordinary question alone', () => {
+    const scam =
+      'Dear customer, your account has been suspended due to unusual activity. To restore access you must verify your identity within 24 hours. Please confirm your PIN and card number by replying to this message. Failure to do so will result in permanent closure.'
+    expect(card(respond(scam, demo(), {})).result.level).toBe('high')
+    const question =
+      'I have been thinking about my spending a lot lately and wanted to ask you something about how I could plan better for the next few months, because I always seem to run short before payday and it is stressful.'
+    expect(card(respond(question, demo(), {}))).toBeFalsy()
+  })
+  it('hides a pasted message with codes in it', () => {
+    expect(respond('is this a scam? Your code is 482910, read it to the agent on the phone', demo(), {}).mask).toBe(true)
   })
 })
