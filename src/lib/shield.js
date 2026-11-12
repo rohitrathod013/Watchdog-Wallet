@@ -435,8 +435,8 @@ export function payeeChecks(ctx = {}, { payee, amount } = {}) {
       vars: { limit: `$${limit}` },
       evidence: `$${n.toFixed(2)}`,
     })
-  // "Varsah Hunjan" when you know "Varsha Hunjan"
-  if (name) {
+  // "Varsah Hunjan" when you know "Varsha Hunjan" (someone you've paid before isn't the impostor)
+  if (name && !history.length) {
     const me = norm(name)
     const close = (ctx.contacts ?? []).find((c) => {
       const them = norm(c.name)

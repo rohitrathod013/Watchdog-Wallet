@@ -641,7 +641,7 @@ export default function Assistant({ open, onClose, prompt }) {
     let r
     try {
       const text = await readReceipt(file, (p) => setScanning(p))
-      r = receiptReply(parseReceipt(text, appRef.current.now ?? new Date()), appRef.current)
+      r = receiptReply(parseReceipt(text, appRef.current.now ?? new Date()), appRef.current, text)
     } catch {
       r = { text: t('I couldn’t read that photo. Check your connection (the reader downloads the first time) and try again.') }
     }

@@ -254,3 +254,60 @@ describe('edge cases', () => {
     expect(scan('😂👍').score).toBe(0)
   })
 })
+
+/* ---------------- before a payment, and on scanned bills ---------------- */
+describe('payment flow and receipts', async () => {
+  const { respond } = await import('../src/lib/assistant')
+  const { receiptChecks } = await import('../src/lib/receipt')
+  const { computeStats } = await import('../src/lib/stats')
+  const tx = [
+    { id: 'a', name: 'Transfer to Varsha Hunjan', amount: -40, date: '2026-10-01T10:00', status: 'Completed', category: 'Transfer' },
+    { id: 'b', name: 'Electricity', amount: -100, date: '2026-10-04T10:00', status: 'Completed', category: 'Bills' },
+  ]
+  const app = (extra = {}) => ({
+    user: { first: 'R', name: 'R' },
+    period: 'month',
+    currency: 'USD',
+    balance: 5000,
+    unassigned: 5000,
+    pots: [],
+    goals: [],
+    activity: [],
+    budgets: [],
+    contacts: [
+      { id: 'c1', name: 'Varsha Hunjan' },
+      { id: 'c2', name: 'Varsah Hunjan' },
+    ],
+    bills: [{ id: 'e', name: 'Electricity', amount: 150, due: 'Nov 20', days: 8, paid: false, kind: 'fuel' }],
+    transactions: tx,
+    stats: computeStats(tx, []),
+    guard: { lock: 0, limit: 500, newPayee: true, privacy: false },
+    ...extra,
+  })
+  it('warns in Grace’s confirm about a name one letter off a contact, and a first payment', () => {
+    const r = respond('send $50 to varsah', app(), {})
+    expect(r.confirm).toBeTruthy()
+    expect(r.confirm.checks.map((c) => c.code)).toEqual(expect.arrayContaining(['nearContact', 'newPayee']))
+    expect(r.confirm.note).toMatch(/very close to your contact Varsha Hunjan/)
+    // a warning, never a block: the confirm button is still there
+    expect(typeof r.confirm.run).toBe('function')
+  })
+  it('says nothing extra for a usual payment to someone you’ve paid before', () => {
+    expect(respond('send $50 to varsha', app(), {}).confirm.checks).toBeUndefined()
+  })
+  it('flags a bill more than 20% above the last one', () => {
+    const r = respond('pay my electricity bill', app(), {})
+    expect(r.confirm.checks.map((c) => c.code)).toContain('billJump')
+    expect(r.confirm.note).toMatch(/50% more than last time/)
+  })
+  it('respects the first-payment setting', () => {
+    const r = respond('send $50 to varsah', app({ guard: { lock: 0, limit: 500, newPayee: false } }), {})
+    expect(r.confirm.checks.map((c) => c.code)).not.toContain('newPayee')
+  })
+  it('flags a scanned bill with changed bank details from a payee you’ve never paid', () => {
+    const p = { merchant: 'Acme Supplies', total: 840, currency: 'USD', kind: 'bill', category: 'Bills', dueDate: '2026-11-30' }
+    const codes = receiptChecks(p, app(), 'ACME SUPPLIES\nInvoice 4471\nPlease note our bank details have changed.\nTotal 840.00').map((f) => f.code)
+    expect(codes).toEqual(expect.arrayContaining(['bankChange', 'newPayee']))
+    expect(receiptChecks({ ...p, merchant: 'Electricity', total: 101 }, app(), 'Electricity bill total 101.00')).toEqual([])
+  })
+})

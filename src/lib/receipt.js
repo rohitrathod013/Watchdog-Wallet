@@ -6,6 +6,7 @@
    answer with a confirm button: add it as spending, or as a bill.
    ------------------------------------------------------------------ */
 import { isoDay, money } from './format'
+import { billJump, scan } from './shield'
 import { t } from './i18n'
 import { CURRENCIES } from '../data/seed'
 import { ASSISTANT } from '../config'
@@ -212,7 +213,26 @@ function inDollars(p) {
 }
 
 /** Grace's reply for a parsed receipt: confirm adds it as spending (or a bill); a link offers the other one. */
-export function receiptReply(p, app) {
+/** Scam shield checks on a scanned receipt or bill: changed bank details, a payee you've never paid, a jump. */
+export function receiptChecks(p, app, text = '') {
+  if (!p) return []
+  const found = scan(text).reasons.filter((r) =>
+    ['bankChange', 'lookalike', 'mismatch', 'ipLink', 'punycode', 'payment', 'credentials'].includes(r.code),
+  )
+  const name = p.merchant
+  if (name) {
+    const known =
+      (app.transactions ?? []).some((x) => x.name?.toLowerCase() === name.toLowerCase()) ||
+      (app.bills ?? []).some((b) => b.name?.toLowerCase() === name.toLowerCase())
+    if (!known && p.kind === 'bill')
+      found.push({ code: 'newPayee', weight: 15, label: t('You haven’t paid {name} before', { name }), evidence: name })
+    const jump = billJump({ transactions: app.transactions, bills: app.bills }, { name, amount: inDollars(p).usd })
+    if (jump) found.push({ ...jump, label: t(jump.label, jump.vars) })
+  }
+  return found
+}
+
+export function receiptReply(p, app, text = '') {
   if (!p)
     return {
       text: t(
@@ -239,7 +259,10 @@ export function receiptReply(p, app) {
     run: () => app.addBill({ name, amount: usd, dueDate: p.dueDate ?? today, category: p.category === 'Other' ? 'Bills' : p.category }),
     done: t('Added ✅ {name} is in your bills, due {date}. I’ll remind you before then.', { name, date: nice(p.dueDate ?? today) }),
   }
-  const careful = t('I read this from the photo, so check the amount before you confirm.')
+  const flags = receiptChecks(p, app, text)
+  const careful =
+    t('I read this from the photo, so check the amount before you confirm.') +
+    (flags.length ? `\n🛡 ${t('Before you pay it:')}\n${flags.map((f) => `• ${f.label} (+${f.weight}): “${f.evidence}”`).join('\n')}` : '')
   if (p.kind === 'bill')
     return {
       text: `${t('This looks like a **bill** from **{name}** for **{amount}**{local}, due **{date}** 🧾', { name, amount: money(usd), local, date: nice(p.dueDate) })}\n${t('Add it to your bills so I can remind you?')}\n${careful}`,

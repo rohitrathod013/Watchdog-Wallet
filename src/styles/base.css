@@ -993,3 +993,16 @@ hr {
   color: var(--ink);
   font-weight: 600;
 }
+
+/* scam shield findings inside the guard notice of a payment window */
+.guard-check em {
+  font-style: normal;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.guard-check mark {
+  padding: 0 5px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--amber) 22%, var(--card));
+  color: var(--ink);
+}

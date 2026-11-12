@@ -39,7 +39,7 @@ import {
 } from './insights'
 import { fromCents, makeTrace, periodOf, sumCents, sumSteps } from './trace'
 import { accountWords, fixTypos } from './typos'
-import { findLinks, fingerprint, levelText, scan as shieldScan } from './shield'
+import { billJump, findLinks, fingerprint, levelText, payeeChecks, scan as shieldScan } from './shield'
 import { DEFAULT_GUARD, guardState } from './guard'
 import { ASSISTANT, BRAND } from '../config'
 import { CAT_COLORS, CURRENCIES } from '../data/seed'
@@ -498,6 +498,7 @@ function core(raw, app) {
           note: t('{name} · autopay account', { name }),
           effect: { balance: -bill.amount, free: -bill.amount },
           run: () => app.payBill(bill.id),
+          shield: { payee: bill.name, amount: bill.amount, bill: true },
           done: t('Paid ✅ {name} is settled ahead of {date}.', { name, date: due }),
         },
       }
@@ -517,6 +518,7 @@ function core(raw, app) {
           note: t('To {name} · instant · free', { name: contact.name }),
           effect: { balance: -amount, free: -amount },
           run: () => app.sendMoney({ to: contact.name, amount, note: t('Sent by {name}', { name: ASSISTANT.name }) }),
+          shield: { payee: contact.name, amount },
           done: t('Sent ✅ {amount} is on its way to {name}.', { amount: money(amount), name: firstName(contact.name) }),
         },
       }
@@ -2301,10 +2303,33 @@ function guardConfirm(r, app) {
   }
 }
 
+/**
+ * The scam shield's account checks before a payment Grace is about to make: a payee you've never
+ * paid, an amount far above your usual, a name a letter off one of your contacts, a bill that
+ * jumped. It only warns, in the confirm note. The guard limit is handled by guardConfirm.
+ */
+export function shieldChecks(app, { payee, amount, bill } = {}) {
+  const ctx = { transactions: app.transactions, contacts: app.contacts, bills: bill ? [] : app.bills, guard: null }
+  const found = payeeChecks(ctx, { payee, amount }).filter((r) => r.code !== 'newPayee' || (app.guard ?? DEFAULT_GUARD).newPayee)
+  // a bill you haven't paid through the app before isn't news
+  const list = bill ? found.filter((r) => r.code !== 'newPayee') : found
+  const jump = bill ? billJump({ transactions: app.transactions }, { name: payee, amount }) : null
+  return jump ? [...list, jump] : list
+}
+
+function shieldConfirm(r, app) {
+  if (!r?.confirm?.shield) return r
+  const found = shieldChecks(app, r.confirm.shield)
+  if (!found.length) return r
+  const said = found.map((x) => `${t(x.label, x.vars)} (+${x.weight})`).join(' · ')
+  return { ...r, confirm: { ...r.confirm, checks: found, note: `🛡 ${said}. ${r.confirm.note ?? ''}`.trim() } }
+}
+
 export function respond(typed, app, memory = {}) {
   const r = answer(typed, app, memory)
-  if (r.later) return { ...r, later: () => r.later().then((x) => guardConfirm(x, app)) }
-  return guardConfirm(r, app)
+  const check = (x) => guardConfirm(shieldConfirm(x, app), app)
+  if (r.later) return { ...r, later: () => r.later().then(check) }
+  return check(r)
 }
 
 /* ---------------- Watchdog scam shield: "is this a scam?" ----------------
