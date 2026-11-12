@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { clockTime } from '../lib/dayTheme'
 import Icon from './Icon'
-import { Avatar, Logo } from './Brand'
+import { Avatar, Logo, Persona } from './Brand'
 import { MenuItem, Popover, Segmented, Toggle } from './ui'
 import { useApp } from '../lib/store'
 import { LANGUAGES } from '../data/seed'
@@ -49,7 +49,20 @@ export default function TopBar() {
     return () => ro.disconnect()
   }, [page])
 
-  const unread = notifications.filter((n) => n.unread).length
+  // friend requests waiting for an answer: live from the Friends data, gone once answered
+  const asks = (app.social?.friends ?? []).filter((f) => f.status === 'incoming')
+  const unread = notifications.filter((n) => n.unread).length + asks.length
+  const [answering, setAnswering] = useState(null)
+  const answer = async (f, yes) => {
+    setAnswering(f.connId)
+    try {
+      await (yes ? app.social.accept(f.connId) : app.social.removeFriend(f.connId))
+      if (yes) app.toast?.(t('You’re now friends'), t('You and {name} can chat and send money.', { name: f.name }), { icon: 'users' })
+    } catch {
+      app.toast?.(t('Couldn’t answer the request'), t('Something went wrong. Try again in a minute.'), { icon: 'alert' })
+    }
+    setAnswering(null)
+  }
 
   const themeFromGear = (next) => {
     const r = gear.current?.getBoundingClientRect()
@@ -109,18 +122,44 @@ export default function TopBar() {
               <button
                 type="button"
                 className="link"
-                disabled={!unread}
+                disabled={!notifications.some((n) => n.unread)}
                 onClick={() => setNotifications((n) => n.map((x) => ({ ...x, unread: false })))}
               >
                 {t('Mark all as read')}
               </button>
             </div>
-            {notifications.slice(0, 6).map((n, i) => (
+            {asks.map((f, i) => (
+              <div key={f.connId} className="notif unread notif-ask" style={{ '--i': i }}>
+                <button
+                  type="button"
+                  className="notif-who"
+                  onClick={() => {
+                    close()
+                    go('friends')
+                  }}
+                >
+                  <Persona name={f.name} hue={f.hue} src={f.avatar} size={36} />
+                  <span className="notif-txt">
+                    <strong>{t('Friend request')}</strong>
+                    <small>{t('{name} wants to be friends on {brand}.', { name: f.name, brand: BRAND.name })}</small>
+                  </span>
+                </button>
+                <span className="notif-acts">
+                  <button type="button" className="btn sm solid" disabled={answering === f.connId} onClick={() => answer(f, true)}>
+                    {t('Accept')}
+                  </button>
+                  <button type="button" className="btn sm" disabled={answering === f.connId} onClick={() => answer(f, false)}>
+                    {t('Decline')}
+                  </button>
+                </span>
+              </div>
+            ))}
+            {notifications.slice(0, Math.max(3, 6 - asks.length)).map((n, i) => (
               <button
                 key={n.id}
                 type="button"
                 className={`notif ${n.unread ? 'unread' : ''}`}
-                style={{ '--i': i }}
+                style={{ '--i': i + asks.length }}
                 onClick={() => setNotifications((list) => list.map((x) => (x.id === n.id ? { ...x, unread: false } : x)))}
               >
                 <span className={`notif-ic ${n.tone}`}>

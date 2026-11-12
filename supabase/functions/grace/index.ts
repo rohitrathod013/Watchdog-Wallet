@@ -7,7 +7,7 @@
 // The API key stays here on the server. Deploy it once:
 //   1. Get a free key at https://aistudio.google.com/apikey (Google Gemini)
 //   2. Supabase dashboard > Edge Functions > Secrets: add GEMINI_API_KEY
-//      (optional: GEMINI_MODEL, default gemini-2.5-flash)
+//      (optional: GEMINI_MODEL; by default the newest Gemini Flash)
 //   3. Edge Functions > Deploy a new function > name it "grace", paste this file
 //   4. In the function's settings, turn OFF "Verify JWT" (this file checks the
 //      signed-in user itself)
@@ -21,7 +21,14 @@
 //     -> { text }
 
 const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY')
-const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash'
+// tried in order until one exists: Google retires old model names, "-latest" follows the newest Flash
+const GEMINI_MODELS = [
+  Deno.env.get('GEMINI_MODEL'),
+  'gemini-flash-latest',
+  'gemini-2.5-flash',
+  'gemini-flash-lite-latest',
+  'gemini-2.0-flash',
+].filter((m, i, all): m is string => Boolean(m) && all.indexOf(m) === i)
 const LLM_KEY = Deno.env.get('LLM_API_KEY')
 const LLM_BASE = (Deno.env.get('LLM_BASE_URL') ?? '').replace(/\/+$/, '')
 const LLM_MODEL = Deno.env.get('LLM_MODEL') ?? ''
@@ -78,7 +85,23 @@ function turnsOf(history: unknown, question: string): Turn[] {
 }
 
 async function gemini(system: string, turns: Turn[]) {
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+  let last: any
+  for (const model of GEMINI_MODELS) {
+    try {
+      return await geminiWith(model, system, turns)
+    } catch (err: any) {
+      last = err
+      console.error(`Gemini ${model}: ${err?.status} ${err?.message}`)
+      // missing (404), out of free quota (429) or overloaded (500/503): another model may be fine.
+      // A bad key or a bad request (400/401/403) won't change, so stop there.
+      if (![404, 429, 500, 503].includes(err?.status)) throw err
+    }
+  }
+  throw last
+}
+
+async function geminiWith(model: string, system: string, turns: Turn[]) {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY ?? '' },
     body: JSON.stringify({
@@ -147,6 +170,7 @@ Deno.serve(async (req) => {
     if (!text) return json({ error: 'No answer' }, 502)
     return json({ text: text.slice(0, 2000) })
   } catch (err: any) {
+    console.error(`grace: ${err?.status ?? ''} ${err?.message ?? err}`)
     // 429: the free tier's rate limit
     return json({ error: String(err?.message ?? err), busy: err?.status === 429 }, err?.status === 429 ? 429 : 502)
   }

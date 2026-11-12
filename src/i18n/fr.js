@@ -1507,4 +1507,24 @@ export default {
     'Le thème automatique est déjà activé 🌗 Clair du lever au coucher du soleil chez vous, sombre la nuit.',
   'Done 🌗 Light from sunrise to sunset where you are, dark at night, switching by itself.':
     'C’est fait 🌗 Clair du lever au coucher du soleil chez vous, sombre la nuit, ça change tout seul.',
+  'Your phone didn’t allow access to contacts.': 'Votre téléphone n’a pas autorisé l’accès aux contacts.',
+  'Couldn’t open your contacts. Try again.': 'Impossible d’ouvrir vos contacts. Réessayez.',
+  'Now friends': 'Vous êtes amis',
+  'Already asked': 'Déjà demandé',
+  'That’s you': 'C’est vous',
+  'Couldn’t add': 'Ajout impossible',
+  'Add from my contacts': 'Ajouter depuis mes contacts',
+  'Use your contacts?': 'Utiliser vos contacts ?',
+  'Your phone will show your contacts and you choose who to share. {brand} only sees the people you pick, uses their email to find them, and sends each one who’s here a friend request. Nothing else is saved.':
+    'Votre téléphone affichera vos contacts et vous choisissez qui partager. {brand} ne voit que les personnes choisies, utilise leur e-mail pour les trouver et envoie une demande d’ami à chacune qui est ici. Rien d’autre n’est enregistré.',
+  'Allow and choose': 'Autoriser et choisir',
+  'Not now': 'Pas maintenant',
+  'This browser can’t share contacts with websites yet. It works in Chrome on Android. Here, add friends by email or send your invite link.':
+    'Ce navigateur ne peut pas encore partager de contacts avec les sites. Cela fonctionne dans Chrome sur Android. Ici, ajoutez des amis par e-mail ou envoyez votre lien d’invitation.',
+  OK: 'OK',
+  Invite: 'Inviter',
+  'Not on {brand} yet': 'Pas encore sur {brand}',
+  Done: 'Terminé',
+  'Friend request': 'Demande d’ami',
+  'Couldn’t answer the request': 'Impossible de répondre à la demande',
 }

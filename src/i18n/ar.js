@@ -1459,4 +1459,24 @@ export default {
     'السمة التلقائية مفعّلة بالفعل 🌗 فاتحة من الشروق حتى الغروب حيث أنت، وداكنة ليلًا.',
   'Done 🌗 Light from sunrise to sunset where you are, dark at night, switching by itself.':
     'تم 🌗 فاتح من الشروق حتى الغروب حيث أنت، وداكن ليلًا، ويتبدّل وحده.',
+  'Your phone didn’t allow access to contacts.': 'لم يسمح هاتفك بالوصول إلى جهات الاتصال.',
+  'Couldn’t open your contacts. Try again.': 'تعذّر فتح جهات الاتصال. حاول مرة أخرى.',
+  'Now friends': 'أصبحتما صديقين',
+  'Already asked': 'تم الطلب مسبقًا',
+  'That’s you': 'هذا أنت',
+  'Couldn’t add': 'تعذّرت الإضافة',
+  'Add from my contacts': 'أضف من جهات اتصالي',
+  'Use your contacts?': 'استخدام جهات اتصالك؟',
+  'Your phone will show your contacts and you choose who to share. {brand} only sees the people you pick, uses their email to find them, and sends each one who’s here a friend request. Nothing else is saved.':
+    'سيعرض هاتفك جهات اتصالك وتختار من تشارك. يرى {brand} فقط من تختارهم، ويستخدم بريدهم للعثور عليهم، ويرسل طلب صداقة لكل من هو هنا. لا يُحفظ أي شيء آخر.',
+  'Allow and choose': 'اسمح واختر',
+  'Not now': 'ليس الآن',
+  'This browser can’t share contacts with websites yet. It works in Chrome on Android. Here, add friends by email or send your invite link.':
+    'لا يستطيع هذا المتصفح مشاركة جهات الاتصال مع المواقع بعد. يعمل ذلك في Chrome على Android. هنا، أضف الأصدقاء بالبريد أو أرسل رابط الدعوة.',
+  OK: 'حسنًا',
+  Invite: 'ادعُ',
+  'Not on {brand} yet': 'ليس على {brand} بعد',
+  Done: 'تم',
+  'Friend request': 'طلب صداقة',
+  'Couldn’t answer the request': 'تعذّر الرد على الطلب',
 }

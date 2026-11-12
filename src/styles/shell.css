@@ -665,6 +665,29 @@
   margin-right: 14px;
 }
 
+/* a friend request in the bell, with its own answer buttons */
+.notif-ask {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+.notif-who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 100%;
+  min-width: 0;
+  text-align: left;
+  padding-right: 18px;
+}
+.notif-ask .notif-txt small {
+  white-space: normal;
+}
+.notif-acts {
+  display: flex;
+  gap: 8px;
+  margin-left: 48px;
+}
+
 /* settings popover */
 .set-pop {
   width: 300px;

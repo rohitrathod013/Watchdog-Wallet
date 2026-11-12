@@ -1494,4 +1494,24 @@ export default {
     'El tema automático ya está activado 🌗 Claro del amanecer al atardecer donde estás, oscuro de noche.',
   'Done 🌗 Light from sunrise to sunset where you are, dark at night, switching by itself.':
     'Hecho 🌗 Claro del amanecer al atardecer donde estás y oscuro de noche, cambia solo.',
+  'Your phone didn’t allow access to contacts.': 'Tu teléfono no permitió el acceso a los contactos.',
+  'Couldn’t open your contacts. Try again.': 'No se pudieron abrir tus contactos. Inténtalo de nuevo.',
+  'Now friends': 'Ya sois amigos',
+  'Already asked': 'Ya enviada',
+  'That’s you': 'Eres tú',
+  'Couldn’t add': 'No se pudo añadir',
+  'Add from my contacts': 'Añadir desde mis contactos',
+  'Use your contacts?': '¿Usar tus contactos?',
+  'Your phone will show your contacts and you choose who to share. {brand} only sees the people you pick, uses their email to find them, and sends each one who’s here a friend request. Nothing else is saved.':
+    'Tu teléfono mostrará tus contactos y tú eliges a quién compartir. {brand} solo ve a las personas que elijas, usa su correo para encontrarlas y envía una solicitud de amistad a cada una que esté aquí. No se guarda nada más.',
+  'Allow and choose': 'Permitir y elegir',
+  'Not now': 'Ahora no',
+  'This browser can’t share contacts with websites yet. It works in Chrome on Android. Here, add friends by email or send your invite link.':
+    'Este navegador aún no puede compartir contactos con sitios web. Funciona en Chrome para Android. Aquí, añade amigos por correo o envía tu enlace de invitación.',
+  OK: 'Vale',
+  Invite: 'Invitar',
+  'Not on {brand} yet': 'Aún no está en {brand}',
+  Done: 'Listo',
+  'Friend request': 'Solicitud de amistad',
+  'Couldn’t answer the request': 'No se pudo responder a la solicitud',
 }

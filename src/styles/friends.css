@@ -1462,3 +1462,69 @@ img.persona {
   flex: none;
   display: block;
 }
+
+/* adding friends from the phone's contacts */
+.from-contacts {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+.contacts-ask,
+.contacts-found {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.contacts-ask p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+.contacts-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.contacts-found ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.contacts-found li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13.5px;
+}
+.contacts-found li span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.contacts-found small {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.contacts-found small.good {
+  color: var(--green);
+}
+.contacts-found .link {
+  align-self: flex-end;
+}
+.contacts-found a.btn {
+  text-decoration: none;
+  color: var(--ink);
+  background: var(--card);
+}

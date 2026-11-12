@@ -1502,4 +1502,24 @@ export default {
     'Das automatische Design ist schon an 🌗 Hell von Sonnenaufgang bis Sonnenuntergang bei dir, nachts dunkel.',
   'Done 🌗 Light from sunrise to sunset where you are, dark at night, switching by itself.':
     'Erledigt 🌗 Hell von Sonnenaufgang bis Sonnenuntergang bei dir, nachts dunkel, es wechselt von selbst.',
+  'Your phone didn’t allow access to contacts.': 'Dein Handy hat den Zugriff auf Kontakte nicht erlaubt.',
+  'Couldn’t open your contacts. Try again.': 'Kontakte konnten nicht geöffnet werden. Versuch es noch einmal.',
+  'Now friends': 'Jetzt befreundet',
+  'Already asked': 'Schon angefragt',
+  'That’s you': 'Das bist du',
+  'Couldn’t add': 'Konnte nicht hinzufügen',
+  'Add from my contacts': 'Aus meinen Kontakten hinzufügen',
+  'Use your contacts?': 'Deine Kontakte verwenden?',
+  'Your phone will show your contacts and you choose who to share. {brand} only sees the people you pick, uses their email to find them, and sends each one who’s here a friend request. Nothing else is saved.':
+    'Dein Handy zeigt deine Kontakte und du wählst, wen du teilst. {brand} sieht nur die ausgewählten Personen, sucht sie über ihre E-Mail und schickt allen, die hier sind, eine Freundschaftsanfrage. Sonst wird nichts gespeichert.',
+  'Allow and choose': 'Erlauben und auswählen',
+  'Not now': 'Nicht jetzt',
+  'This browser can’t share contacts with websites yet. It works in Chrome on Android. Here, add friends by email or send your invite link.':
+    'Dieser Browser kann noch keine Kontakte mit Websites teilen. Es klappt in Chrome auf Android. Füge hier Freunde per E-Mail hinzu oder schick deinen Einladungslink.',
+  OK: 'OK',
+  Invite: 'Einladen',
+  'Not on {brand} yet': 'Noch nicht bei {brand}',
+  Done: 'Fertig',
+  'Friend request': 'Freundschaftsanfrage',
+  'Couldn’t answer the request': 'Anfrage konnte nicht beantwortet werden',
 }

@@ -15,6 +15,7 @@ import { MAX_GROUP } from '../lib/social'
 import { money, shortDate } from '../lib/format'
 import { t, tMonths } from '../lib/i18n'
 import { BRAND } from '../config'
+import { allowContacts, canPickContacts, contactsAllowed, inviteHref, pickContacts } from '../lib/contacts'
 
 const STATUS = { pending: 'Pending', paid: 'Paid', declined: 'Declined', cancelled: 'Cancelled' }
 
@@ -36,6 +37,142 @@ function Gate({ icon, title, body, action, onAction }) {
 }
 
 /* ---------------- add a friend / invite link ---------------- */
+/* Friends from the phone's contacts: the user agrees here first, then picks people in the phone's own list */
+function FromContacts() {
+  const { social } = useApp()
+  const [step, setStep] = useState('idle') // idle | ask | busy | done
+  const [found, setFound] = useState([]) // [{ contact, status, name }]
+  const [problem, setProblem] = useState(null)
+  const can = canPickContacts()
+
+  const pick = async () => {
+    allowContacts()
+    setProblem(null)
+    let picked
+    try {
+      picked = await pickContacts()
+    } catch (err) {
+      setProblem(
+        err?.name === 'SecurityError' || err?.name === 'NotAllowedError'
+          ? t('Your phone didn’t allow access to contacts.')
+          : t('Couldn’t open your contacts. Try again.'),
+      )
+      setStep('idle')
+      return
+    }
+    if (!picked.length) {
+      setStep('idle')
+      return
+    }
+    setStep('busy')
+    const out = []
+    // one at a time: each person's emails in turn until one is on the app
+    for (const contact of picked.slice(0, 25)) {
+      let r = { status: 'not_found' }
+      for (const email of contact.emails) {
+        try {
+          r = await social.addFriend(email)
+        } catch {
+          r = { status: 'error' }
+        }
+        if (r.status !== 'not_found') break
+      }
+      out.push({ contact, status: r.status, name: r.name || contact.name })
+    }
+    setFound(out)
+    setStep('done')
+  }
+
+  const start = () => (can && contactsAllowed() ? pick() : setStep('ask'))
+  const inviteText = t('Be my friend on {brand}, so we can split bills and pay each other back.', { brand: BRAND.name })
+  const label = {
+    sent: t('Request sent'),
+    accepted: t('Now friends'),
+    already: t('Already friends'),
+    pending: t('Already asked'),
+    self: t('That’s you'),
+    error: t('Couldn’t add'),
+  }
+
+  return (
+    <div className="from-contacts">
+      {step === 'idle' || step === 'busy' ? (
+        <button type="button" className="btn sm" onClick={start} disabled={step === 'busy'}>
+          <Icon name="users" size={15} />
+          {step === 'busy' ? t('Adding…') : t('Add from my contacts')}
+        </button>
+      ) : null}
+      {problem ? <p className="add-note bad">{problem}</p> : null}
+
+      {step === 'ask' ? (
+        <div className="contacts-ask" role="dialog" aria-label={t('Use your contacts?')}>
+          <b>{t('Use your contacts?')}</b>
+          {can ? (
+            <>
+              <p>
+                {t(
+                  'Your phone will show your contacts and you choose who to share. {brand} only sees the people you pick, uses their email to find them, and sends each one who’s here a friend request. Nothing else is saved.',
+                  { brand: BRAND.name },
+                )}
+              </p>
+              <div className="contacts-btns">
+                <button type="button" className="btn sm solid" onClick={pick}>
+                  {t('Allow and choose')}
+                </button>
+                <button type="button" className="btn sm" onClick={() => setStep('idle')}>
+                  {t('Not now')}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p>
+                {t(
+                  'This browser can’t share contacts with websites yet. It works in Chrome on Android. Here, add friends by email or send your invite link.',
+                )}
+              </p>
+              <div className="contacts-btns">
+                <button type="button" className="btn sm" onClick={() => setStep('idle')}>
+                  {t('OK')}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
+
+      {step === 'done' ? (
+        <div className="contacts-found">
+          <ul>
+            {found.map((f, i) => {
+              const invite = f.status === 'not_found' && social.inviteUrl ? inviteHref(f.contact, social.inviteUrl, inviteText) : null
+              return (
+                <li key={i}>
+                  <span>{f.name}</span>
+                  {f.status === 'not_found' ? (
+                    invite ? (
+                      <a className="btn sm" href={invite}>
+                        {t('Invite')}
+                      </a>
+                    ) : (
+                      <small>{t('Not on {brand} yet', { brand: BRAND.name })}</small>
+                    )
+                  ) : (
+                    <small className={['sent', 'accepted', 'already'].includes(f.status) ? 'good' : ''}>{label[f.status] ?? label.error}</small>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+          <button type="button" className="link" onClick={() => setStep('idle')}>
+            {t('Done')}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function AddFriend() {
   const { social, toast } = useApp()
   const [email, setEmail] = useState('')
@@ -107,6 +244,7 @@ function AddFriend() {
           {note.text}
         </p>
       ) : null}
+      <FromContacts />
       {social.inviteUrl ? (
         <div className="invite">
           <small>{t('Or share your invite link')}</small>

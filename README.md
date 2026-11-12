@@ -36,6 +36,8 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 ### Friends
 
 - **Add friends** by the email they signed up with, or share your **invite link**. They accept, and you're connected.
+- **Add from your contacts**: after you agree, your phone opens its own contact list and you pick who to share. The site only sees the people you pick, sends a friend request to each one already on Watchdog Wallet, and offers a text or email invite for the rest. Nothing else from your contacts is saved. This uses the browser's Contact Picker, which works in Chrome on Android; elsewhere the page explains that and points to email or the invite link.
+- **Friend requests in your notifications**: the bell shows each new request with **Accept** and **Decline** right there, and it disappears once answered.
 - **Chat** with each friend, live, with a badge on the Friends tab for unread messages and requests:
   - messages from the same person are grouped with one timestamp, with **Today**, **Yesterday** or date dividers between days;
   - your latest message shows **Sent**, then **Seen** once your friend has opened the chat;
@@ -113,7 +115,7 @@ Grace wears a guard cap and a gold shield badge, and she guards the account (**G
   - **Watchlist and investing**: "add chainlink to my watchlist", "buy $200 of bitcoin", "buy 2 shares of apple", "sell half my ethereum", "how are my investments". Buying and selling always ask for a confirm, and Grace still won't recommend what to buy.
   - **Public holidays** from [Nager.Date](https://date.nager.at): "any bank holidays soon?", "are banks open on Monday?", "holidays in the UK". Grace also warns when a bill falls on a bank holiday.
 - **Reads receipts and bills**: tap the 🧾 button next to the message box (or paste a picture) and send Grace a photo. She reads it right in your browser with [Tesseract.js](https://tesseract.projectnaptha.com) (free, the photo isn't uploaded), finds the shop, total, date and any due date, and offers to **add it as spending** in the right category, or as a **bill** with its due date so she can remind you. Nothing is added until you confirm. Clear, straight-on photos of printed receipts work best; the reader downloads once (a few MB) the first time.
-- **Answers anything else with a free LLM**: when a question isn't one of Grace's own ("how does a Roth IRA work?", "is my dining spending normal?"), she asks a hosted model, Google Gemini's free tier by default (see [Grace's LLM](#graces-llm-free)). It sees only the question, the last few messages and a short summary of your account, and it can only talk: sending money, paying bills and changing settings still go through Grace's own rules and your confirm. Without the setup, or in the demo, she answers as before.
+- **Answers anything else with a free LLM**: when a question isn't one of Grace's own ("how does a Roth IRA work?", "should I pay off debt or save first?"), she asks a hosted model, Google Gemini's free tier by default (see [Grace's LLM](#graces-llm-free)). It sees only the question, the last few messages and a short summary of your account, and it can only talk: sending money, paying bills and changing settings still go through Grace's own rules and your confirm. Without the setup, or in the demo, she answers as before.
 - **Talks back**: the speaker button in the chat header reads every reply aloud, and questions asked with the microphone are always answered out loud.
 - **Forgives typos**: "whats my balnce", "I spnet $30 on dinnr" and "send $50 to varsah" all work. [Fuse.js](https://www.fusejs.io) matches each unknown word against Grace's vocabulary and the names on your account (`src/lib/typos.js`), with strict rules so real words like "tax" or "crash" are never changed.
 - Understands some Roman Urdu, such as "balance kitna hai" and "kal 300 ka khana kharch kiya".
@@ -217,7 +219,7 @@ In test mode, pay with card `4242 4242 4242 4242`, any future expiry date and an
 Grace's own rules handle every action. For questions they don't recognise, the chat calls a Supabase Edge Function ([`supabase/functions/grace`](supabase/functions/grace/index.ts)) that keeps the API key on the server and passes the question to a hosted model. Only signed-in accounts use it; the function checks the login itself.
 
 1. Get a free API key at [Google AI Studio](https://aistudio.google.com/apikey).
-2. In the Supabase dashboard, open **Edge Functions > Secrets** and add `GEMINI_API_KEY` with that key (optionally `GEMINI_MODEL`, default `gemini-2.5-flash`).
+2. In the Supabase dashboard, open **Edge Functions > Secrets** and add `GEMINI_API_KEY` with that key (optionally `GEMINI_MODEL`; by default it uses the newest Gemini Flash, `gemini-flash-latest`).
 3. Open **Edge Functions > Deploy a new function > Via Editor**, name it `grace`, paste the contents of `supabase/functions/grace/index.ts` and deploy.
 4. In the function's **Settings**, turn **off** "Verify JWT with legacy secret" and save.
 
@@ -305,6 +307,7 @@ src/
     useSocial.js       the Friends state: live updates, and each transfer counted once
     payments.js        card top-ups through the payments Edge Function
     llm.js             Grace's free-form answers through the grace Edge Function
+    contacts.js        adding friends from the phone's contacts (Contact Picker)
     voice.js           Grace's voice
     stats.js           charts and totals worked out from transactions
     insights.js        search, forecasts, unusual charges, subscriptions, afford and goal plans

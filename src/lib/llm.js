@@ -66,8 +66,12 @@ export async function askModel(question, history, app) {
       }),
       signal: AbortSignal.timeout?.(20000),
     })
-    if (!res.ok) return null
     const out = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      // shows why in the browser console (F12), e.g. a bad key or the free tier's limit
+      console.warn(`Grace's LLM: ${res.status} ${out.error ?? ''}`)
+      return null
+    }
     return typeof out.text === 'string' && out.text.trim() ? out.text.trim() : null
   } catch {
     return null
