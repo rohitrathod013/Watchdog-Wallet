@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/Watchdog-Wallet/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f7f7" />
+    <meta name="author" content="Rohit Rathod" />
+    <meta name="copyright" content="© 2026 Rohit Rathod · Watchdog Wallet" />
+    <title>Watchdog Wallet · Financial Overview</title>
+    <meta name="description" content="Personal finance dashboard with Grace, an AI assistant: balances, budgets, goals, transfers and analytics." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Watchdog Wallet · Financial Overview" />
+    <meta
+      property="og:description"
+      content="Personal finance dashboard with Grace, an AI assistant: balances, budgets, goals, transfers and analytics."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      // apply the saved theme before first paint so there is no flash
+      try {
+        // "auto" (the default) is light from sunrise to sunset where the user is (today's times are
+        // saved by src/lib/dayTheme.js); before they're known, light from 7am to 7pm
+        var mode = localStorage.getItem('codexr-theme') || 'auto'
+        var now = new Date()
+        var sun = JSON.parse(localStorage.getItem('ww-sun') || 'null')
+        var light
+        if (sun && sun.day === now.toDateString()) light = sun.polar ? sun.polar === 'day' : now >= sun.rise && now < sun.set
+        else light = now.getHours() >= 7 && now.getHours() < 19
+        document.documentElement.dataset.theme = mode === 'auto' ? (light ? 'light' : 'dark') : mode
+        document.documentElement.dataset.accent = localStorage.getItem('codexr-accent') || 'orange'
+      } catch (e) {}
+    </script>
+    <script type="module" crossorigin src="/Watchdog-Wallet/assets/index-cofXEEPs.js"></script>
+    <link rel="modulepreload" crossorigin href="/Watchdog-Wallet/assets/rolldown-runtime-BCiCTKAo.js">
+    <link rel="modulepreload" crossorigin href="/Watchdog-Wallet/assets/jsx-runtime-BjLx7v8f.js">
+    <link rel="modulepreload" crossorigin href="/Watchdog-Wallet/assets/config-CnSEpTJ6.js">
+    <link rel="modulepreload" crossorigin href="/Watchdog-Wallet/assets/Icon-904apKfX.js">
+    <link rel="modulepreload" crossorigin href="/Watchdog-Wallet/assets/i18n-CLmFDGTa.js">
+    <link rel="modulepreload" crossorigin href="/Watchdog-Wallet/assets/format-DQEqFyvN.js">
+    <link rel="modulepreload" crossorigin href="/Watchdog-Wallet/assets/store-CYzgS79c.js">
+    <link rel="modulepreload" crossorigin href="/Watchdog-Wallet/assets/seed-UwyJDM1w.js">
+    <link rel="modulepreload" crossorigin href="/Watchdog-Wallet/assets/stats-CEnKcoy_.js">
+    <link rel="stylesheet" crossorigin href="/Watchdog-Wallet/assets/index-Bxk3AdFB.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
