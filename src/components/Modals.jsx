@@ -8,7 +8,7 @@ import { useApp } from '../lib/store'
 import { isoDay, localIso, money } from '../lib/format'
 import { BRAND } from '../config'
 import { t } from '../lib/i18n'
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../lib/stats'
+import { expenseCategories, INCOME_CATEGORIES } from '../lib/stats'
 import { useGuardCheck } from './useGuardCheck'
 
 const QUICK = [50, 100, 250, 500]
@@ -327,7 +327,7 @@ export function GoalModal({ open, onClose }) {
 
 /* ---------------- Add a transaction by hand ---------------- */
 function TransactionBody({ payload, onClose }) {
-  const { addTransaction, balance, pots } = useApp()
+  const { addTransaction, balance, pots, budgets } = useApp()
   const [type, setType] = useState(payload?.type ?? 'expense')
   const [potId, setPotId] = useState(payload?.potId ?? '')
   const [name, setName] = useState('')
@@ -337,7 +337,7 @@ function TransactionBody({ payload, onClose }) {
   const n = Number(amount)
   const [guardNotice, guardOk] = useGuardCheck(type === 'expense' ? n : 0)
   const ok = name.trim() && n > 0 && guardOk
-  const cats = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES
+  const cats = type === 'income' ? INCOME_CATEGORIES : expenseCategories(budgets)
 
   const pickType = (next) => {
     setType(next)
@@ -478,7 +478,7 @@ export function ContactModal({ open, payload, onClose }) {
 
 /* ---------------- Add a bill ---------------- */
 function BillBody({ onClose }) {
-  const { addBill } = useApp()
+  const { addBill, budgets } = useApp()
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState('Bills')
@@ -506,7 +506,7 @@ function BillBody({ onClose }) {
         <label className="field">
           <span>{t('Category')}</span>
           <select value={category} onChange={(e) => setCategory(e.target.value)}>
-            {EXPENSE_CATEGORIES.map((c) => (
+            {expenseCategories(budgets).map((c) => (
               <option key={c} value={c}>
                 {t(c)}
               </option>

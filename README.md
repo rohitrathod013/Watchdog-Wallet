@@ -76,7 +76,7 @@ Investing here is **tracked, not traded**: Watchdog Wallet records what you boug
 - **Dashboard**, with four tabs:
   - **Overview**: balance, earnings, KPIs, savings goals, cash flow, spending, quick transfer, recent transactions, bills, budget health and the spending heatmap.
   - **Transactions**: search, filters, sorting and CSV export.
-  - **Budgets**: monthly limits per category.
+  - **Budgets**: monthly limits per category. **Add a budget** for any of 23 spending categories (Groceries, Utilities, Subscriptions, Insurance, Education, Pets, Kids, Gifts & Donations, Debt Payments, Taxes and more) or make up your own, and remove any with two taps. Custom categories also appear when you add an expense or a bill, so their spending is counted.
   - **Reports**: income by source and downloadable statements.
 - **Analytics**: KPI sparklines, cash flow, earnings, spending and the heatmap.
 - **Transfer**: quick transfer, recent transfers and transfer limits.

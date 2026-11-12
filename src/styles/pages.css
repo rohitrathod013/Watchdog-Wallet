@@ -973,6 +973,72 @@
   font-size: 16px;
   font-weight: 500;
 }
+/* remove a budget: a bin, then "Remove?" on the first tap */
+.budget-del {
+  height: 30px;
+  min-width: 30px;
+  padding: 0 8px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+.budget-del:hover {
+  background: var(--soft);
+  color: var(--ink);
+}
+.budget-del.sure {
+  background: var(--red-bg);
+  color: var(--red);
+}
+/* the "Add a budget" tile, and the form it opens */
+.budget-add {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 220px;
+  border: 1.5px dashed var(--line-2);
+  background: transparent;
+  color: var(--ink-2);
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+.budget-add:hover {
+  border-color: var(--accent);
+  background: var(--card);
+}
+.budget-add b {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.budget-add small {
+  color: var(--muted);
+  font-size: 13px;
+}
+.budget-add-ic {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.budget-form .field {
+  margin: 0;
+}
+.budget-form-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
 .budget-nums {
   display: flex;
   align-items: baseline;

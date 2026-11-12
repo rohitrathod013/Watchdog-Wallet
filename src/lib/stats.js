@@ -9,8 +9,42 @@ import { BRAND } from '../config'
 
 const DAY = 86400000
 
+/** Every spending category, with its icon: what budgets and new expenses can use. */
+export const SPENDING_CATEGORIES = [
+  { name: 'Housing', icon: 'home' },
+  { name: 'Food & Dining', icon: 'coffee' },
+  { name: 'Groceries', icon: 'cart' },
+  { name: 'Shopping', icon: 'bag' },
+  { name: 'Transport', icon: 'car' },
+  { name: 'Entertainment', icon: 'play' },
+  { name: 'Health', icon: 'heart' },
+  { name: 'Bills', icon: 'receipt' },
+  { name: 'Utilities', icon: 'bolt' },
+  { name: 'Phone & Internet', icon: 'wifi' },
+  { name: 'Subscriptions', icon: 'replay' },
+  { name: 'Insurance', icon: 'shield' },
+  { name: 'Travel', icon: 'plane' },
+  { name: 'Education', icon: 'note' },
+  { name: 'Personal Care', icon: 'sparkle' },
+  { name: 'Fitness', icon: 'trophy' },
+  { name: 'Kids', icon: 'smile' },
+  { name: 'Pets', icon: 'heart' },
+  { name: 'Gifts & Donations', icon: 'gift' },
+  { name: 'Debt Payments', icon: 'card' },
+  { name: 'Savings', icon: 'safe' },
+  { name: 'Taxes', icon: 'percent' },
+  { name: 'Other', icon: 'category' },
+]
 /** Categories a user can pick when adding a transaction. */
-export const EXPENSE_CATEGORIES = ['Housing', 'Food & Dining', 'Shopping', 'Transport', 'Entertainment', 'Health', 'Bills', 'Travel', 'Other']
+export const EXPENSE_CATEGORIES = SPENDING_CATEGORIES.map((c) => c.name)
+
+/** The expense categories plus any custom ones the user made budgets for, with Other last. */
+export const expenseCategories = (budgets = []) => {
+  const extra = budgets.map((b) => b.name).filter((n) => n && !EXPENSE_CATEGORIES.includes(n))
+  return [...EXPENSE_CATEGORIES.slice(0, -1), ...extra, 'Other']
+}
+/** A category's icon (custom ones get a generic tag). */
+export const iconOfCategory = (name) => SPENDING_CATEGORIES.find((c) => c.name === name)?.icon ?? 'category'
 export const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Business', 'Other income']
 
 /** Budget categories a fresh account starts with (limits are editable). */
@@ -32,6 +66,11 @@ export const KIND_FOR = {
   Entertainment: 'stream',
   Health: 'gym',
   Bills: 'wifi',
+  Groceries: 'food',
+  Utilities: 'fuel',
+  'Phone & Internet': 'wifi',
+  Subscriptions: 'stream',
+  Fitness: 'gym',
   Travel: 'travel',
   Other: 'transfer',
   Salary: 'salary',
@@ -167,7 +206,7 @@ export function computeStats(transactions, budgets = [], now = new Date()) {
   const thisMonthOut = tx.filter((x) => x.amount < 0 && parse(x.date) >= monthFrom && parse(x.date) < monthTo)
   const byCat = new Map()
   for (const x of thisMonthOut) byCat.set(x.category, (byCat.get(x.category) ?? 0) - x.amount)
-  const iconFor = Object.fromEntries([...seed.BUDGETS, ...DEFAULT_BUDGETS].map((b) => [b.name, b.icon]))
+  const iconFor = Object.fromEntries([...SPENDING_CATEGORIES, ...seed.BUDGETS, ...DEFAULT_BUDGETS, ...budgets].map((b) => [b.name, b.icon]))
   const categories = [...byCat.entries()].sort((a, b) => b[1] - a[1]).map(([name, v]) => ({ id: name, name, v, icon: iconFor[name] ?? 'receipt' }))
 
   /* ---- budgets: spent this month comes from the transactions ---- */

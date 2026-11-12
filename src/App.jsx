@@ -30,7 +30,7 @@ import { PAGES, TABS } from './lib/routes'
 import { liquidSwitch } from './lib/themeTransition'
 import { lightHours, locate, msUntilSwitch, rememberSun, resolveTheme, savedPlace } from './lib/dayTheme'
 import { localIso, MONTHS, money, uid } from './lib/format'
-import { accountCards, billDue, computeStats, DEFAULT_BUDGETS, demoStats, KIND_FOR } from './lib/stats'
+import { accountCards, billDue, computeStats, DEFAULT_BUDGETS, demoStats, iconOfCategory, KIND_FOR } from './lib/stats'
 import { LOCALES, setLocale, t, tMonths } from './lib/i18n'
 import { applyRates, loadRates } from './lib/live'
 import { accountsEnabled, confirmPassword, deleteMyAccount, getSupabase, loadUserState, profileOf, SAVED_KEYS, saveUserState } from './lib/supabase'
@@ -596,6 +596,32 @@ export default function App() {
   )
 
   const setBudgetLimit = useCallback((id, limit) => setBudgets((list) => list.map((b) => (b.id === id ? { ...b, limit } : b))), [])
+  /** A new budget for a category (one per category); returns false if it already has one. */
+  const addBudget = useCallback(
+    ({ name, limit }) => {
+      const clean = String(name ?? '')
+        .trim()
+        .slice(0, 40)
+      if (!clean || budgets.some((b) => b.name.toLowerCase() === clean.toLowerCase())) return false
+      setBudgets((list) => [...list, { id: uid(), name: clean, icon: iconOfCategory(clean), limit: Math.max(1, Math.round(Number(limit) || 0)) }])
+      toast(t('Budget added'), t('{name}: {amount} a month.', { name: t(clean), amount: money(Math.round(Number(limit) || 0), '$', 0) }), {
+        icon: 'pie',
+      })
+      return true
+    },
+    [budgets, toast],
+  )
+  const removeBudget = useCallback(
+    (id) => {
+      const b = budgets.find((x) => x.id === id)
+      setBudgets((list) => list.filter((x) => x.id !== id))
+      if (b)
+        toast(t('Budget removed'), t('{name} isn’t tracked any more. Its spending is still in your transactions.', { name: t(b.name) }), {
+          icon: 'trash',
+        })
+    },
+    [budgets, toast],
+  )
 
   /** Record money in (amount > 0) or out (amount < 0) by hand. */
   const addTransaction = useCallback(
@@ -1095,6 +1121,8 @@ export default function App() {
       fundGoal,
       removeGoal,
       setBudgetLimit,
+      addBudget,
+      removeBudget,
       toast,
       openModal,
       social,
@@ -1165,6 +1193,8 @@ export default function App() {
       fundGoal,
       removeGoal,
       setBudgetLimit,
+      addBudget,
+      removeBudget,
       toast,
       openModal,
       social,

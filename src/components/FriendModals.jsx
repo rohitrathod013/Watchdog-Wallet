@@ -14,7 +14,7 @@ import { useGuardCheck } from './useGuardCheck'
 import { useApp } from '../lib/store'
 import { money } from '../lib/format'
 import { t } from '../lib/i18n'
-import { EXPENSE_CATEGORIES } from '../lib/stats'
+import { expenseCategories } from '../lib/stats'
 import { friendError, MAX_FRIEND_PAYMENT, MAX_GROUP, splitEqually } from '../lib/social'
 
 const QUICK = [10, 25, 50, 100]
@@ -195,7 +195,7 @@ export function FriendAskModal({ open, payload, onClose }) {
 
 /* ---------------- split a bill ---------------- */
 function SplitBody({ payload, onClose }) {
-  const { social, addTransaction, toast } = useApp()
+  const { social, addTransaction, toast, budgets } = useApp()
   // in a group: everyone else in it (they needn't be my friends), all picked to start with
   const group = payload?.group ? social.groups.find((g) => g.id === payload.group) : null
   const friends = group ? group.members.filter((x) => !x.me) : social.friends.filter((f) => f.status === 'friend')
@@ -303,7 +303,7 @@ function SplitBody({ payload, onClose }) {
         <label className="field">
           <span>{t('Category')}</span>
           <select value={category} onChange={(e) => setCategory(e.target.value)}>
-            {EXPENSE_CATEGORIES.map((c) => (
+            {expenseCategories(budgets).map((c) => (
               <option key={c} value={c}>
                 {t(c)}
               </option>
