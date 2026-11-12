@@ -87,14 +87,16 @@ const niceMax = (v) => {
   return Math.ceil((v * 1.1) / p) * p
 }
 
-export function LineChart({ labels, series, height = 240 }) {
+/* band (optional): a forecast fan from the point before `index` to a low/high range at `index`,
+   e.g. this month's expected total spending. { index, from, lo, mid, hi, color, label } */
+export function LineChart({ labels, series, height = 240, band = null }) {
   const [hover, setHover] = useState(null)
   const gid = useId().replace(/:/g, '')
   const W = 1000
   const H = height
   const top = 12
   const bottom = 6
-  const max = niceMax(Math.max(...series.flatMap((s) => s.values)) || 1)
+  const max = niceMax(Math.max(...series.flatMap((s) => s.values), band ? band.hi : 0) || 1)
   const n = labels.length
   const x = (i) => (i / (n - 1)) * W
   const y = (v) => top + (1 - v / max) * (H - top - bottom)
@@ -137,6 +139,27 @@ export function LineChart({ labels, series, height = 240 }) {
           {lines.map((l, i) =>
             l.fill ? <path key={`a-${l.name}`} className={`lc-area ${l.hidden ? 'gone' : ''}`} d={l.area} fill={`url(#${gid}-${i})`} /> : null,
           )}
+          {band && band.index > 0 ? (
+            <g className="lc-band" aria-hidden="true">
+              <path
+                d={`M ${x(band.index - 1)} ${y(band.from)} L ${x(band.index)} ${y(band.hi)} L ${x(band.index)} ${y(band.lo)} Z`}
+                fill={band.color}
+                fillOpacity=".16"
+                stroke={band.color}
+                strokeOpacity=".35"
+                strokeWidth="1"
+                vectorEffect="non-scaling-stroke"
+              />
+              <path
+                d={`M ${x(band.index - 1)} ${y(band.from)} L ${x(band.index)} ${y(band.mid)}`}
+                stroke={band.color}
+                strokeWidth="2"
+                strokeDasharray="5 5"
+                vectorEffect="non-scaling-stroke"
+                fill="none"
+              />
+            </g>
+          ) : null}
           {lines.map((l, i) => (
             <path
               key={l.name}
@@ -174,6 +197,14 @@ export function LineChart({ labels, series, height = 240 }) {
                   <strong>{l.values[hover] >= 1 ? `$${l.values[hover].toFixed(1)}k` : `$${Math.round(l.values[hover] * 1000)}`}</strong>
                 </span>
               ))}
+              {band && hover === band.index ? (
+                <span className="lc-tip-band">
+                  {band.label}
+                  <strong>
+                    ${Math.round(band.lo * 1000).toLocaleString()} to ${Math.round(band.hi * 1000).toLocaleString()}
+                  </strong>
+                </span>
+              ) : null}
             </div>
           </>
         ) : null}

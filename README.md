@@ -217,6 +217,27 @@ With the Supabase CLI instead: `supabase secrets set STRIPE_SECRET_KEY=sk_test_.
 
 In test mode, pay with card `4242 4242 4242 4242`, any future expiry date and any CVC. No real money moves. Stripe only sends people back to `https://rohitrathod013.github.io` or a local dev server; to allow another site, add a `SITE_ORIGINS` secret (comma-separated origins). Going live later means swapping in the live secret key (`sk_live_...`) after Stripe approves the account.
 
+## ML in Grace
+
+Three small models run **on your device, on your own transactions**: no server, no API key, no LLM. They're written from scratch in plain JavaScript (`src/lib/ml/`), use fixed random seeds so the same data always gives the same answer, and **only propose**: every output has a reason, a confidence and a "How I got this" trace you can check.
+
+**Unusual spending, in two stages.** (1) An **Isolation Forest** (100 trees, 64-point samples) looks at eight features per payment: amount, log amount, how common its category and merchant are, hour, weekday, days since the last visit to that merchant, and the amount compared with the category's median. It proposes anything easy to isolate from the rest. (2) A proposal is kept only if a **robust z-score** (median and MAD, at least 3) confirms it against your own history for that merchant, else that category, else everything when there are fewer than 5 samples. Why two stages: the forest alone flags anything rare and its score means nothing to a person; the z-score turns it into a reason you can check ("Amount $240 vs typical $35 for Dining") and stops it fitting on noise. Simple rules sit alongside: the same charge twice within 48 hours, a subscription price rise, and a big first payment somewhere new. It needs 30 payments before it starts, and says so. Investments and moves between pots are never looked at. Each flag has **Dismiss** and **Confirm**; dismissed patterns stop alerting. When the chat opens, Grace shows at most 2 flags. Accounts over 400 transactions run this in a Web Worker.
+
+**The month-end forecast is a range.** Known items (unpaid bills, plus repeat payments and pay spotted in your history that haven't landed yet) go on their days. Everyday spending is **bootstrapped**: each remaining day draws a real past day of yours, weekdays from weekdays and weekends from weekends, and each of 1,000 runs first resamples those days so the uncertainty in your typical level is included too. Grace says it plainly: "Most likely about $820 left. 80% chance it lands between $540 and $1,050. 7% chance you go below zero, most likely around Oct 26." The Cash Flow chart shows this month's likely spending as a shaded band. Under 60 days of history the band is widened and labelled a rough estimate.
+
+**Categories that learn.** Multinomial naive Bayes (Laplace smoothing) over the words in a transaction's name, trained only on your own transactions, your corrections and a seed list of about 260 common merchants (`src/data/merchants.js`). An exact name you've corrected, or one you always file the same way, is used directly. Under 60% sure it asks instead of guessing. It's used when you add a transaction, scan a receipt, or tell Grace "I spent $30 at Trader Joe's". Say "that's wrong, it's groceries" (or overrule the guess in the Add transaction window) and it learns at once, then offers to fix similar past transactions, showing how many first. Only the corrections are saved with your account; the model is rebuilt from them on load.
+
+**In the chat:** "anything unusual?", "will I run out of money this month?", "how sure are you?", "why did you flag that?", "that's fine" and "that's wrong, it's groceries".
+
+**Evaluation** (`npm run eval`, written to [`docs/ml-eval.md`](docs/ml-eval.md)), all on **synthetic data**: on 30 seeded accounts with planted incidents, medium sensitivity finds 95.8% of the obvious ones (duplicate, 10× outlier, big new merchant, price rise) at 90.1% precision, with 0.04 false flags per month on clean accounts; it misses most of a deliberately subtle case (about 2× a normal grocery shop), and the report shows one. Forecast backtests from mid-month put the real month-end inside the p10 to p90 band 76.7% of the time (target about 80%). The categorizer goes from 80.8% on a brand-new account to 93.5% after 5 corrections.
+
+### Limits
+
+- **Unsupervised, with no labels.** The detector learns what's normal for you, not what fraud looks like. Your Dismiss and Confirm answers are stored, but nothing is retrained on them yet.
+- **Synthetic evaluation only.** The numbers above come from made-up accounts with planted incidents. Real spending is messier, and the real precision and recall are unknown.
+- **Needs history.** 30 payments before it flags anything, and 60 days before the forecast stops calling itself rough.
+- **A triage aid, not a verdict.** Confidence numbers are rules of thumb, not calibrated probabilities. A flag means "worth a look", never "fraud".
+
 ## Grace's LLM (free)
 
 Grace's own rules handle every action. For questions they don't recognise, the chat calls a Supabase Edge Function ([`supabase/functions/grace`](supabase/functions/grace/index.ts)) that keeps the API key on the server and passes the question to a hosted model. Only signed-in accounts use it; the function checks the login itself.
@@ -312,6 +333,7 @@ src/
     llm.js             Grace's free-form answers through the grace Edge Function
     shield.js          the Watchdog scam shield: rule-based scoring of messages, links and payees
     trace.js           "show your work": cent-exact traces behind every figure Grace states
+    ml/                on-device models: isolation forest + robust z anomalies, bootstrap forecast, naive Bayes categorizer
     contacts.js        adding friends from the phone's contacts (Contact Picker)
     voice.js           Grace's voice
     stats.js           charts and totals worked out from transactions
@@ -341,6 +363,7 @@ tests/                 Grace's questions, her voice, receipts, and the Friends a
 | `npm run build`   | Production build into `dist/`                                         |
 | `npm run preview` | Serve the production build at `/Watchdog-Wallet/`, like the live site |
 | `npm test`        | Grace's test set (240+ questions)                                     |
+| `npm run eval`    | Evaluate the on-device models on synthetic data, write `docs/ml-eval.md` |
 | `npm run lint`    | ESLint                                                                |
 | `npm run format`  | Prettier                                                              |
 

@@ -1161,8 +1161,10 @@ describe('show your work', async () => {
 
   it('the forecast shows its inputs: bills still due, the daily average and the days left', () => {
     const r = ask('forecast my month')
-    const [main, bills, everyday] = r.traces
-    expect(r.text).toContain(money(main.value))
+    const [range, main, bills, everyday] = r.traces
+    expect(r.text).toContain(money(range.value))
+    expect(range.label).toMatch(/range/)
+    expect(main.steps.join(' ')).toMatch(/Balance now/)
     expect(bills.value).toBe(96.41)
     expect(everyday.rows.map((x) => x.id).sort()).toEqual(['t1', 't2', 't3', 't4', 't5', 't7', 't8'].sort())
     expect(main.steps.join(' ')).toMatch(/days left/)

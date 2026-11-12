@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Icon from './Icon'
+import { forecastFor } from '../lib/ml/grace.js'
 import { Flag, MerchantLogo, Persona } from './Brand'
 import { Donut, EarningBars, Heatmap, LineChart, Sparkline } from './Charts'
 import { Chg, CountUp, Dropdown, Popover, Ring, Segmented, Status, Toggle } from './ui'
@@ -417,8 +418,15 @@ export function SavingsCard({ d = 0 }) {
    ============================================================ */
 
 export function CashFlowCard({ d = 0, className = '' }) {
-  const { stats } = useApp()
+  const app = useApp()
+  const { stats } = app
   const CASHFLOW = stats.cashflow
+  // this month's spending so far is only part of the story: show where it's likely to end up (80% range)
+  const { transactions, balance, bills, now } = app
+  const outlook = useMemo(
+    () => (stats.demo ? null : forecastFor({ transactions, balance, bills, now })),
+    [stats.demo, transactions, balance, bills, now],
+  )
   const [range, setRange] = useState('12')
   const [show, setShow] = useState({ income: true, expenses: true })
   const lead = useLead()
@@ -489,7 +497,28 @@ export function CashFlowCard({ d = 0, className = '' }) {
           { name: t('Income'), color: 'var(--accent)', values: inc, fill: true, hidden: !show.income },
           { name: t('Expenses'), color: 'var(--solid)', values: exp, hidden: !show.expenses },
         ]}
+        band={
+          outlook && show.expenses && outlook.daysLeft > 0 && exp.length > 1
+            ? {
+                index: exp.length - 1,
+                from: exp[exp.length - 2],
+                lo: outlook.spend.p10 / 1000,
+                mid: outlook.spend.p50 / 1000,
+                hi: outlook.spend.p90 / 1000,
+                color: 'var(--accent)',
+                label: outlook.rough ? t('This month, rough estimate') : t('This month, 80% range'),
+              }
+            : null
+        }
       />
+      {outlook && show.expenses && outlook.daysLeft > 0 ? (
+        <p className="lc-band-note">
+          <i className="sw band" />
+          {outlook.rough
+            ? t('Shaded: where this month’s spending will likely end up. Rough estimate: under 60 days of history.')
+            : t('Shaded: where this month’s spending will likely end up (8 in 10 chance it lands inside).')}
+        </p>
+      ) : null}
     </section>
   )
 }

@@ -1664,4 +1664,101 @@ export default {
     'قارنها بفاتورتك الأخيرة واسأل الشركة إن لم تكن الزيادة مبرّرة.',
   'Paste the message, email, link, invoice or payee here and I’ll check it 🛡 It stays on this device: my checks are rules, nothing is sent anywhere.':
     'ألصق هنا الرسالة أو البريد أو الرابط أو الفاتورة أو المستفيد وسأفحصه 🛡 يبقى على هذا الجهاز: فحوصاتي قواعد ولا يُرسل شيء.',
+  'all your spending': 'كل مصاريفك',
+  'Amount {amount} vs typical {typical} for {group}': 'المبلغ {amount} مقابل {typical} المعتاد لـ{group}',
+  'At {time}, outside the hours you usually spend': 'في {time}، خارج ساعاتك المعتادة',
+  'Why {name} was flagged': 'لماذا نبّهتُ إلى {name}',
+  'Forest score: {score} (flag at {cut} or more; about 0.5 is ordinary)': 'نتيجة الغابة: {score} (التنبيه من {cut}؛ نحو 0.5 أمر عادي)',
+  'Typical for {group}: {typical} (median of {n})': 'المعتاد لـ{group}: {typical} (وسيط {n})',
+  'Robust z-score: {z} (confirm at 3 or more)': 'درجة z المتينة: {z} (التأكيد من 3)',
+  '{amount} at {name} twice within 48 hours': '{amount} لدى {name} مرتين خلال 48 ساعة',
+  'Possible double charge': 'رسم مزدوج محتمل',
+  'Two charges with the same merchant and amount within 48 hours.': 'رسمان من التاجر نفسه وبالمبلغ نفسه خلال 48 ساعة.',
+  'Same merchant, same amount, {hours} hours apart': 'التاجر نفسه والمبلغ نفسه، بفارق {hours} ساعات',
+  '{name} went up from {from} to {to}': 'ارتفع {name} من {from} إلى {to}',
+  'Price rise': 'ارتفاع السعر',
+  'A repeat charge that was steady, then went up.': 'رسم متكرر كان ثابتًا ثم ارتفع.',
+  'Usual price: {usual}, now {now} (+{pct}%)': 'السعر المعتاد: {usual}، الآن {now} (+{pct}%)',
+  'First payment to {name}, and {amount} is over {times}× your typical payment': 'أول دفعة لـ{name}، و{amount} أكثر من {times} أضعاف دفعتك المعتادة',
+  'New merchant, big amount': 'تاجر جديد ومبلغ كبير',
+  'The first payment to this merchant, compared with the median of all your spending.': 'أول دفعة لهذا التاجر، مقارنةً بوسيط كل مصاريفك.',
+  'Typical payment: {typical} (median of {n})': 'الدفعة المعتادة: {typical} (وسيط {n})',
+  'End-of-month balance range': 'نطاق الرصيد في نهاية الشهر',
+  'Still due this month: {n} known items': 'مستحق هذا الشهر: {n} بنود معروفة',
+  '{date}: {name} {amount}': '{date}: {name} {amount}',
+  'Everyday spending pools: {wd} weekdays (average {wdAvg}) and {we} weekend days (average {weAvg})':
+    'أيام الإنفاق اليومي: {wd} أيام عمل (متوسط {wdAvg}) و{we} أيام عطلة (متوسط {weAvg})',
+  '{n} days left, {sims} simulated months': '{n} أيام متبقية، {sims} شهرًا محاكى',
+  '10th, 50th and 90th percentile: {p10}, {p50}, {p90}': 'المئين 10 و50 و90: {p10}، {p50}، {p90}',
+  'Runs that dip below zero: {pct}': 'المحاكاة التي تنخفض تحت الصفر: {pct}',
+  'Only {n} days of history, so the band is widened by half': 'سجل من {n} أيام فقط، لذا وُسّع النطاق بمقدار النصف',
+  '{pct}% chance you go below zero, most likely around {date}.': 'احتمال {pct}% أن تنزل تحت الصفر، غالبًا نحو {date}.',
+  'Less than a 1% chance you go below zero.': 'احتمال أقل من 1% أن تنزل تحت الصفر.',
+  'Most likely about **{p50}** left. 80% chance it lands between {p10} and {p90}.':
+    'الأرجح أن يتبقى نحو **{p50}**. احتمال 80% أن يكون بين {p10} و{p90}.',
+  'Rough estimate: I only have {n} days of history, so I widened the range.': 'تقدير تقريبي: لديّ سجل من {n} أيام فقط، لذا وسّعت النطاق.',
+  '**{name}** · {amount} on {date}: {reason}': '**{name}** · {amount} في {date}: {reason}',
+  'I haven’t flagged anything in this chat yet. Ask “anything unusual?” and I’ll check.':
+    'لم أنبّه إلى أي شيء في هذه المحادثة بعد. اسأل «هل من شيء غير معتاد؟» وسأتحقق.',
+  'I flagged **{name}** ({amount} on {date}) because:': 'نبّهتُ إلى **{name}** ({amount} في {date}) لأن:',
+  'That’s a pattern check, not a verdict. You know your spending best.': 'هذا فحص للأنماط وليس حكمًا. أنت أعلم بمصاريفك.',
+  'Got it 👍 I’ve marked **{name}** as fine and won’t flag that pattern again.':
+    'حسنًا 👍 علّمتُ **{name}** على أنه سليم ولن أنبّه إلى هذا النمط مجددًا.',
+  'About {pct}% sure it’s {category}, from the words in the name and what you’ve picked before. Under 60% I ask instead of guessing.':
+    'متأكد بنسبة {pct}% تقريبًا أنها {category}، من كلمات الاسم وما اخترته سابقًا. تحت 60% أسأل بدل التخمين.',
+  'Ask me something first, like “will I run out of money this month?” or “anything unusual?”, and I’ll tell you how sure I am.':
+    'اسألني شيئًا أولًا، مثل «هل سينفد مالي هذا الشهر؟» أو «هل من شيء غير معتاد؟»، وسأخبرك بمدى تأكدي.',
+  'Which category should it be? Say something like “it’s groceries”.': 'ما الفئة الصحيحة؟ قل مثلًا «إنها بقالة».',
+  'Which transaction? Tell me about it first, like “I spent $30 at Trader Joe’s”, then I can fix its category.':
+    'أي معاملة؟ أخبرني عنها أولًا، مثل «أنفقت 30$ في Trader Joe’s»، ثم أصحّح فئتها.',
+  '**{name}** is already under {category} 👍': '**{name}** موجود بالفعل ضمن {category} 👍',
+  'Change **{name}** from {from} to **{to}**? I’ll remember it for next time.': 'تغيير **{name}** من {from} إلى **{to}**؟ سأتذكر ذلك لاحقًا.',
+  'Change to {category}': 'التغيير إلى {category}',
+  '{name} · {from} → {to}': '{name} · {from} ← {to}',
+  'Done ✅ {name} is now under {to}. I’ll use that next time.': 'تم ✅ أصبح {name} ضمن {to}. سأعتمد ذلك لاحقًا.',
+  'Also change 1 similar past transaction': 'غيّر أيضًا معاملة سابقة مشابهة',
+  'Also change {n} similar past transactions': 'غيّر أيضًا {n} معاملات سابقة مشابهة',
+  'My pattern check needs {n} more transactions before it can learn what’s normal for you, so for now it’s just the simple checks.':
+    'يحتاج فحص الأنماط إلى {n} معاملات إضافية ليتعلم ما هو طبيعي لك، لذا أكتفي الآن بالفحوص البسيطة.',
+  'My pattern check also found 1 thing worth a look:': 'وجد فحص الأنماط أيضًا أمرًا واحدًا يستحق النظر:',
+  'My pattern check also found {n} things worth a look:': 'وجد فحص الأنماط أيضًا {n} أمور تستحق النظر:',
+  'About {pct}% sure': 'متأكد بنسبة {pct}%',
+  'Marked as fine. I won’t flag this pattern again.': 'علّمته على أنه سليم. لن أنبّه إلى هذا النمط مجددًا.',
+  'Marked as a problem. If it’s a real charge you don’t recognise, contact your bank.':
+    'علّمته على أنه مشكلة. إن كان رسمًا حقيقيًا لا تعرفه، فتواصل مع مصرفك.',
+  'Dismiss, it was me': 'تجاهل، كان ذلك أنا',
+  'Confirm, it’s a problem': 'تأكيد، هذه مشكلة',
+  'A pattern check on your own spending, run on this device. It suggests; you decide.': 'فحص لأنماط مصاريفك على هذا الجهاز. هو يقترح وأنت تقرّر.',
+  '{name}’s guess, {pct}% sure': 'تخمين {name}، متأكدة بنسبة {pct}%',
+  'Not sure about this one. Please pick a category.': 'لستُ متأكدة من هذه. اختر فئة من فضلك.',
+  'Got it, I’ll remember that.': 'حسنًا، سأتذكر ذلك.',
+  'This month, rough estimate': 'هذا الشهر، تقدير تقريبي',
+  'This month, 80% range': 'هذا الشهر، نطاق 80%',
+  'Shaded: where this month’s spending will likely end up. Rough estimate: under 60 days of history.':
+    'المظلَّل: حيث سينتهي إنفاق هذا الشهر غالبًا. تقدير تقريبي: سجل أقل من 60 يومًا.',
+  'Shaded: where this month’s spending will likely end up (8 in 10 chance it lands inside).':
+    'المظلَّل: حيث سينتهي إنفاق هذا الشهر غالبًا (احتمال 8 من 10 أن يقع داخله).',
+  'I guessed the category ({category}, {pct}% sure).': 'خمّنتُ الفئة ({category}، بثقة {pct}%).',
+  'Categories updated': 'تم تحديث الفئات',
+  '{n} transactions moved to {category}.': 'نُقلت {n} معاملات إلى {category}.',
+  'I guessed {category} ({pct}% sure). If that’s wrong, say “it’s groceries” (or whatever it is).':
+    'خمّنتُ {category} (بثقة {pct}%). إن كان خطأً فقل «إنها بقالة» (أو ما هي عليه).',
+  'I wasn’t sure of the category, so it’s under Other. Say “it’s groceries” (or whatever it is) after adding it.':
+    'لم أكن متأكدة من الفئة، لذا وضعتها في «أخرى». قل «إنها بقالة» (أو ما هي عليه) بعد إضافتها.',
+  'Tap Dismiss if it was you, or Confirm if something’s wrong. Ask “why did you flag that?” for the details.':
+    'اضغط «تجاهل» إن كان ذلك أنت، أو «تأكيد» إن كان هناك خطأ. اسأل «لماذا نبّهت إلى ذلك؟» للتفاصيل.',
+  'By {date}: {range}': 'بحلول {date}: {range}',
+  'Worth checking': 'يستحق التحقق',
+  Unusual: 'غير معتاد',
+  'A little unusual': 'غير معتاد قليلًا',
+  'Thanks, I’ve noted **{name}** as a problem. If it’s a real card charge you don’t recognise, contact your bank: they can block the card and dispute it.':
+    'شكرًا، سجّلتُ **{name}** على أنه مشكلة. إن كان رسم بطاقة حقيقيًا لا تعرفه، فتواصل مع مصرفك: يمكنهم إيقاف البطاقة والاعتراض عليه.',
+  'I ran {sims} simulated months, each drawing your remaining days’ spending from your own past days. 8 in 10 of them ended between {p10} and {p90}; the middle one was {p50}. On synthetic test accounts the real result landed inside a range like this about 3 times in 4, so treat it as a guide, not a promise.':
+    'أجريتُ محاكاة لـ{sims} شهرًا، كلٌّ منها يأخذ إنفاق الأيام المتبقية من أيامك السابقة. انتهى 8 من كل 10 بين {p10} و{p90}، وكان الأوسط {p50}. على حسابات اختبار اصطناعية وقعت النتيجة الحقيقية داخل نطاق كهذا نحو 3 من كل 4 مرات، فاعتبره دليلًا لا وعدًا.',
+  'About {pct}% sure that’s worth a look. That number is a rule of thumb from how easily it stood out and how far it is from your usual, not a measured probability. I can’t know whether it was you.':
+    'متأكدة بنسبة {pct}% تقريبًا أنه يستحق النظر. هذا الرقم قاعدة تقريبية بحسب مدى بروزه وبُعده عن المعتاد، وليس احتمالًا مقيسًا. لا أستطيع معرفة إن كان ذلك أنت.',
+  'An isolation forest (100 random trees) found it easy to separate from your other spending; a robust z-score against your own history for {group} confirmed it.':
+    'وجدت غابة العزل (100 شجرة عشوائية) فصله عن بقية مصاريفك سهلًا، وأكدت ذلك درجة z متينة مقارنةً بسجلك لـ{group}.',
+  'Balance now, plus income and minus bills and repeat payments still due this month, minus each remaining day’s spending drawn at random from your own past days (weekdays and weekends apart). Repeated {n} times; the range is the middle 80% of results.':
+    'الرصيد الآن، زائد الدخل وناقص الفواتير والدفعات المتكررة المستحقة هذا الشهر، ناقص إنفاق كل يوم متبقٍ مأخوذًا عشوائيًا من أيامك السابقة (أيام العمل والعطل كلٌّ على حدة). كُرر ذلك {n} مرة؛ والنطاق هو الـ80% الوسطى من النتائج.',
 }

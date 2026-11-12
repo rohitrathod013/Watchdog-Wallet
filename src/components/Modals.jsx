@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Icon from './Icon'
 import { Persona } from './Brand'
 import { Modal, Segmented, Success } from './ui'
@@ -6,10 +6,11 @@ import { accountsEnabled } from '../lib/supabase'
 import { MAX_TOPUP, MIN_TOPUP, startCardPayment } from '../lib/payments'
 import { useApp } from '../lib/store'
 import { isoDay, localIso, money } from '../lib/format'
-import { BRAND } from '../config'
+import { ASSISTANT, BRAND } from '../config'
 import { t } from '../lib/i18n'
 import { expenseCategories, INCOME_CATEGORIES } from '../lib/stats'
 import { useGuardCheck } from './useGuardCheck'
+import { modelFor, predict } from '../lib/ml/categorize.js'
 
 const QUICK = [50, 100, 250, 500]
 
@@ -327,21 +328,28 @@ export function GoalModal({ open, onClose }) {
 
 /* ---------------- Add a transaction by hand ---------------- */
 function TransactionBody({ payload, onClose }) {
-  const { addTransaction, balance, pots, budgets } = useApp()
+  const { addTransaction, balance, pots, budgets, transactions, categoryCorrections, correctCategory } = useApp()
   const [type, setType] = useState(payload?.type ?? 'expense')
   const [potId, setPotId] = useState(payload?.potId ?? '')
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
-  const [category, setCategory] = useState(type === 'income' ? 'Salary' : 'Food & Dining')
+  // the category the user picked themselves; until then, Grace's guess (when she's sure enough)
+  const [picked, setPicked] = useState(null)
+  const guess = useMemo(
+    () => (type === 'expense' && name.trim().length >= 3 ? predict(modelFor(transactions ?? [], categoryCorrections ?? []), name) : null),
+    [type, name, transactions, categoryCorrections],
+  )
   const [date, setDate] = useState(isoDay(new Date()))
   const n = Number(amount)
   const [guardNotice, guardOk] = useGuardCheck(type === 'expense' ? n : 0)
   const ok = name.trim() && n > 0 && guardOk
   const cats = type === 'income' ? INCOME_CATEGORIES : expenseCategories(budgets)
+  const guessed = guess && !guess.ask && cats.includes(guess.category) ? guess.category : null
+  const category = picked ?? guessed ?? (type === 'income' ? 'Salary' : 'Food & Dining')
 
   const pickType = (next) => {
     setType(next)
-    setCategory(next === 'income' ? 'Salary' : 'Food & Dining')
+    setPicked(null)
   }
 
   const submit = (e) => {
@@ -355,6 +363,8 @@ function TransactionBody({ payload, onClose }) {
       date: date === today ? localIso() : `${date}T12:00`,
       potId: type === 'expense' ? potId || null : null,
     })
+    // the user overruled Grace's guess: remember it, so next time she knows
+    if (picked && guessed && picked !== guessed) correctCategory?.({ ids: [], text: name.trim(), from: guessed, to: picked })
     onClose()
   }
 
@@ -410,13 +420,22 @@ function TransactionBody({ payload, onClose }) {
       <div className="field-row">
         <label className="field">
           <span>{t('Category')}</span>
-          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+          <select value={category} onChange={(e) => setPicked(e.target.value)}>
             {cats.map((c) => (
               <option key={c} value={c}>
                 {t(c)}
               </option>
             ))}
           </select>
+          {guess && !picked ? (
+            <small className="cat-guess">
+              {guessed
+                ? t('{name}’s guess, {pct}% sure', { name: ASSISTANT.name, pct: Math.round(guess.confidence * 100) })
+                : t('Not sure about this one. Please pick a category.')}
+            </small>
+          ) : picked && guessed && picked !== guessed ? (
+            <small className="cat-guess">{t('Got it, I’ll remember that.')}</small>
+          ) : null}
         </label>
         <label className="field">
           <span>{t('Date')}</span>

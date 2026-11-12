@@ -204,10 +204,14 @@ export function forecastMonth({ transactions = [], balance = 0, bills = [], now 
       'Balance now, plus income and minus bills and repeat payments still due this month, minus each remaining day’s spending drawn at random from your own past days (weekdays and weekends apart). Repeated {n} times; the range is the middle 80% of results.',
       { n: sims.toLocaleString() },
     ),
-    scheduled.map((s) => ({ id: null, date: dayIso(s.date), name: s.name, amount: s.amount })),
+    // projected items aren't transactions yet, so they're listed as steps, not rows
+    [],
     [
       t('Balance now: {amount}', { amount: money(balance) }),
       t('Still due this month: {n} known items', { n: scheduled.length }),
+      ...scheduled.map((x) =>
+        t('{date}: {name} {amount}', { date: dayIso(x.date), name: x.name, amount: `${x.amount < 0 ? '−' : '+'}${money(Math.abs(x.amount))}` }),
+      ),
       t('Everyday spending pools: {wd} weekdays (average {wdAvg}) and {we} weekend days (average {weAvg})', {
         wd: weekday.length,
         wdAvg: money(avg(weekday)),

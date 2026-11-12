@@ -40,6 +40,7 @@ import { confirmCardPayment, takePaymentReturn } from './lib/payments'
 import { stashInvite } from './lib/social'
 import { removeAllMyMedia } from './lib/media'
 import { useSocial } from './lib/useSocial'
+import { useMlFlags } from './lib/ml/useMl.js'
 import { FriendAskModal, FriendPayModal, GroupModal, SplitModal } from './components/FriendModals'
 import * as seed from './data/seed'
 import { ASSISTANT, BRAND, FEATURES, THEME } from './config'
@@ -309,6 +310,9 @@ export default function App() {
   const [sentToday, setSentToday] = useState(0)
   // friend transfers from before this moment aren't counted again (set when the data is cleared)
   const [socialSince, setSocialSince] = useState(null)
+  // Grace's on-device models: the user's answers to flags, and their category corrections (the models are rebuilt from these)
+  const [mlVerdicts, setMlVerdicts] = useState({})
+  const [categoryCorrections, setCategoryCorrections] = useState([])
 
   /* ---------- accounts (Supabase) ----------
      session: undefined while checking, null when logged out.
@@ -360,6 +364,8 @@ export default function App() {
     setHoldings(data.holdings ?? [])
     setGuardState({ ...DEFAULT_GUARD, ...(data.guard ?? {}) })
     setSocialSince(data.socialSince ?? null)
+    setMlVerdicts(data.mlVerdicts ?? {})
+    setCategoryCorrections(data.categoryCorrections ?? [])
     setDrift(0)
     setSentToday(0)
   }, [])
@@ -412,8 +418,40 @@ export default function App() {
 
   // save the dashboard back to the account a moment after anything changes
   const saved = useMemo(
-    () => ({ balance, transactions, goals, budgets, bills, notifications, contacts, pots, activity, watchlist, holdings, guard, socialSince }),
-    [balance, transactions, goals, budgets, bills, notifications, contacts, pots, activity, watchlist, holdings, guard, socialSince],
+    () => ({
+      balance,
+      transactions,
+      goals,
+      budgets,
+      bills,
+      notifications,
+      contacts,
+      pots,
+      activity,
+      watchlist,
+      holdings,
+      guard,
+      socialSince,
+      mlVerdicts,
+      categoryCorrections,
+    }),
+    [
+      balance,
+      transactions,
+      goals,
+      budgets,
+      bills,
+      notifications,
+      contacts,
+      pots,
+      activity,
+      watchlist,
+      holdings,
+      guard,
+      socialSince,
+      mlVerdicts,
+      categoryCorrections,
+    ],
   )
   const [saveFailed, setSaveFailed] = useState(false)
   useEffect(() => {
@@ -596,6 +634,22 @@ export default function App() {
   )
 
   const setBudgetLimit = useCallback((id, limit) => setBudgets((list) => list.map((b) => (b.id === id ? { ...b, limit } : b))), [])
+  /** The user's answer to one of Grace's flags: 'benign' (stops that pattern alerting) or 'problem'. */
+  const setFlagVerdict = useCallback(
+    (flag, verdict) => setMlVerdicts((v) => ({ ...v, [flag.key]: { verdict, pattern: flag.pattern, at: new Date().toISOString() } })),
+    [],
+  )
+  /** Fix the category of some transactions, and remember it so the categorizer learns. */
+  const correctCategory = useCallback(
+    ({ ids, text, from, to, similar }) => {
+      const pick = new Set(ids)
+      setTransactions((list) => list.map((x) => (pick.has(x.id) ? { ...x, category: to, kind: KIND_FOR[to] ?? x.kind } : x)))
+      setCategoryCorrections((list) => [...list, { text, from, to, at: new Date().toISOString() }].slice(-500))
+      if (similar) toast(t('Categories updated'), t('{n} transactions moved to {category}.', { n: pick.size, category: t(to) }), { icon: 'category' })
+    },
+    [toast],
+  )
+
   /** A new budget for a category (one per category); returns false if it already has one. */
   const addBudget = useCallback(
     ({ name, limit }) => {
@@ -970,6 +1024,8 @@ export default function App() {
 
   /* every chart and summary, from the sample figures or this account's own transactions */
   const stats = useMemo(() => (isDemo ? demoStats(budgets) : computeStats(transactions, budgets)), [isDemo, transactions, budgets])
+  // unusual spending, kept fresh (off the main thread for big accounts)
+  const mlFlags = useMlFlags(transactions, mlVerdicts)
   const cards = useMemo(() => (isDemo ? seed.CARDS : accountCards(user)), [isDemo, user])
   const wallets = useMemo(
     () => (isDemo ? seed.WALLETS : [{ code: 'USD', name: 'US Dollar', flag: 'us', amount: balance, usd: balance }]),
@@ -1121,6 +1177,11 @@ export default function App() {
       fundGoal,
       removeGoal,
       setBudgetLimit,
+      mlFlags,
+      mlVerdicts,
+      setFlagVerdict,
+      categoryCorrections,
+      correctCategory,
       addBudget,
       removeBudget,
       toast,
@@ -1193,6 +1254,11 @@ export default function App() {
       fundGoal,
       removeGoal,
       setBudgetLimit,
+      mlFlags,
+      mlVerdicts,
+      setFlagVerdict,
+      categoryCorrections,
+      correctCategory,
       addBudget,
       removeBudget,
       toast,

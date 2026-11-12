@@ -246,3 +246,87 @@ describe('categorizer that learns', async () => {
     expect(performance.now() - t0).toBeLessThan(500)
   })
 })
+
+describe('Grace and the models', async () => {
+  const { respond } = await import('../src/lib/assistant')
+  const { computeStats } = await import('../src/lib/stats')
+  const { proactiveFlags } = await import('../src/lib/ml/grace')
+  const make = (tx, extra = {}) => {
+    const calls = []
+    const app = {
+      user: { first: 'R', name: 'R' },
+      period: 'month',
+      currency: 'USD',
+      balance: 2500,
+      unassigned: 2500,
+      pots: [],
+      goals: [],
+      bills: [],
+      contacts: [],
+      activity: [],
+      budgets: [],
+      transactions: tx,
+      stats: computeStats(tx, []),
+      now: new Date(2026, 9, 31, 20),
+      setFlagVerdict: (f, v) => calls.push(['verdict', f.key, v]),
+      correctCategory: (c) => calls.push(['correct', c]),
+      calls,
+      ...extra,
+    }
+    return app
+  }
+  const acct = syntheticAccount({ seed: 1 })
+  const plain = (r) => r.text.replace(/\*\*/g, '')
+  it('“anything unusual?” shows the pattern check’s flags with Dismiss and Confirm, and remembers them', () => {
+    const r = respond('anything unusual?', make(acct.transactions), {})
+    expect(r.card.type).toBe('flags')
+    expect(r.card.flags.length).toBeGreaterThan(0)
+    expect(r.memory.lastFlags[0].key).toBe(r.card.flags[0].key)
+  })
+  it('says so when there isn’t enough history yet', () => {
+    const r = respond('anything unusual?', make(acct.transactions.slice(0, 10)), {})
+    expect(plain(r)).toMatch(/needs \d+ more transactions/)
+  })
+  it('explains a flag, takes “that’s fine”, and tells how sure it is', () => {
+    const app = make(acct.transactions)
+    const first = respond('anything unusual?', app, {})
+    const why = respond('why did you flag that?', app, first.memory)
+    expect(plain(why)).toMatch(/because/)
+    expect(why.traces[0].steps.length).toBeGreaterThan(0)
+    const sure = respond('how sure are you?', app, why.memory)
+    expect(plain(sure)).toMatch(/% sure/)
+    const fine = respond("that's fine", app, first.memory)
+    fine.run()
+    expect(app.calls[0]).toEqual(['verdict', first.memory.lastFlags[0].key, 'benign'])
+  })
+  it('“will I run out of money this month?” answers with a range and a chance', () => {
+    const r = respond('will I run out of money this month?', make(acct.transactions, { now: new Date(2026, 9, 15, 12) }), {})
+    expect(plain(r)).toMatch(/Most likely about \$[\d,.]+ left\. 80% chance it lands between \$[\d,.-]+ and \$[\d,.]+/)
+    expect(plain(r)).toMatch(/below zero/)
+    expect(r.traces[0].label).toMatch(/range/)
+    expect(plain(respond('how sure are you?', make(acct.transactions), r.memory))).toMatch(/simulated months/)
+  })
+  it('guesses the category of typed spending, and learns from “that’s wrong, it’s …”', () => {
+    const app = make(acct.transactions)
+    const r = respond('I spent $30 at Trader Joes', app, {})
+    expect(plain(r)).toMatch(/under Groceries/)
+    expect(plain(r)).toMatch(/I guessed Groceries/)
+    // once it's added, correct it
+    const added = { id: 'new1', name: r.memory.lastTx.name, amount: -30, category: 'Groceries', date: '2026-10-31T19:00', status: 'Completed' }
+    const after = make([added, ...acct.transactions])
+    const fix = respond("that's wrong, it's dining", after, r.memory)
+    expect(fix.confirm.label).toMatch(/Food & Dining/)
+    fix.confirm.run()
+    expect(after.calls[0][1]).toMatchObject({ ids: ['new1'], from: 'Groceries', to: 'Food & Dining' })
+    expect(fix.links?.[0]?.label ?? '').toMatch(/similar past transaction/)
+  })
+  it('asks instead of guessing when unsure', () => {
+    expect(plain(respond('I spent $30 at Zqxv Holdings', make(acct.transactions), {}))).toMatch(/wasn’t sure of the category/)
+  })
+  it('shows at most 2 flags when the chat opens', () => {
+    expect(proactiveFlags(make(acct.transactions)).length).toBeLessThanOrEqual(2)
+    const answered = Object.fromEntries(proactiveFlags(make(acct.transactions)).map((f) => [f.key, { verdict: 'problem', pattern: f.pattern }]))
+    const again = proactiveFlags(make(acct.transactions, { mlVerdicts: answered }))
+    expect(again.some((f) => answered[f.key])).toBe(false)
+  })
+})

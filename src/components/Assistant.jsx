@@ -12,6 +12,7 @@ import { getLocale, LOCALES, t, tName } from '../lib/i18n'
 import { parseReceipt, readReceipt, receiptReply } from '../lib/receipt'
 import { askModel, explainRequest, explainScan, modelReply } from '../lib/llm'
 import { levelText, saveVerdict } from '../lib/shield'
+import { proactiveFlags } from '../lib/ml/grace.js'
 import { dayLabel, slimTraces, traceAddsUp, traceCsv } from '../lib/trace'
 import { money } from '../lib/format'
 
@@ -192,8 +193,65 @@ function ShieldCard({ card }) {
   )
 }
 
+/* ---------------- unusual spending the pattern check found ---------------- */
+function FlagsCard({ card }) {
+  const app = useApp()
+  const answered = app.mlVerdicts ?? {}
+  return (
+    <div className="ai-card flags-card">
+      {card.flags.map((f) => {
+        const verdict = answered[f.key]?.verdict
+        return (
+          <div key={f.key} className={`flag ${f.severity}`}>
+            <div className="flag-top">
+              <span>
+                <b>{tName(f.tx.name)}</b>
+                <small>
+                  {dayLabel(f.tx.date.slice(0, 10))} · {t(f.tx.category)}
+                </small>
+              </span>
+              <strong>{money(-f.tx.amount)}</strong>
+            </div>
+            <div className="flag-tags">
+              <span className={`flag-sev ${f.severity}`}>
+                {t({ high: 'Worth checking', medium: 'Unusual', low: 'A little unusual' }[f.severity])}
+              </span>
+              <span className="flag-conf">{t('About {pct}% sure', { pct: Math.round(f.confidence * 100) })}</span>
+            </div>
+            <ul className="flag-reasons">
+              {f.reasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+            {verdict ? (
+              <p className="flag-done">
+                <Icon name="check" size={13} />
+                {verdict === 'benign'
+                  ? t('Marked as fine. I won’t flag this pattern again.')
+                  : t('Marked as a problem. If it’s a real charge you don’t recognise, contact your bank.')}
+              </p>
+            ) : (
+              <div className="flag-btns">
+                <button type="button" className="btn sm" onClick={() => app.setFlagVerdict?.(f, 'benign')}>
+                  {t('Dismiss, it was me')}
+                </button>
+                <button type="button" className="btn sm" onClick={() => app.setFlagVerdict?.(f, 'problem')}>
+                  {t('Confirm, it’s a problem')}
+                </button>
+              </div>
+            )}
+            {f.trace ? <ShowWork traces={[f.trace]} /> : null}
+          </div>
+        )
+      })}
+      <p className="shield-note">{t('A pattern check on your own spending, run on this device. It suggests; you decide.')}</p>
+    </div>
+  )
+}
+
 function Card({ card }) {
   if (card.type === 'shield') return <ShieldCard card={card} />
+  if (card.type === 'flags') return <FlagsCard card={card} />
   if (card.type === 'stats') {
     return (
       <div className="ai-card">
@@ -492,19 +550,20 @@ export default function Assistant({ open, onClose, prompt }) {
     const focus = window.setTimeout(() => input.current?.focus({ preventScroll: true }), 420)
     let hello = 0
     if (!msgs.length) {
-      hello = window.setTimeout(
-        () =>
-          pushBot({
-            text:
-              t(
-                'Hi {name}! 👋 I’m **{assistant}**, your {brand} money buddy. I can answer questions about your accounts and do things for you: send money, pay bills, top up goals, change the theme and more. What would you like to do?',
-                { name: appRef.current.user.first, assistant: ASSISTANT.name, brand: BRAND.name },
-              ) + (greetingAlerts(appRef.current) ? `\n${greetingAlerts(appRef.current)}` : ''),
-            mood: 'happy',
-            chips: starters().filter((c) => ['Give me a summary', 'What’s my balance?', 'Any bills due?'].includes(c.q)),
-          }),
-        520,
-      )
+      hello = window.setTimeout(() => {
+        const flags = proactiveFlags(appRef.current)
+        if (flags.length) memory.current = { ...memory.current, lastFlags: flags, lastMl: { kind: 'flag', flag: flags[0] }, lastTx: flags[0].tx }
+        pushBot({
+          text:
+            t(
+              'Hi {name}! 👋 I’m **{assistant}**, your {brand} money buddy. I can answer questions about your accounts and do things for you: send money, pay bills, top up goals, change the theme and more. What would you like to do?',
+              { name: appRef.current.user.first, assistant: ASSISTANT.name, brand: BRAND.name },
+            ) + (greetingAlerts(appRef.current) ? `\n${greetingAlerts(appRef.current)}` : ''),
+          mood: 'happy',
+          card: flags.length ? { type: 'flags', flags } : undefined,
+          chips: starters().filter((c) => ['Give me a summary', 'What’s my balance?', 'Any bills due?'].includes(c.q)),
+        })
+      }, 520)
     }
     return () => {
       window.clearTimeout(focus)

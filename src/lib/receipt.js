@@ -7,6 +7,7 @@
    ------------------------------------------------------------------ */
 import { isoDay, money } from './format'
 import { billJump, scan } from './shield'
+import { modelFor, predict } from './ml/categorize.js'
 import { t } from './i18n'
 import { CURRENCIES } from '../data/seed'
 import { ASSISTANT } from '../config'
@@ -240,6 +241,15 @@ export function receiptReply(p, app, text = '') {
       ),
       chips: [{ q: 'I spent $20 on lunch today', label: t('I spent $20 on lunch today') }],
     }
+  // the receipt's words didn't say the category: ask this account's categorizer (it only answers when sure)
+  let guessed = null
+  if (p.merchant && p.category === 'Other') {
+    const g = predict(modelFor(app.transactions ?? [], app.categoryCorrections ?? []), p.merchant)
+    if (g.category && !g.ask) {
+      guessed = g
+      p = { ...p, category: g.category }
+    }
+  }
   const name = p.merchant || (p.kind === 'bill' ? t('Bill') : t('Receipt'))
   const { usd, converted } = inDollars(p)
   const local = converted ? ` (${p.total.toFixed(2)} ${p.currency})` : p.currency !== 'USD' ? ` (${p.currency})` : ''
@@ -262,6 +272,9 @@ export function receiptReply(p, app, text = '') {
   const flags = receiptChecks(p, app, text)
   const careful =
     t('I read this from the photo, so check the amount before you confirm.') +
+    (guessed
+      ? ` ${t('I guessed the category ({category}, {pct}% sure).', { category: t(guessed.category), pct: Math.round(guessed.confidence * 100) })}`
+      : '') +
     (flags.length ? `\n🛡 ${t('Before you pay it:')}\n${flags.map((f) => `• ${f.label} (+${f.weight}): “${f.evidence}”`).join('\n')}` : '')
   if (p.kind === 'bill')
     return {

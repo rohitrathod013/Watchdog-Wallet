@@ -39,6 +39,7 @@ import {
 } from './insights'
 import { fromCents, makeTrace, periodOf, sumCents, sumSteps } from './trace'
 import { accountWords, fixTypos } from './typos'
+import { forecastFor, guessCategory, mlIntent, rangeText, unusualPart } from './ml/grace.js'
 import { billJump, findLinks, fingerprint, levelText, payeeChecks, scan as shieldScan } from './shield'
 import { DEFAULT_GUARD, guardState } from './guard'
 import { ASSISTANT, BRAND } from '../config'
@@ -317,6 +318,18 @@ function core(raw, app) {
 
   /* ---------------- "I spent $300 on dinner" / "got paid $2,000" ---------------- */
   const logged = !contact ? parseLogged(raw, s, amount, app.pots ?? []) : null
+  let guessNote = null
+  let guess = null
+  if (logged?.type === 'expense' && logged.category === 'Other' && logged.name && logged.name !== 'Other') {
+    guess = guessCategory(app, logged.name)
+    if (guess.category && !guess.ask) {
+      logged.category = guess.category
+      guessNote = t('I guessed {category} ({pct}% sure). If that’s wrong, say “it’s groceries” (or whatever it is).', {
+        category: t(guess.category),
+        pct: Math.round(guess.confidence * 100),
+      })
+    } else guessNote = t('I wasn’t sure of the category, so it’s under Other. Say “it’s groceries” (or whatever it is) after adding it.')
+  }
   if (logged) {
     const when = logged.yesterday ? t('yesterday') : t('today')
     const cat = t(logged.category)
@@ -332,6 +345,7 @@ function core(raw, app) {
             })
           : null,
         after < 0 ? t('Heads up: this takes your balance below zero.') : null,
+        guessNote,
       ].filter(Boolean)
       return {
         text:
@@ -363,6 +377,7 @@ function core(raw, app) {
           }),
         },
         chips: [chip('Where did my money go?'), chip('Am I over budget?')],
+        memory: { lastTx: { name: logged.name, amount: -logged.amount }, lastMl: guess ? { kind: 'category', guess } : undefined },
       }
     }
     return {
@@ -1287,19 +1302,37 @@ function smart(raw, s, app) {
     )
   ) {
     const list = anomalies(app.transactions)
-    if (!list.length) return { text: t('Nothing unusual. No duplicate charges, odd spikes or price rises that I can see.'), mood: 'happy' }
+    const ml = unusualPart(app, new Set(list.flatMap((a) => [a.tx?.id, a.other?.id]).filter(Boolean)))
+    const remember = { lastFlags: ml.flags, lastMl: ml.flags[0] ? { kind: 'flag', flag: ml.flags[0] } : undefined, lastTx: ml.flags[0]?.tx }
+    if (!list.length && !ml.flags.length)
+      return {
+        text: [t('Nothing unusual. No duplicate charges, odd spikes or price rises that I can see.'), ml.line].filter(Boolean).join('\n'),
+        mood: 'happy',
+        memory: remember,
+      }
+    if (!list.length)
+      return {
+        text: `${ml.line}\n${t('Tap Dismiss if it was you, or Confirm if something’s wrong. Ask “why did you flag that?” for the details.')}`,
+        card: { type: 'flags', flags: ml.flags },
+        memory: remember,
+      }
     return {
-      text: `${t('A few things stand out:')}\n${list
-        .slice(0, 5)
-        .map((a) => `• ${anomalyText(a)}`)
-        .join('\n')}\n${t('If one is a mistake, fix it in Transactions. For a real card charge you don’t recognise, call your bank.')}`,
-      card: {
-        type: 'tx',
-        rows: list
-          .filter((a) => a.tx)
-          .slice(0, 3)
-          .map((a) => a.tx),
-      },
+      text:
+        `${t('A few things stand out:')}\n${list
+          .slice(0, 5)
+          .map((a) => `• ${anomalyText(a)}`)
+          .join('\n')}\n${t('If one is a mistake, fix it in Transactions. For a real card charge you don’t recognise, call your bank.')}` +
+        (ml.line ? `\n${ml.line}` : ''),
+      card: ml.flags.length
+        ? { type: 'flags', flags: ml.flags }
+        : {
+            type: 'tx',
+            rows: list
+              .filter((a) => a.tx)
+              .slice(0, 3)
+              .map((a) => a.tx),
+          },
+      memory: remember,
     }
   }
 
@@ -1418,6 +1451,7 @@ function smart(raw, s, app) {
   // end-of-month forecast
   if (/(forecast|end of (the )?month|month end|by (the )?end of|will i (have|run out|be short|make it)|how much will i have|predict)/.test(s)) {
     const fc = forecast(app, now)
+    const range = forecastFor(app)
     const lines = [
       t('**{amount}** in bills still due', { amount: money(fc.billTotal) }),
       t('about **{daily}** a day of everyday spending ({total} over {n} days)', {
@@ -1428,10 +1462,11 @@ function smart(raw, s, app) {
     ]
     return {
       text:
-        `${t('By {date} I expect your balance to be about **{amount}**.', { date: `${monthName(fc.end)} ${fc.end.getDate()}`, amount: money(fc.endBalance) })}\n${lines.map((l) => `• ${l}`).join('\n')}` +
-        (fc.endBalance < 0 ? `\n${t('That’s below zero, so trim spending or move money from a pot.')}` : ''),
-      mood: fc.endBalance >= 0 ? 'happy' : undefined,
-      traces: fc.traces,
+        `${t('By {date}: {range}', { date: `${monthName(fc.end)} ${fc.end.getDate()}`, range: rangeText(range) })}\n${lines.map((l) => `• ${l}`).join('\n')}` +
+        (range.p50 < 0 ? `\n${t('That’s below zero, so trim spending or move money from a pot.')}` : ''),
+      mood: range.p50 >= 0 && range.pBelowZero < 0.1 ? 'happy' : undefined,
+      traces: [range.trace, ...fc.traces],
+      memory: { lastMl: { kind: 'forecast', p10: range.p10, p50: range.p50, p90: range.p90, sims: range.sims, trace: range.trace } },
       card: fc.bills.length
         ? {
             type: 'bars',
@@ -2390,6 +2425,9 @@ function answer(typed, app, memory) {
 
   const guarded = guardIntent(s, app)
   if (guarded) return keep(guarded)
+
+  const learned = mlIntent(s, app, memory)
+  if (learned) return keep(learned)
 
   const parts = raw.split(STEP_SPLIT).filter((x) => x.trim())
   if (parts.length > 1) {

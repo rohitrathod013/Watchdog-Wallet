@@ -1716,4 +1716,107 @@ export default {
     'Vergleich sie mit deiner letzten Rechnung und frag nach, wenn der Anstieg nicht erklärt ist.',
   'Paste the message, email, link, invoice or payee here and I’ll check it 🛡 It stays on this device: my checks are rules, nothing is sent anywhere.':
     'Füge die Nachricht, E-Mail, den Link, die Rechnung oder den Empfänger hier ein und ich prüfe es 🛡 Alles bleibt auf diesem Gerät: Ich prüfe mit Regeln, nichts wird verschickt.',
+  'all your spending': 'alle deine Ausgaben',
+  'Amount {amount} vs typical {typical} for {group}': 'Betrag {amount} statt üblich {typical} bei {group}',
+  'At {time}, outside the hours you usually spend': 'Um {time}, außerhalb deiner üblichen Zeiten',
+  'Why {name} was flagged': 'Warum {name} markiert wurde',
+  'Forest score: {score} (flag at {cut} or more; about 0.5 is ordinary)': 'Wald-Score: {score} (Markierung ab {cut}; etwa 0,5 ist normal)',
+  'Typical for {group}: {typical} (median of {n})': 'Üblich bei {group}: {typical} (Median von {n})',
+  'Robust z-score: {z} (confirm at 3 or more)': 'Robuster z-Wert: {z} (Bestätigung ab 3)',
+  '{amount} at {name} twice within 48 hours': '{amount} bei {name} zweimal innerhalb von 48 Stunden',
+  'Possible double charge': 'Mögliche Doppelbuchung',
+  'Two charges with the same merchant and amount within 48 hours.': 'Zwei Buchungen mit gleichem Händler und Betrag innerhalb von 48 Stunden.',
+  'Same merchant, same amount, {hours} hours apart': 'Gleicher Händler, gleicher Betrag, {hours} Stunden auseinander',
+  '{name} went up from {from} to {to}': '{name} stieg von {from} auf {to}',
+  'Price rise': 'Preiserhöhung',
+  'A repeat charge that was steady, then went up.': 'Eine gleichbleibende wiederkehrende Abbuchung, die dann gestiegen ist.',
+  'Usual price: {usual}, now {now} (+{pct}%)': 'Üblicher Preis: {usual}, jetzt {now} (+{pct} %)',
+  'First payment to {name}, and {amount} is over {times}× your typical payment':
+    'Erste Zahlung an {name}, und {amount} ist mehr als das {times}-Fache deiner üblichen Zahlung',
+  'New merchant, big amount': 'Neuer Händler, hoher Betrag',
+  'The first payment to this merchant, compared with the median of all your spending.':
+    'Die erste Zahlung an diesen Händler, verglichen mit dem Median all deiner Ausgaben.',
+  'Typical payment: {typical} (median of {n})': 'Übliche Zahlung: {typical} (Median von {n})',
+  'End-of-month balance range': 'Spanne des Kontostands zum Monatsende',
+  'Still due this month: {n} known items': 'Diesen Monat noch fällig: {n} bekannte Posten',
+  '{date}: {name} {amount}': '{date}: {name} {amount}',
+  'Everyday spending pools: {wd} weekdays (average {wdAvg}) and {we} weekend days (average {weAvg})':
+    'Alltagsausgaben: {wd} Werktage (Schnitt {wdAvg}) und {we} Wochenendtage (Schnitt {weAvg})',
+  '{n} days left, {sims} simulated months': '{n} Tage übrig, {sims} simulierte Monate',
+  '10th, 50th and 90th percentile: {p10}, {p50}, {p90}': '10., 50. und 90. Perzentil: {p10}, {p50}, {p90}',
+  'Runs that dip below zero: {pct}': 'Durchläufe unter null: {pct}',
+  'Only {n} days of history, so the band is widened by half': 'Nur {n} Tage Verlauf, daher ist die Spanne um die Hälfte breiter',
+  '{pct}% chance you go below zero, most likely around {date}.': '{pct} % Wahrscheinlichkeit, unter null zu fallen, am ehesten um den {date}.',
+  'Less than a 1% chance you go below zero.': 'Unter 1 % Wahrscheinlichkeit, unter null zu fallen.',
+  'Most likely about **{p50}** left. 80% chance it lands between {p10} and {p90}.':
+    'Am wahrscheinlichsten bleiben etwa **{p50}**. Mit 80 % Wahrscheinlichkeit zwischen {p10} und {p90}.',
+  'Rough estimate: I only have {n} days of history, so I widened the range.':
+    'Grobe Schätzung: Ich habe nur {n} Tage Verlauf, also habe ich die Spanne verbreitert.',
+  '**{name}** · {amount} on {date}: {reason}': '**{name}** · {amount} am {date}: {reason}',
+  'I haven’t flagged anything in this chat yet. Ask “anything unusual?” and I’ll check.':
+    'Ich habe in diesem Chat noch nichts markiert. Frag „etwas Ungewöhnliches?“ und ich prüfe.',
+  'I flagged **{name}** ({amount} on {date}) because:': 'Ich habe **{name}** ({amount} am {date}) markiert, weil:',
+  'That’s a pattern check, not a verdict. You know your spending best.':
+    'Das ist eine Musterprüfung, kein Urteil. Du kennst deine Ausgaben am besten.',
+  'Got it 👍 I’ve marked **{name}** as fine and won’t flag that pattern again.':
+    'Alles klar 👍 Ich habe **{name}** als in Ordnung markiert und melde dieses Muster nicht mehr.',
+  'About {pct}% sure it’s {category}, from the words in the name and what you’ve picked before. Under 60% I ask instead of guessing.':
+    'Etwa {pct} % sicher, dass es {category} ist, nach den Wörtern im Namen und deinen früheren Wahlen. Unter 60 % frage ich lieber nach.',
+  'Ask me something first, like “will I run out of money this month?” or “anything unusual?”, and I’ll tell you how sure I am.':
+    'Frag mich zuerst etwas, etwa „Geht mir diesen Monat das Geld aus?“ oder „Etwas Ungewöhnliches?“, dann sage ich dir, wie sicher ich bin.',
+  'Which category should it be? Say something like “it’s groceries”.': 'Welche Kategorie soll es sein? Sag zum Beispiel „das sind Lebensmittel“.',
+  'Which transaction? Tell me about it first, like “I spent $30 at Trader Joe’s”, then I can fix its category.':
+    'Welche Buchung? Erzähl mir zuerst davon, etwa „Ich habe 30 $ bei Trader Joe’s ausgegeben“, dann korrigiere ich die Kategorie.',
+  '**{name}** is already under {category} 👍': '**{name}** ist schon unter {category} 👍',
+  'Change **{name}** from {from} to **{to}**? I’ll remember it for next time.':
+    '**{name}** von {from} zu **{to}** ändern? Ich merke es mir für nächstes Mal.',
+  'Change to {category}': 'Zu {category} ändern',
+  '{name} · {from} → {to}': '{name} · {from} → {to}',
+  'Done ✅ {name} is now under {to}. I’ll use that next time.': 'Erledigt ✅ {name} steht jetzt unter {to}. Das nutze ich nächstes Mal.',
+  'Also change 1 similar past transaction': 'Auch 1 ähnliche frühere Buchung ändern',
+  'Also change {n} similar past transactions': 'Auch {n} ähnliche frühere Buchungen ändern',
+  'My pattern check needs {n} more transactions before it can learn what’s normal for you, so for now it’s just the simple checks.':
+    'Meine Musterprüfung braucht noch {n} Buchungen, um zu lernen, was bei dir normal ist; vorerst gibt es nur die einfachen Prüfungen.',
+  'My pattern check also found 1 thing worth a look:': 'Meine Musterprüfung hat außerdem 1 Sache gefunden, die du dir ansehen solltest:',
+  'My pattern check also found {n} things worth a look:': 'Meine Musterprüfung hat außerdem {n} Dinge gefunden, die du dir ansehen solltest:',
+  'About {pct}% sure': 'Zu {pct} % sicher',
+  'Marked as fine. I won’t flag this pattern again.': 'Als in Ordnung markiert. Dieses Muster melde ich nicht mehr.',
+  'Marked as a problem. If it’s a real charge you don’t recognise, contact your bank.':
+    'Als Problem markiert. Wenn es eine echte Abbuchung ist, die du nicht kennst, kontaktiere deine Bank.',
+  'Dismiss, it was me': 'Verwerfen, das war ich',
+  'Confirm, it’s a problem': 'Bestätigen, das ist ein Problem',
+  'A pattern check on your own spending, run on this device. It suggests; you decide.':
+    'Eine Musterprüfung deiner eigenen Ausgaben, auf diesem Gerät. Sie schlägt vor, du entscheidest.',
+  '{name}’s guess, {pct}% sure': 'Vermutung von {name}, zu {pct} % sicher',
+  'Not sure about this one. Please pick a category.': 'Hier bin ich unsicher. Bitte wähle eine Kategorie.',
+  'Got it, I’ll remember that.': 'Alles klar, ich merke es mir.',
+  'This month, rough estimate': 'Dieser Monat, grobe Schätzung',
+  'This month, 80% range': 'Dieser Monat, 80-%-Spanne',
+  'Shaded: where this month’s spending will likely end up. Rough estimate: under 60 days of history.':
+    'Schattiert: wo die Ausgaben dieses Monats wahrscheinlich landen. Grobe Schätzung: unter 60 Tage Verlauf.',
+  'Shaded: where this month’s spending will likely end up (8 in 10 chance it lands inside).':
+    'Schattiert: wo die Ausgaben dieses Monats wahrscheinlich landen (8 von 10 Mal darin).',
+  'I guessed the category ({category}, {pct}% sure).': 'Ich habe die Kategorie geraten ({category}, zu {pct} % sicher).',
+  'Categories updated': 'Kategorien aktualisiert',
+  '{n} transactions moved to {category}.': '{n} Buchungen nach {category} verschoben.',
+  'I guessed {category} ({pct}% sure). If that’s wrong, say “it’s groceries” (or whatever it is).':
+    'Ich habe {category} geraten (zu {pct} % sicher). Wenn das falsch ist, sag „das sind Lebensmittel“ (oder was es ist).',
+  'I wasn’t sure of the category, so it’s under Other. Say “it’s groceries” (or whatever it is) after adding it.':
+    'Ich war mir bei der Kategorie unsicher, also steht es unter Sonstiges. Sag danach „das sind Lebensmittel“ (oder was es ist).',
+  'Tap Dismiss if it was you, or Confirm if something’s wrong. Ask “why did you flag that?” for the details.':
+    'Tippe auf Verwerfen, wenn du es warst, oder auf Bestätigen, wenn etwas nicht stimmt. Frag „Warum hast du das markiert?“ für Details.',
+  'By {date}: {range}': 'Bis {date}: {range}',
+  'Worth checking': 'Prüfen lohnt sich',
+  Unusual: 'Ungewöhnlich',
+  'A little unusual': 'Etwas ungewöhnlich',
+  'Thanks, I’ve noted **{name}** as a problem. If it’s a real card charge you don’t recognise, contact your bank: they can block the card and dispute it.':
+    'Danke, ich habe **{name}** als Problem notiert. Wenn es eine echte Kartenzahlung ist, die du nicht kennst, kontaktiere deine Bank: Sie kann die Karte sperren und widersprechen.',
+  'I ran {sims} simulated months, each drawing your remaining days’ spending from your own past days. 8 in 10 of them ended between {p10} and {p90}; the middle one was {p50}. On synthetic test accounts the real result landed inside a range like this about 3 times in 4, so treat it as a guide, not a promise.':
+    'Ich habe {sims} Monate simuliert, jeweils mit Ausgaben aus deinen eigenen früheren Tagen. 8 von 10 endeten zwischen {p10} und {p90}; der mittlere bei {p50}. Bei synthetischen Testkonten lag das echte Ergebnis etwa 3 von 4 Mal in so einer Spanne, also nimm es als Orientierung, nicht als Versprechen.',
+  'About {pct}% sure that’s worth a look. That number is a rule of thumb from how easily it stood out and how far it is from your usual, not a measured probability. I can’t know whether it was you.':
+    'Etwa {pct} % sicher, dass sich ein Blick lohnt. Das ist eine Faustregel danach, wie stark es auffällt und vom Üblichen abweicht, keine gemessene Wahrscheinlichkeit. Ob du es warst, kann ich nicht wissen.',
+  'An isolation forest (100 random trees) found it easy to separate from your other spending; a robust z-score against your own history for {group} confirmed it.':
+    'Ein Isolation Forest (100 Zufallsbäume) konnte es leicht von deinen übrigen Ausgaben trennen; ein robuster z-Wert gegenüber deinem Verlauf bei {group} hat es bestätigt.',
+  'Balance now, plus income and minus bills and repeat payments still due this month, minus each remaining day’s spending drawn at random from your own past days (weekdays and weekends apart). Repeated {n} times; the range is the middle 80% of results.':
+    'Kontostand jetzt, plus Einnahmen und minus Rechnungen und wiederkehrende Zahlungen, die diesen Monat noch fällig sind, minus die Ausgaben jedes verbleibenden Tages, zufällig aus deinen früheren Tagen gezogen (Werktage und Wochenenden getrennt). {n}-mal wiederholt; die Spanne sind die mittleren 80 % der Ergebnisse.',
 }

@@ -1006,3 +1006,9 @@ hr {
   background: color-mix(in srgb, var(--amber) 22%, var(--card));
   color: var(--ink);
 }
+
+/* Grace's category guess under the category picker */
+.cat-guess {
+  color: var(--muted);
+  font-size: 12px;
+}
