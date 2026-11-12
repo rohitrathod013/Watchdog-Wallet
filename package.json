@@ -20,7 +20,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "format": "prettier --write \"src/**/*.{js,jsx,css}\"",
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval": "node scripts/ml-eval.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",

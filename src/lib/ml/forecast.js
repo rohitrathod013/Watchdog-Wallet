@@ -3,11 +3,13 @@
 
    Known: unpaid bills due before the month ends, plus repeat payments
    and income spotted in the history (same name in 2 of the last 3
-   months, steady amount) that haven't happened yet this month, on the
-   day of the month they usually land.
+   months, steady amount, within 6 days of the same day of the month)
+   that haven't happened yet this month, on the day they usually land.
    Unknown: everyday spending. Modelled by bootstrap: each remaining
    day draws one real past day's spending from this account, weekdays
-   from weekdays and weekends from weekends. 1,000 runs, seeded.
+   from weekdays and weekends from weekends. Two-stage: each run first
+   resamples the pool of past days, so it also carries the uncertainty
+   in the typical level, not just day-to-day noise. 1,000 runs, seeded.
 
    Out: the 10th, 50th and 90th percentile of the end balance (so the
    p10 to p90 band holds about 80% of runs), the chance the balance
@@ -72,6 +74,9 @@ export function recurring(transactions, now) {
     if (months.size < 2 || before.length > months.size + 1) continue
     const amounts = before.map((e) => Math.abs(e.x.amount))
     if (Math.max(...amounts) > Math.min(...amounts) * 1.35) continue
+    // and on about the same day each month (a pharmacy twice on random days isn't a bill)
+    const dom = before.map((e) => e.d.getDate())
+    if (Math.max(...dom) - Math.min(...dom) > 6) continue
     const last = before[before.length - 1].x
     const seenThisMonth = list.some((e) => e.d >= thisMonth)
     out.push({
@@ -140,13 +145,28 @@ export function forecastMonth({ transactions = [], balance = 0, bills = [], now 
   const dips = []
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
   const spentSoFar = past.filter((x) => x.amount < 0 && parse(x.date) >= monthStart).reduce((s, x) => s - x.amount, 0)
+  // the rest of today counts too, as a share of a day
+  const restOfToday = Math.max(0, 1 - (now.getHours() + now.getMinutes() / 60) / 24)
+  const todayPool = today.getDay() === 0 || today.getDay() === 6 ? (weekend.length ? weekend : weekday) : weekday.length ? weekday : weekend
+  // two-stage bootstrap: each run first resamples the pools themselves, so the run also carries
+  // the uncertainty in how much this person typically spends, not only the day-to-day noise
+  const resample = (pool) => pool.map(() => pool[Math.floor(rand() * pool.length)])
   for (let k = 0; k < sims; k++) {
+    const wd = resample(weekday)
+    const we = resample(weekend)
+    const todays = todayPool === weekend ? we : wd
     let bal = balance
     let spent = 0
     let dip = null
+    if (todays.length && restOfToday) {
+      const part = todays[Math.floor(rand() * todays.length)] * restOfToday
+      bal -= part
+      spent += part
+      if (bal < 0) dip = today.getDate()
+    }
     for (const d of days) {
       const isWeekend = d.getDay() === 0 || d.getDay() === 6
-      const pool = (isWeekend ? weekend : weekday).length ? (isWeekend ? weekend : weekday) : isWeekend ? weekday : weekend
+      const pool = (isWeekend ? we : wd).length ? (isWeekend ? we : wd) : isWeekend ? wd : we
       const draw = pool.length ? pool[Math.floor(rand() * pool.length)] : 0
       const known = onDay.get(dayIso(d)) ?? 0
       bal += known - draw
