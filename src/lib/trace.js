@@ -80,3 +80,9 @@ export function traceCsv(tr) {
   if (tr.sum) lines.push(['', 'Total', tr.value.toFixed(2), tr.currency].map(cell).join(','))
   return lines.join('\n')
 }
+
+/** A smaller copy for Grace's activity log (it's saved with the account): at most 4 traces of 50 rows. */
+export const slimTraces = (traces) =>
+  traces?.length
+    ? traces.slice(0, 4).map((tr) => ({ ...tr, rows: tr.rows.slice(0, 50), cut: tr.rows.length > 50 ? tr.rows.length : undefined }))
+    : undefined

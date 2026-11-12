@@ -10,7 +10,9 @@ import { signed, uid } from '../lib/format'
 import { ASSISTANT, BRAND } from '../config'
 import { getLocale, LOCALES, t, tName } from '../lib/i18n'
 import { parseReceipt, readReceipt, receiptReply } from '../lib/receipt'
-import { askModel } from '../lib/llm'
+import { askModel, modelReply } from '../lib/llm'
+import { dayLabel, slimTraces, traceAddsUp, traceCsv } from '../lib/trace'
+import { money } from '../lib/format'
 
 /* "**bold**", newlines and "• " bullets, cut off after `limit` visible characters */
 const plainLength = (text) => text.replace(/\*\*/g, '').replace(/^• /gm, '').length
@@ -125,6 +127,100 @@ function Card({ card }) {
   )
 }
 
+/* "How I got this": the workings behind a reply's figures, opened in place */
+function TraceView({ tr }) {
+  const [all, setAll] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const rows = all ? tr.rows : tr.rows.slice(0, 10)
+  const copy = () => {
+    navigator.clipboard
+      ?.writeText(traceCsv(tr))
+      .then(() => {
+        setCopied(true)
+        window.setTimeout(() => setCopied(false), 1800)
+      })
+      .catch(() => {})
+  }
+  return (
+    <div className="trace">
+      <div className="trace-head">
+        <b>{tr.label}</b>
+        <strong>{money(tr.value)}</strong>
+      </div>
+      {tr.period ? <small className="trace-when">{t('{from} to {to}', { from: dayLabel(tr.period.from), to: dayLabel(tr.period.to) })}</small> : null}
+      <p className="trace-formula">{tr.formula}</p>
+      <ol className="trace-steps">
+        {tr.steps.map((st, k) => (
+          <li key={k}>{st}</li>
+        ))}
+      </ol>
+      {tr.rows.length ? (
+        <>
+          <div className="trace-table" role="region" aria-label={t('Transactions used')} tabIndex={0}>
+            <table>
+              <thead>
+                <tr>
+                  <th>{t('Date')}</th>
+                  <th>{t('Description')}</th>
+                  <th>{t('Amount')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, k) => (
+                  <tr key={`${r.id}-${k}`}>
+                    <td>{r.date ? dayLabel(r.date) : '·'}</td>
+                    <td>{tName(r.description)}</td>
+                    <td className={r.amount > 0 ? 'in' : ''}>{signed(r.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="trace-foot">
+            {tr.rows.length > 10 ? (
+              <button type="button" className="link" onClick={() => setAll((v) => !v)}>
+                {all ? t('Show fewer') : t('Show all {n}', { n: tr.rows.length })}
+              </button>
+            ) : (
+              <span />
+            )}
+            {tr.sum && traceAddsUp(tr) ? (
+              <span className="trace-ok">
+                <Icon name="check" size={13} stroke={2.4} />
+                {t('Adds up to the cent')}
+              </span>
+            ) : null}
+            <button type="button" className="btn sm" onClick={copy}>
+              <Icon name={copied ? 'check' : 'copy'} size={14} />
+              {copied ? t('Copied') : t('Copy as CSV')}
+            </button>
+          </div>
+        </>
+      ) : null}
+    </div>
+  )
+}
+
+function ShowWork({ traces }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="show-work">
+      <button type="button" className="show-work-btn" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <Icon name="calc" size={14} />
+        {open ? t('Hide the working') : t('How I got this')}
+        <Icon name={open ? 'chevUp' : 'chevDown'} size={13} />
+      </button>
+      {open ? (
+        <div className="show-work-body">
+          {traces.map((tr, k) => (
+            <TraceView key={k} tr={tr} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function BotMessage({ m, last, onTyped, onConfirm, onCancel, onAsk }) {
   const total = plainLength(m.text)
   const [n, setN] = useState(m.instant ? total : 0)
@@ -152,7 +248,14 @@ function BotMessage({ m, last, onTyped, onConfirm, onCancel, onAsk }) {
           <Rich text={m.text} limit={n} />
           {typed ? null : <i className="caret" />}
         </div>
+        {typed && m.unverified ? (
+          <p className="ai-unverified">
+            <Icon name="info" size={13} />
+            {t('Not verified: this answer came from the AI model, not from your transactions. Ask me directly for your own figures.')}
+          </p>
+        ) : null}
         {typed && m.card ? <Card card={m.card} /> : null}
+        {typed && m.traces?.length ? <ShowWork traces={m.traces} /> : null}
         {typed && m.confirm ? (
           <div className={`ai-confirm ${m.status ?? ''}`}>
             <p>
@@ -339,7 +442,7 @@ export default function Assistant({ open, onClose, prompt }) {
         // nothing in Grace's rules fits: let the LLM answer (it only talks, never acts)
         if (r.fallback) {
           const said = await askModel(question, msgs, brain())
-          if (said) r = { text: said, memory: r.memory, chips: [{ q: 'What can you do?', label: t('What can you do?') }] }
+          if (said) r = { ...modelReply(said), memory: r.memory, chips: [{ q: 'What can you do?', label: t('What can you do?') }] }
         }
         setThinking(false)
         if (voice || spoken) say(r.text)
@@ -354,6 +457,7 @@ export default function Assistant({ open, onClose, prompt }) {
               action: gist(r.text),
               detail: '',
               reason: t('You asked “{request}”, so I did it straight away (it doesn’t move money).', { request: maskDigits(question) }),
+              traces: slimTraces(r.traces),
             })
           }, 300)
       },
@@ -393,6 +497,8 @@ export default function Assistant({ open, onClose, prompt }) {
           action: st.label,
           detail: st.note,
         }),
+        // the numbers behind it, so "why did you do that?" can show them
+        traces: slimTraces(m.traces),
       })
     setMsgs((list) => list.map((x) => (x.id === m.id ? { ...x, status: 'done' } : x)))
     const done = typeof m.confirm.done === 'function' ? m.confirm.done() : m.confirm.done
