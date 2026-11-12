@@ -6,3 +6,7 @@ verify_jwt = false
 # Checks the signed-in user itself, so the gateway doesn't need to.
 [functions.payments]
 verify_jwt = false
+
+# Grace's LLM answers: checks the signed-in user itself.
+[functions.grace]
+verify_jwt = false

@@ -10,6 +10,7 @@ import { signed, uid } from '../lib/format'
 import { ASSISTANT, BRAND } from '../config'
 import { getLocale, LOCALES, t, tName } from '../lib/i18n'
 import { parseReceipt, readReceipt, receiptReply } from '../lib/receipt'
+import { askModel } from '../lib/llm'
 
 /* "**bold**", newlines and "• " bullets, cut off after `limit` visible characters */
 const plainLength = (text) => text.replace(/\*\*/g, '').replace(/^• /gm, '').length
@@ -335,6 +336,11 @@ export default function Assistant({ open, onClose, prompt }) {
         memory.current = r.memory ?? {}
         // live answers (rates, crypto, holidays) arrive from the internet
         if (r.later) r = { ...(await r.later()), memory: r.memory }
+        // nothing in Grace's rules fits: let the LLM answer (it only talks, never acts)
+        if (r.fallback) {
+          const said = await askModel(question, msgs, brain())
+          if (said) r = { text: said, memory: r.memory, chips: [{ q: 'What can you do?', label: t('What can you do?') }] }
+        }
         setThinking(false)
         if (voice || spoken) say(r.text)
         // something private was typed: don't keep it on screen

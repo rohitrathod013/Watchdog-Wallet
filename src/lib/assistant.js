@@ -851,6 +851,8 @@ function core(raw, app) {
       'Hmm, I’m not sure about that one yet 🤔 Try asking about your balance, spending, budgets, goals or bills, or tell me to send money, pay a bill or switch the theme.',
     ),
     chips: [chip('What can you do?'), chip('Give me a summary'), chip('Any bills due?')],
+    // no rule matched: the chat panel can ask the LLM instead (see lib/llm.js)
+    fallback: true,
   }
 }
 
