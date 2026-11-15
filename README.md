@@ -38,6 +38,7 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 - **Add friends** by the email they signed up with, or share your **invite link**. They accept, and you're connected.
 - **Add from your contacts**: after you agree, your phone opens its own contact list and you pick who to share. The site only sees the people you pick, sends a friend request to each one already on Watchdog Wallet, and offers a text or email invite for the rest. Nothing else from your contacts is saved. This uses the browser's Contact Picker, which works in Chrome on Android; elsewhere the page explains that and points to email or the invite link.
 - **Friend requests in your notifications**: the bell shows each new request with **Accept** and **Decline** right there, and it disappears once answered.
+- **Chats from any page**: a round chat button in the bottom-left corner (with the unread count) opens a small window with your friends and groups, newest first. Pick one and chat, send, request or split right there without leaving the page you're on. On phones it fills the screen. It's hidden on the Friends page, which has the full view.
 - **Chat** with each friend, live, with a badge on the Friends tab for unread messages and requests:
   - messages from the same person are grouped with one timestamp, with **Today**, **Yesterday** or date dividers between days;
   - your latest message shows **Sent**, then **Seen** once your friend has opened the chat;
@@ -73,17 +74,17 @@ Investing here is **tracked, not traded**: Watchdog Wallet records what you boug
 
 ### Pages
 
-- **Dashboard**, with four tabs:
+- **Dashboard**, with three tabs:
   - **Overview**: balance, earnings, KPIs, savings goals, cash flow, spending, quick transfer, recent transactions, bills, budget health and the spending heatmap.
   - **Transactions**: search, filters, sorting and CSV export.
-  - **Budgets**: monthly limits per category. **Add a budget** for any of 23 spending categories (Groceries, Utilities, Subscriptions, Insurance, Education, Pets, Kids, Gifts & Donations, Debt Payments, Taxes and more) or make up your own, and remove any with two taps. Custom categories also appear when you add an expense or a bill, so their spending is counted.
-  - **Locked budgets**: tap the lock on a budget (or tick it when adding one) and what's left of it is set aside for that category only. A card payment for Groceries uses the Groceries money first, then free money; a card payment for anything else, or a transfer, can only use the money that isn't locked, and is declined if it would dip into it. The payment window says where the money will come from before you pay, and the Budget page shows how much is locked and how much is free to spend. Cash records aren't blocked, since that money is already spent.
   - **Reports**: income by source and downloadable statements.
 - **Analytics**: KPI sparklines, cash flow, earnings, spending and the heatmap.
 - **Transfer**: quick transfer, recent transfers and transfer limits.
 - **Friends**: friend requests, groups, your friends with who owes who, invite link, and a chat with each friend or group.
 - **Wallet**: your card, balances by currency and bills.
 - **Budget**: category budgets with a one-tap smart rebalance.
+  - Monthly limits per category. **Add a budget** for any of 23 spending categories (Groceries, Utilities, Subscriptions, Insurance, Education, Pets, Kids, Gifts & Donations, Debt Payments, Taxes and more) or make up your own, and remove any with two taps. Custom categories also appear when you add an expense or a bill, so their spending is counted.
+  - **Locked budgets**: tap the lock on a budget (or tick it when adding one) and what's left of it is set aside for that category only. A card payment for Groceries uses the Groceries money first, then free money; a card payment for anything else, or a transfer, can only use the money that isn't locked, and is declined if it would dip into it. The payment window says where the money will come from before you pay, and the Budget page shows how much is locked and how much is free to spend. Cash records aren't blocked, since that money is already spent.
 
 ### Grace, the guard dog
 
@@ -307,7 +308,7 @@ src/
   config.js            brand, demo profile, Supabase, theme, assistant
   App.jsx              app state, actions, accounts, routing, lazy loading
   pages/               Dashboard, Analytics, Transfer, Friends, Wallet, Budget
-  views/               Dashboard tabs: Overview, Transactions, Budgets, Reports
+  views/               Dashboard tabs (Overview, Transactions, Reports) and the Budget page's view
   components/
     Auth.jsx           log in, sign up, password reset, demo entry
     Cards.jsx          every dashboard card, with empty states
@@ -315,6 +316,7 @@ src/
     Modals.jsx         send, receive, request, add money (and pay by card), goal, transaction, contact, bill, invest
     FriendModals.jsx   pay a friend, request from a friend, split a bill
     ChatMedia.jsx      photos, videos, files and voice notes in the chat, and the photo viewer
+    MessengerDock.jsx  the chat button and window on every page except Friends
     Account.jsx        account settings: download, deactivate, delete
     Profile.jsx        your profile: photo, name, email, phone, address
     TopBar.jsx         navigation, notifications, settings, language, account
@@ -342,6 +344,7 @@ src/
     assistant.js       Grace's intent engine
     typos.js           typo correction with Fuse.js
     guard.js           guard defaults shared by the app and Grace
+    chatPreview.js     the one-line preview of a chat's latest message, for chat lists
     envelopes.js       locked budgets: what's set aside per category, and whether a card payment can go through
     live.js            exchange rates, crypto and stock prices, search and holidays, with caching
     i18n.js            translation helper

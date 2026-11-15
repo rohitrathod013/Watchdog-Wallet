@@ -8,13 +8,14 @@ import { Persona } from '../components/Brand'
 import { PageHead, Stage } from '../components/ui'
 import { useApp } from '../lib/store'
 import { accountsEnabled } from '../lib/supabase'
-import { chatRows, emojiOnly, friendError, mediaLabel, roomOf, systemText, typingChannel } from '../lib/social'
+import { chatRows, emojiOnly, friendError, roomOf, systemText, typingChannel } from '../lib/social'
 import { canRecord, durationLabel, MAX_VOICE_SECONDS, prepareFile, removeMedia, sizeLabel, startRecording, uploadMedia } from '../lib/media'
 import { MediaBubble } from '../components/ChatMedia'
 import { MAX_GROUP } from '../lib/social'
 import { money, shortDate } from '../lib/format'
 import { t, tMonths } from '../lib/i18n'
 import { BRAND } from '../config'
+import { preview } from '../lib/chatPreview'
 import { allowContacts, canPickContacts, contactsAllowed, inviteHref, pickContacts } from '../lib/contacts'
 
 const STATUS = { pending: 'Pending', paid: 'Paid', declined: 'Declined', cancelled: 'Cancelled' }
@@ -326,29 +327,9 @@ function Waiting() {
 }
 
 /* ---------------- the list of friends ---------------- */
-function preview(m, me, social) {
-  if (!m) return t('Say hello 👋')
-  const mine = m.sender === me
-  const who = mine ? `${t('You')}: ` : m.group_id ? `${social.nameOf(m.sender).split(' ')[0]}: ` : ''
-  if (m.kind === 'system') return systemText(m, me, social.nameOf)
-  if (m.kind === 'text') return `${who}${m.body}`
-  if (m.kind === 'media') return `${who}${m.body || mediaLabel(m.media)}`
-  if (m.group_id && m.kind === 'split') return `${who}${t('Split “{title}”', { title: m.body })}`
-  if (m.group_id && m.kind === 'payment') return `${who}${t('paid their share')}`
-  if (m.kind === 'payment') {
-    const x = social.transfers.get(m.ref)
-    const amount = money(Number(x?.amount ?? 0))
-    return mine ? t('You sent {amount}', { amount }) : t('Sent you {amount}', { amount })
-  }
-  const r = social.requests.get(m.ref)
-  const amount = money(Number(r?.amount ?? 0))
-  if (m.kind === 'split')
-    return mine ? t('You split “{title}”', { title: m.body }) : t('Split “{title}”: your share is {amount}', { title: m.body, amount })
-  return mine ? t('You asked for {amount}', { amount }) : t('Asked you for {amount}', { amount })
-}
 
 /** A group's picture: the first two members' initials, overlapping. */
-function GroupAvatar({ group, size = 42 }) {
+export function GroupAvatar({ group, size = 42 }) {
   const others = group.members.filter((x) => !x.me)
   const [a, b] = others.length ? others : group.members
   return (
@@ -1099,7 +1080,8 @@ function GroupInfo({ group, onClose, onLeft }) {
   )
 }
 
-function Chat({ peer, onBack }) {
+/* docked: shown in the floating chat window on other pages (onClose closes that window) */
+export function Chat({ peer, onBack, docked = false, onClose }) {
   const friend = peer
   const isGroup = Boolean(peer.group)
   const { social, openModal } = useApp()
@@ -1303,7 +1285,7 @@ function Chat({ peer, onBack }) {
 
   return (
     <section
-      className={`card chat-card rv ${dragging ? 'dragging' : ''}`}
+      className={`card chat-card ${docked ? 'docked' : 'rv'} ${dragging ? 'dragging' : ''}`}
       style={{ '--i': 2 }}
       onDragOver={(e) => {
         if ([...(e.dataTransfer?.types ?? [])].includes('Files')) {
@@ -1315,7 +1297,7 @@ function Chat({ peer, onBack }) {
       onDrop={onDrop}
     >
       <header className="chat-head">
-        <button type="button" className="icon-btn soft chat-back" onClick={onBack} aria-label={t('Back to friends')}>
+        <button type="button" className="icon-btn soft chat-back" onClick={onBack} aria-label={docked ? t('Back to chats') : t('Back to friends')}>
           <Icon name="chevLeft" size={18} />
         </button>
         {isGroup ? <GroupAvatar group={peer} size={42} /> : <Persona name={friend.name} hue={friend.hue} src={friend.avatar} size={42} />}
@@ -1365,6 +1347,11 @@ function Chat({ peer, onBack }) {
               </button>
             </>
           )}
+          {onClose ? (
+            <button type="button" className="ch-act more" onClick={onClose} aria-label={t('Close chat')}>
+              <Icon name="close" size={17} />
+            </button>
+          ) : null}
         </div>
       </header>
       {confirmRemove && isGroup ? <GroupInfo group={peer} onClose={() => setConfirmRemove(false)} onLeft={onBack} /> : null}

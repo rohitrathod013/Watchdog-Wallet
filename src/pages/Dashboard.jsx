@@ -6,10 +6,9 @@ import OverviewView from '../views/Overview'
 import { t } from '../lib/i18n'
 
 const TransactionsView = lazy(() => import('../views/Transactions'))
-const BudgetsView = lazy(() => import('../views/Budgets'))
 const ReportsView = lazy(() => import('../views/Reports'))
 
-const VIEWS = { overview: OverviewView, transactions: TransactionsView, budgets: BudgetsView, reports: ReportsView }
+const VIEWS = { overview: OverviewView, transactions: TransactionsView, reports: ReportsView }
 
 function LiveIcon() {
   return (

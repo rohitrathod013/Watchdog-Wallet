@@ -61,6 +61,8 @@ const Analytics = lazy(load.analytics)
 const Transfer = lazy(load.transfer)
 const Wallet = lazy(load.wallet)
 const Budget = lazy(load.budget)
+// chats from any page (it brings the Friends chat with it, so it loads on its own)
+const MessengerDock = lazy(() => import('./components/MessengerDock'))
 const Friends = lazy(load.friends)
 const Buddy = lazy(load.buddy)
 const Assistant = lazy(load.assistant)
@@ -132,6 +134,8 @@ function Splash() {
 /* #/dashboard/reports → { page: 'dashboard', tab: 'reports' } */
 const fromHash = () => {
   const [p, t] = window.location.hash.replace(/^#\/?/, '').split('/')
+  // the Dashboard used to have a Budgets tab: old links open the Budget page
+  if (p === 'dashboard' && t === 'budgets') return { page: 'budget', tab: 'overview' }
   const page = PAGES.some((x) => x.id === p) ? p : 'dashboard'
   const tab = page === 'dashboard' && TABS.some((x) => x.id === t) ? t : 'overview'
   return { page, tab }
@@ -1486,6 +1490,11 @@ export default function App() {
           {/* while locked, Grace stays out of reach so nothing can be done through the chat */}
           <Buddy key={`codi-${bootKey}`} hidden={aiOpen || Boolean(lock)} onOpen={openAssistant} />
           <Assistant open={aiOpen && !lock} onClose={closeAssistant} prompt={lock ? null : aiAsk} />
+        </Suspense>
+      ) : null}
+      {social.enabled && social.setup && route.page !== 'friends' && !lock ? (
+        <Suspense fallback={null}>
+          <MessengerDock />
         </Suspense>
       ) : null}
       {saveFailed ? (

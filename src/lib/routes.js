@@ -10,11 +10,10 @@ export const PAGES = [
   { id: 'budget', label: 'Budget', icon: 'pie' },
 ]
 
-/** The folder tabs on the Dashboard. */
+/** The folder tabs on the Dashboard (budgets have their own page, so no tab here). */
 export const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'transactions', label: 'Transactions' },
-  { id: 'budgets', label: 'Budgets' },
   { id: 'reports', label: 'Reports' },
 ]
 

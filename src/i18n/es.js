@@ -1843,4 +1843,12 @@ export default {
   "{aside} is locked in {n} budgets, so card payments for other things can’t use it.": "{aside} está bloqueado en {n} presupuestos, así que los pagos con tarjeta de otras cosas no pueden usarlo.",
   "{aside} is locked for {name}, so card payments for other things can’t use it.": "{aside} está bloqueado para {name}, así que los pagos con tarjeta de otras cosas no pueden usarlo.",
   "Free to spend: {free}": "Libre para gastar: {free}",
+  // ---------------- chats from any page ----------------
+  "Chats": "Chats",
+  "Open Friends": "Abrir Amigos",
+  "Close chats": "Cerrar chats",
+  "Close chat": "Cerrar chat",
+  "Back to chats": "Volver a los chats",
+  "Chats, {count} unread": "Chats, {count} sin leer",
+  "No chats yet. Add a friend and you can message them from any page.": "Aún no hay chats. Añade un amigo y podrás escribirle desde cualquier página.",
 }

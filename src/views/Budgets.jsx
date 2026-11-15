@@ -181,7 +181,7 @@ function BudgetCard({ b, i, d }) {
   )
 }
 
-export default function BudgetsView({ attached = true }) {
+export default function BudgetsView() {
   const { budgets, stats, addBudget, balance } = useApp()
   const aside = setAside(budgets, balance)
   const now = new Date()
@@ -194,7 +194,7 @@ export default function BudgetsView({ attached = true }) {
 
   return (
     <>
-      <section className={`card budget-sum ${attached ? 'attached' : ''}`} style={{ '--d': '0ms' }}>
+      <section className="card budget-sum" style={{ '--d': '0ms' }}>
         <div className="rv" style={{ '--i': 0 }}>
           <Ring value={limit ? spent / limit : 0} size={170} stroke={16} color={spent > limit ? 'var(--red)' : 'var(--accent)'}>
             <small>{t('Used')}</small>

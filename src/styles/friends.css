@@ -1528,3 +1528,160 @@ img.persona {
   color: var(--ink);
   background: var(--card);
 }
+
+/* ---------- chats from any page: the floating button and window (bottom left; Grace is bottom right) ---------- */
+.msgr {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 78;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  pointer-events: none;
+}
+.msgr > * {
+  pointer-events: auto;
+}
+.msgr-btn {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 10px 28px -8px color-mix(in srgb, var(--accent) 60%, transparent);
+  transition:
+    transform 0.2s var(--ease),
+    background-color 0.2s;
+  animation: msgrIn 0.5s var(--ease) 1.2s both;
+}
+.msgr-btn:hover {
+  transform: scale(1.06);
+}
+.msgr.open .msgr-btn {
+  background: var(--solid);
+  color: var(--on-solid);
+}
+.msgr-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--red);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  font-style: normal;
+  border: 2px solid var(--page);
+}
+.msgr-win {
+  width: min(380px, calc(100vw - 32px));
+  height: min(560px, calc(100dvh - 120px));
+  border-radius: var(--r-lg);
+  box-shadow: 0 24px 60px -20px rgb(0 0 0 / 0.45);
+  transform-origin: bottom left;
+  animation: msgrOpen 0.28s var(--ease) both;
+}
+.msgr-win > .card {
+  height: 100%;
+  margin: 0;
+  border: 1px solid var(--line);
+}
+.msgr-win .chat-card.docked {
+  height: 100%;
+}
+.msgr-win .chat-back {
+  display: grid;
+}
+.msgr-win .chat-scroll {
+  padding: 4px 12px 12px;
+}
+.msgr-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+.msgr-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 14px 12px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.msgr-head b {
+  flex: 1;
+  font-size: 17px;
+  font-weight: 600;
+}
+.msgr-list ul {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px 8px 10px;
+  list-style: none;
+  overscroll-behavior: contain;
+}
+.msgr-empty {
+  margin: auto;
+  padding: 24px;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+@keyframes msgrIn {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+@keyframes msgrOpen {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .msgr-btn,
+  .msgr-win {
+    animation: none;
+  }
+}
+/* phones: a smaller button, and the window fills the screen */
+@media (max-width: 720px) {
+  .msgr {
+    left: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  .msgr-btn {
+    width: 50px;
+    height: 50px;
+  }
+  .msgr.open {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    top: calc(8px + env(safe-area-inset-top, 0px));
+  }
+  .msgr.open .msgr-win {
+    width: 100%;
+    height: auto;
+    flex: 1;
+    min-height: 0;
+  }
+}

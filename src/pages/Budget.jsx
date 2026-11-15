@@ -22,7 +22,7 @@ export default function Budget() {
           {t('Smart rebalance')}
         </button>
       </PageHead>
-      <BudgetsView attached={false} />
+      <BudgetsView />
     </Stage>
   )
 }

@@ -1794,4 +1794,12 @@ export default {
   "{aside} is locked in {n} budgets, so card payments for other things can’t use it.": "{aside} مقفل في {n} ميزانيات، لذا لا يمكن لمدفوعات البطاقة لأشياء أخرى استخدامه.",
   "{aside} is locked for {name}, so card payments for other things can’t use it.": "{aside} مقفل لـ {name}، لذا لا يمكن لمدفوعات البطاقة لأشياء أخرى استخدامه.",
   "Free to spend: {free}": "المتاح للإنفاق: {free}",
+  // ---------------- chats from any page ----------------
+  "Chats": "المحادثات",
+  "Open Friends": "افتح الأصدقاء",
+  "Close chats": "أغلق المحادثات",
+  "Close chat": "أغلق المحادثة",
+  "Back to chats": "العودة إلى المحادثات",
+  "Chats, {count} unread": "المحادثات، {count} غير مقروءة",
+  "No chats yet. Add a friend and you can message them from any page.": "لا توجد محادثات بعد. أضف صديقًا ويمكنك مراسلته من أي صفحة.",
 }
