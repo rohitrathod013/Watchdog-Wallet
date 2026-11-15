@@ -10,7 +10,7 @@ import { Modal } from './ui'
 import { useApp } from '../lib/store'
 import { MAX_TOPUP, MIN_TOPUP } from '../lib/payments'
 import { money } from '../lib/format'
-import { ASSISTANT, BRAND } from '../config'
+import { ASSISTANT, BRAND, COPYRIGHT } from '../config'
 import { t } from '../lib/i18n'
 import { TERMS_UPDATED, useTerms } from '../lib/terms'
 
@@ -67,7 +67,7 @@ const SECTIONS = (brand, assistant) => [
     h: '8. Availability and changes',
     p: [
       `${brand} is provided as is. It may sometimes be unavailable, and features may change. If these terms change, you will be asked to agree to the new version before adding another card or paying by card.`,
-      `If you have a question about these terms, contact the people who run this copy of ${brand}.`,
+      `${brand} is run by ${COPYRIGHT.owner}. If you have a question about these terms, contact ${COPYRIGHT.owner}.`,
     ],
   },
 ]

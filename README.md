@@ -122,13 +122,13 @@ Grace wears a guard cap and a gold shield badge, and she guards the account (**G
 - **Live data, no keys needed** (`src/lib/live.js`, cached so free limits are never hit):
   - **Exchange rates** from the European Central Bank via [Frankfurter](https://frankfurter.dev): "what's $100 in euros?", "50 pounds to rupees", "usd to eur". The currency switcher uses the same live rates.
   - **Crypto prices** from [CoinGecko](https://www.coingecko.com) for any listed coin: "bitcoin price", "price of chainlink", "how is pepe doing".
-  - **Stock prices** for any US stock or ETF via Finnhub (needs the [one-time setup](#stock-prices)): "nvidia stock price", "$AAPL", "my stocks".
+  - **Stock prices** for any US stock or ETF via Finnhub (see [Stock prices](#stock-prices)): "nvidia stock price", "$AAPL", "my stocks".
   - **Watchlist and investing**: "add chainlink to my watchlist", "buy $200 of bitcoin", "buy 2 shares of apple", "sell half my ethereum", "how are my investments". Buying and selling always ask for a confirm, and Grace still won't recommend what to buy.
   - **Public holidays** from [Nager.Date](https://date.nager.at): "any bank holidays soon?", "are banks open on Monday?", "holidays in the UK". Grace also warns when a bill falls on a bank holiday.
 - **Reads receipts and bills**: tap the 🧾 button next to the message box (or paste a picture) and send Grace a photo. She reads it right in your browser with [Tesseract.js](https://tesseract.projectnaptha.com) (free, the photo isn't uploaded), finds the shop, total, date and any due date, and offers to **add it as spending** in the right category, or as a **bill** with its due date so she can remind you. Nothing is added until you confirm. Clear, straight-on photos of printed receipts work best; the reader downloads once (a few MB) the first time.
 - **Shows her work**: every figure Grace states (balance, income, spending, a category, search totals, "why is my spending up", the month-end forecast, subscriptions, "can I afford it?" and savings plans) has a **How I got this** link. It opens the formula in one sentence, the steps, and the exact transactions used (10 at a time, with "show all"), plus **Copy as CSV**. All the maths is done in whole cents, and the tests check that every total equals its rows to the cent. When Grace does something for you, the numbers behind it are kept in her activity log, so "why did you do that?" shows them too. The demo's sample totals aren't sums of its transactions, so they don't get a trace.
 - **The model never computes figures**: numbers only ever come from Grace's own code. If an answer from the LLM mentions an amount, it's marked **Not verified** and never gets a trace.
-- **Answers anything else with a free LLM**: when a question isn't one of Grace's own ("how does a Roth IRA work?", "should I pay off debt or save first?"), she asks a hosted model, Google Gemini's free tier by default (see [Grace's LLM](#graces-llm-free)). It sees only the question, the last few messages and a short summary of your account, and it can only talk: sending money, paying bills and changing settings still go through Grace's own rules and your confirm. Without the setup, or in the demo, she answers as before.
+- **Answers anything else with a free LLM**: when a question isn't one of Grace's own ("how does a Roth IRA work?", "should I pay off debt or save first?"), she asks a hosted model, Google Gemini's free tier by default (see [Grace's LLM](#graces-llm)). It sees only the question, the last few messages and a short summary of your account, and it can only talk: sending money, paying bills and changing settings still go through Grace's own rules and your confirm. In the demo, or if the model is unavailable, she answers as before.
 - **Talks back**: the speaker button in the chat header reads every reply aloud, and questions asked with the microphone are always answered out loud.
 - **Forgives typos**: "whats my balnce", "I spnet $30 on dinnr" and "send $50 to varsah" all work. [Fuse.js](https://www.fusejs.io) matches each unknown word against Grace's vocabulary and the names on your account (`src/lib/typos.js`), with strict rules so real words like "tax" or "crash" are never changed.
 - Understands some Roman Urdu, such as "balance kitna hai" and "kal 300 ka khana kharch kiya".
@@ -140,7 +140,7 @@ English, Español, Français, Deutsch and العربية. Everything is translat
 
 ### Look and feel
 
-- Light, dark and **Auto** themes, with a liquid transition between them. Auto (the default) is light from **sunrise to sunset where you are** and dark at night, and switches by itself at those moments. The rough location comes from your internet address via [geojs.io](https://www.geojs.io) (free, no key, city level, no permission prompt) and is kept for a week; sunrise and sunset are worked out on your device. Without a location it uses 7am to 7pm (`THEME.day` in `src/config.js`). Settings shows today's times, and Grace can turn it on ("auto theme").
+- Light, dark and **Auto** themes, with a liquid transition between them. Auto (the default) is light from **sunrise to sunset where you are** and dark at night, and switches by itself at those moments. The rough location comes from your internet address via [geojs.io](https://www.geojs.io) (free, no key, city level, no permission prompt) and is kept for a week; sunrise and sunset are worked out on your device. Without a location it uses 7am to 7pm. Settings shows today's times, and Grace can turn it on ("auto theme").
 - 5 accent colours.
 - Staggered entrances, counting numbers, self-drawing charts and sections that reveal as you scroll.
 - Reduce motion setting, and respect for the system reduced-motion preference.
@@ -151,83 +151,43 @@ English, Español, Français, Deutsch and العربية. Everything is translat
 
 React 19, Vite 8, Framer Motion 12, Supabase (auth, database, storage, Realtime and Edge Functions), Stripe Checkout (card top-ups), Google Gemini (Grace's free-form answers), Fuse.js (Grace's typo matching), Tesseract.js (Grace reading receipts), and plain CSS with design tokens. No UI kit and no chart library: every chart is hand-built SVG.
 
-## Getting started
+## How it works
 
-Requires Node 20.19+ or 22.12+.
+### Accounts and data
 
-```bash
-npm install
-npm run dev        # http://localhost:5173
-```
+Accounts, the database, file storage, live updates and the server functions all run on [Supabase](https://supabase.com). Each account's dashboard is one private row in `user_state`; row level security means only its owner can read or change it. [`supabase/schema.sql`](supabase/schema.sql) holds every table, security rule and SQL function. Only the publishable key is in the app; every secret key (Stripe, Finnhub, Gemini) lives in Supabase and is used only by Edge Functions.
 
-The app connects to the Supabase project set in `src/config.js`. To use your own project, see the next section.
-
-## Setting up Supabase
-
-1. Create a free project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor**, paste the contents of [`supabase/schema.sql`](supabase/schema.sql) and click **Run**. It creates the `user_state` table (one private row per user), the `delete_my_account` function that **Delete account** uses, and everything **Friends** needs (see [Friends, chat and shared money](#friends-chat-and-shared-money)). It's safe to run again after updates.
-3. In **Authentication > URL Configuration**:
-   - set **Site URL** to where the site lives, for example `https://rohitrathod013.github.io/Watchdog-Wallet/`;
-   - add `http://localhost:5173/` to **Redirect URLs** for local testing.
-4. Copy the **Project URL** and the **Publishable key** (or the legacy **anon** key) from **Project Settings > API Keys**, and put them in one of these places:
-   - `SUPABASE` in `src/config.js`, or
-   - a `.env.local` file (copy `.env.example`) as `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, or
-   - GitHub repository variables with the same names (**Settings > Secrets and variables > Actions > Variables**).
-
-The publishable/anon key is meant to be public, and row level security keeps each account private. Never put the **secret** or **service_role** key in the app.
-
-To run without accounts, leave both values empty in `src/config.js` and don't set the variables. The site then opens straight into the demo with no login.
-
-**Before real users sign up:** Supabase's built-in email service only sends a few emails per hour. Connect your own provider under **Authentication > Emails > SMTP Settings**.
-
-## Stock prices
-
-Crypto prices and exchange rates work with no setup. Stock prices need an API key, and a key in the website could be copied by anyone, so it lives in a small Supabase Edge Function ([`supabase/functions/stocks`](supabase/functions/stocks/index.ts)) instead. Until it's set up, the Stocks tab and Grace explain that stock prices aren't switched on.
-
-1. Get a free API key at [finnhub.io/register](https://finnhub.io/register) (60 calls a minute; the function caches answers so you stay under it).
-2. In the Supabase dashboard, open **Edge Functions > Secrets** and add a secret named `FINNHUB_KEY` with your key.
-3. Open **Edge Functions > Deploy a new function > Via Editor**, name it `stocks`, paste the contents of `supabase/functions/stocks/index.ts` and deploy.
-4. In the function's **Settings**, turn **off** "Verify JWT with legacy secret" (the site calls it with the publishable key, which isn't a JWT) and save.
-
-With the Supabase CLI instead: `supabase secrets set FINNHUB_KEY=your-key` then `supabase functions deploy stocks` (`supabase/config.toml` already turns off JWT verification).
-
-Finnhub's free plan covers US stocks and ETFs.
-
-## Friends, chat and shared money
-
-Friends work between real accounts, so they live in Supabase. If you set up Supabase before this feature, run the latest [`supabase/schema.sql`](supabase/schema.sql) again (**SQL Editor > New query > paste > Run**). It's safe to run more than once: it only adds what's missing. Until then, the Friends page shows a setup note.
+### Friends, chat and shared money
 
 - Row level security shows each person only their own friends, messages, requests and transfers. People who aren't friends can't see each other, chat or send money.
-- Settle up uses two more SQL functions: `group_debts` lets a group's members see every open debt in that group, and `simplify_group_debts` replaces them with the fewest payments on the server, inside one transaction, so two people can't do it at the same moment. If **Settle up** says it needs a one-time setup, run the latest `schema.sql` again.
 - Money only moves through SQL functions (`send_to_friend`, `request_from_friend`, `create_split`) that check both people are friends, the amount is between $0.01 and $10,000, and a request is still open, so it can't be paid twice.
+- Settle up uses two more: `group_debts` lets a group's members see every open debt in that group, and `simplify_group_debts` replaces them with the fewest payments on the server, inside one transaction, so two people can't do it at the same moment.
 - Each transfer is added to both people's balances exactly once: the transaction keeps the transfer's id.
-- Live updates use Supabase Realtime; the script adds the tables to the `supabase_realtime` publication for you.
-- Photos, videos, files and voice notes go in a private Storage bucket, `chat-media`, which the script creates. Files sit in a folder per pair of friends, only those two can open them, and links to them expire after an hour.
-- Groups live in `groups` and `group_members`; only members can see a group, its messages and its files (`<sender>/g-<group id>/` in the bucket). The functions `create_group`, `add_group_members`, `remove_group_member`, `leave_group` and `rename_group` enforce the 25-person limit and the admin rules.
+- Live updates use Supabase Realtime.
+- Photos, videos, files and voice notes go in a private Storage bucket, `chat-media`. Files sit in a folder per pair of friends, only those two can open them, and links to them expire after an hour.
+- Groups live in `groups` and `group_members`; only members can see a group, its messages and its files. The functions `create_group`, `add_group_members`, `remove_group_member`, `leave_group` and `rename_group` enforce the 25-person limit and the admin rules.
 - Deleting an account removes its profile, friendships, messages, requests, transfers and uploaded files.
+- The demo shows a "create an account" card on the Friends page, because friends need two real accounts.
 
-The demo shows a "create an account" card on the Friends page, because friends need two real accounts.
+### Profile: email verification and photos
 
-## Profile: email verification and photos
+- **Email**: changing it goes through Supabase Auth, which sends a confirmation link to the new address. The email only changes once the link is clicked.
+- **Photo**: stored in a public `avatars` bucket, one folder per user, so only the owner can change it. Photos are cropped to a 320px square JPEG before upload.
+- **Phone and address**: saved on the login (`user_metadata`), visible only to that person.
 
-Changing the email in **Your profile** goes through Supabase Auth, so it's always verified:
+### Card payments (Stripe)
 
-- **Email**: Supabase sends a confirmation link to the new address (and to the old one too, if **Authentication > Providers > Email > Secure email change** is on). The email only changes once the link is clicked. Links come back to the **Site URL** set in [Setting up Supabase](#setting-up-supabase).
-- **Photo**: stored in a public `avatars` bucket (created by `schema.sql`), one folder per user, so only you can change yours. Photos are cropped to a 320px square JPEG before upload.
-- **Phone and address**: saved on your login (`user_metadata`) as you type them, visible only to you.
+**Add money > Pay by card** tops up the balance with a card payment on Stripe's own Checkout page, so card numbers never touch the site. The Stripe secret key lives only in a Supabase Edge Function ([`supabase/functions/payments`](supabase/functions/payments/index.ts)). It creates the payment page and, when Stripe sends the user back, checks that the payment is paid and belongs to that account. Each payment is saved with its Stripe id, so it can't be counted twice. Card payments only show for signed-in accounts, not the demo. The site runs in Stripe's test mode (card `4242 4242 4242 4242`, any future date, any CVC), so no real money moves.
 
-## Card payments (Stripe)
+### Stock prices
 
-**Add money > Pay by card** tops up the balance with a card payment on Stripe's own Checkout page, so card numbers never touch the site. The Stripe secret key lives only in a Supabase Edge Function ([`supabase/functions/payments`](supabase/functions/payments/index.ts)). It creates the payment page and, when Stripe sends the user back, checks that the payment is paid and belongs to that account. Each payment is saved with its Stripe id, so it can't be counted twice. Card payments only show for signed-in accounts, not the demo.
+Crypto prices and exchange rates come from free public APIs. Stock prices come from [Finnhub](https://finnhub.io) through a Supabase Edge Function ([`supabase/functions/stocks`](supabase/functions/stocks/index.ts)), so the API key is never in the website; the function caches answers to stay inside the free plan's limits. It covers US stocks and ETFs.
 
-1. Create a free account at [stripe.com](https://stripe.com) and stay in **Test mode**. Open **Developers > API keys** and copy the **Secret key** (`sk_test_...`).
-2. In the Supabase dashboard, open **Edge Functions > Secrets** and add a secret named `STRIPE_SECRET_KEY` with that key.
-3. Open **Edge Functions > Deploy a new function > Via Editor**, name it `payments`, paste the contents of `supabase/functions/payments/index.ts` and deploy.
-4. In the function's **Settings**, turn **off** "Verify JWT with legacy secret" (the function checks the signed-in user itself) and save.
+### Grace's LLM
 
-With the Supabase CLI instead: `supabase secrets set STRIPE_SECRET_KEY=sk_test_...` then `supabase functions deploy payments`.
+Grace's own rules handle every action. For questions they don't recognise, the chat calls a Supabase Edge Function ([`supabase/functions/grace`](supabase/functions/grace/index.ts)) that keeps the API key on the server and passes the question to Google Gemini (the newest Gemini Flash, falling back to other Flash models when one is busy). Only signed-in accounts use it; the function checks the login itself.
 
-In test mode, pay with card `4242 4242 4242 4242`, any future expiry date and any CVC. No real money moves. Stripe only sends people back to `https://rohitrathod013.github.io` or a local dev server; to allow another site, add a `SITE_ORIGINS` secret (comma-separated origins). Going live later means swapping in the live secret key (`sk_live_...`) after Stripe approves the account.
+What the model sees: the question, the last 10 messages, and a few lines about the account (balance, this month's totals, budgets, goals, unpaid bills, pots and the latest 8 transactions), with any run of 4 or more digits hidden. If the model is busy or unavailable, Grace gives her usual answer.
 
 ## ML in Grace
 
@@ -250,72 +210,11 @@ Three small models run **on your device, on your own transactions**: no server, 
 - **Needs history.** 30 payments before it flags anything, and 60 days before the forecast stops calling itself rough.
 - **A triage aid, not a verdict.** Confidence numbers are rules of thumb, not calibrated probabilities. A flag means "worth a look", never "fraud".
 
-## Grace's LLM (free)
-
-Grace's own rules handle every action. For questions they don't recognise, the chat calls a Supabase Edge Function ([`supabase/functions/grace`](supabase/functions/grace/index.ts)) that keeps the API key on the server and passes the question to a hosted model. Only signed-in accounts use it; the function checks the login itself.
-
-1. Get a free API key at [Google AI Studio](https://aistudio.google.com/apikey).
-2. In the Supabase dashboard, open **Edge Functions > Secrets** and add `GEMINI_API_KEY` with that key (optionally `GEMINI_MODEL`; by default it uses the newest Gemini Flash, `gemini-flash-latest`).
-3. Open **Edge Functions > Deploy a new function > Via Editor**, name it `grace`, paste the contents of `supabase/functions/grace/index.ts` and deploy.
-4. In the function's **Settings**, turn **off** "Verify JWT with legacy secret" and save.
-
-With the Supabase CLI instead: `supabase secrets set GEMINI_API_KEY=...` then `supabase functions deploy grace`.
-
-Any OpenAI-compatible provider works too (Groq, OpenRouter, Cerebras, Mistral, GitHub Models): leave out `GEMINI_API_KEY` and set `LLM_API_KEY`, `LLM_BASE_URL` and `LLM_MODEL` instead, for example `https://api.groq.com/openai/v1` with `llama-3.3-70b-versatile`.
-
-What the model sees: the question, the last 10 messages, and a few lines about the account (balance, this month's totals, budgets, goals, unpaid bills, pots and the latest 8 transactions), with any run of 4 or more digits hidden. Free tiers have rate limits, and Google may use free-tier prompts to improve its models, so check the provider's current terms. If the model is busy or not set up, Grace gives her usual answer.
-
-## Make it yours
-
-### Brand, demo profile and assistant: `src/config.js`
-
-```js
-export const BRAND = { name: 'Watchdog Wallet', domain: 'watchdogwallet.io' }
-export const USER = { first: 'Rohit', name: 'Rohit Rathod' } // the demo profile
-export const SUPABASE = { url: '…', anonKey: '…' }
-export const THEME = { defaultTheme: 'light', defaultAccent: 'orange' }
-export const ASSISTANT = { enabled: true, name: 'Grace', intro: true }
-export const FEATURES = { liveUpdates: true }
-```
-
-- `ASSISTANT.enabled: false` removes the mascot and the chat completely.
-- `ASSISTANT.intro: false` keeps Grace but skips the fly-in.
-- Update the page `<title>` and meta tags in `index.html` too.
-
-### Logo and profile photo
-
-- The logo is the `Logo` component in `src/components/Brand.jsx`. Replace its SVG path, and `public/favicon.svg` to match.
-- `public/avatar.jpg` is the demo profile's photo. Signed-in users see their initials.
-
-### Colours and fonts: `src/styles/base.css`
-
-- All colours are CSS variables on `:root`. Dark mode overrides them in `[data-theme='dark']`, and each accent in `[data-accent='…']`.
-- To add an accent, add a `[data-accent='yours']` block and add it to `ACCENTS` in `src/components/TopBar.jsx`.
-- The font is Inter, loaded in `index.html`. Change `--font` to use another.
-
-### Demo data: `src/data/seed.js`
-
-The sample dashboard shown in the demo: transactions, budgets, goals, bills, contacts, cards, chart series and reports.
-
-### Translations: `src/i18n/`
-
-- One file per language (`es.js`, `fr.js`, `de.js`, `ar.js`). The English text is the key, so `t('Total Balance')` looks up `'Total Balance'`. Placeholders like `{name}` are filled in for you.
-- Anything without a translation shows in English, so nothing breaks while you add text.
-- To add a language, create a file, then register it in `src/lib/i18n.js` and `LANGUAGES` in `src/data/seed.js`.
-
-### Grace's answers: `src/lib/assistant.js`
-
-A local intent engine: no API costs, and it works offline.
-
-- Each intent is a pattern plus a reply. A reply can include a card (bars, stats or transactions), a confirm button, quick links and follow-up chips.
-- To support a new question, add a block before the fallback at the end of `respond()`.
-- To use a real AI model instead, call it from `ask()` in `src/components/Assistant.jsx` with the user's message and a summary of the app state.
-
 ## Project structure
 
 ```
 src/
-  config.js            brand, demo profile, Supabase, theme, assistant
+  config.js            app settings: name, demo profile, Supabase, theme, assistant
   App.jsx              app state, actions, accounts, routing, lazy loading
   pages/               Dashboard, Analytics, Transfer, Friends, Wallet, Budget
   views/               Dashboard tabs (Overview, Transactions, Reports) and the Budget page's view
@@ -393,14 +292,7 @@ tests/                 Grace's questions, her voice, receipts, and the Friends a
 
 ## Deploying
 
-Every push to `main` deploys automatically. The GitHub Actions workflow in `.github/workflows/deploy.yml` builds the site and publishes it to the `gh-pages` branch, which GitHub Pages serves.
-
-For your own fork:
-
-1. In **Settings > Pages**, set **Source** to **Deploy from a branch**, branch `gh-pages`, folder `/ (root)`.
-2. If your repository isn't called `Watchdog-Wallet`, change `base` in `vite.config.js` to `/your-repo-name/`.
-
-`dist/` also works on any other static host, such as Vercel, Netlify or Cloudflare Pages. Pages use URL hashes (`#/wallet`), so no server rewrites are needed.
+Every push to `main` deploys automatically: the GitHub Actions workflow in `.github/workflows/deploy.yml` runs the tests, builds the site and publishes it to GitHub Pages. A failing test stops the deploy.
 
 ## Browser support
 

@@ -2,14 +2,13 @@
   "name": "watchdog-wallet",
   "private": true,
   "version": "1.0.0",
-  "description": "Animated React fintech dashboard with a fluffy AI assistant mascot, dark mode, five pages and zero backend.",
+  "description": "Watchdog Wallet: a personal finance dashboard with accounts, friends, card top-ups and Grace, an AI assistant.",
   "keywords": [
     "react",
     "vite",
     "dashboard",
     "fintech",
     "finance",
-    "admin template",
     "framer-motion",
     "ai assistant"
   ],

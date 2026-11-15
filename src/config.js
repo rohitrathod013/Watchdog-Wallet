@@ -1,7 +1,8 @@
 /* ==================================================================
-   Template settings: rebrand the whole dashboard from this one file.
-   Colours live in src/styles/base.css (:root tokens), demo data in
-   src/data/seed.js, and the logo mark in src/components/Brand.jsx.
+   Watchdog Wallet's app settings: name, demo profile, Supabase,
+   theme and assistant. Colours live in src/styles/base.css (:root
+   tokens), demo data in src/data/seed.js, and the logo mark in
+   src/components/Brand.jsx.
    ================================================================== */
 
 export const BRAND = {
