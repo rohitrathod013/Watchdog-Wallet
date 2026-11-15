@@ -1401,7 +1401,7 @@ export function RatesCard({ d = 0, className = '' }) {
 }
 
 export function PotsCard({ d = 0, className = '' }) {
-  const { pots, unassigned, inPots, balance, openModal, removePot } = useApp()
+  const { pots, unassigned, inPots, balance, openModal, removePot, stats } = useApp()
   const lead = useLead()
   const total = Math.max(inPots + Math.max(0, unassigned), 1)
   return (
@@ -1412,6 +1412,12 @@ export function PotsCard({ d = 0, className = '' }) {
           <p className="card-sub">{t('Sort your money by what it’s for')}</p>
         </div>
         <div className="c-tools">
+          {!stats.demo ? (
+            <button type="button" className="btn" onClick={() => openModal('split-income')} title={t('Split my income')}>
+              <Icon name="percent" size={16} />
+              {t('Split pay')}
+            </button>
+          ) : null}
           <button type="button" className="btn" onClick={() => openModal('move')} disabled={!pots.length}>
             <Icon name="transfer" size={17} />
             {t('Move money')}

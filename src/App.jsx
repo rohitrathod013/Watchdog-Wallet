@@ -42,10 +42,13 @@ import { removeAllMyMedia } from './lib/media'
 import { useSocial } from './lib/useSocial'
 import { useMlFlags } from './lib/ml/useMl.js'
 import { dropCopies, keepCopy, looksOffline, readCopy } from './lib/offline'
+import { makeItem, netWorthNow, withSnapshot } from './lib/wealth'
+import { DEFAULT_SPLIT, planSplit } from './lib/incomeSplit'
+import { weekKey, weeklyRecap, weekStart } from './lib/recap'
 import { checkPayment, isCardMethod } from './lib/envelopes'
 import { EVERY_LABEL, makeRule, runAll } from './lib/recurring'
-import { FriendAskModal, FriendPayModal, GroupModal, SettleModal, SplitModal } from './components/FriendModals'
-import { ImportModal, RecurringModal } from './components/MoneyTools'
+import { FriendAskModal, FriendPayModal, GroupGoalsModal, GroupModal, SettleModal, SplitModal } from './components/FriendModals'
+import { ImportModal, IncomeSplitModal, RecurringModal } from './components/MoneyTools'
 import { TermsModal } from './components/Terms'
 import * as seed from './data/seed'
 import { ASSISTANT, BRAND, FEATURES, THEME } from './config'
@@ -330,6 +333,12 @@ export default function App() {
   const [myCards, setMyCards] = useState([])
   // which version of the bank and card terms the user agreed to, and when
   const [terms, setTerms] = useState(null)
+  // net worth: things you own or owe (beyond cash, goals and investments) and a snapshot per month
+  const [netWorth, setNetWorth] = useState({ items: [], history: [] })
+  // income split: when pay lands, percentages go into pots and goals
+  const [incomeSplit, setIncomeSplit] = useState(DEFAULT_SPLIT)
+  // the last week a recap was sent for ("2026-W46")
+  const [recapWeek, setRecapWeek] = useState(null)
   const ranRule = useRef(new Set())
 
   /* ---------- accounts (Supabase) ----------
@@ -352,6 +361,7 @@ export default function App() {
   const stopSaving = useRef(false)
   // this month's budgets (with what's spent) and the balance, for the locked-budget check on payments
   const spendRef = useRef({ budgets: [], balance: 0 })
+  const splitRef = useRef({ split: DEFAULT_SPLIT, pots: [], goals: [] })
   /* locked: null, or why ('idle' | 'manual'). It survives a reload, so refreshing doesn't get past the lock. */
   const [lock, setLock] = useState(() => {
     try {
@@ -392,6 +402,9 @@ export default function App() {
     setReminders(data.reminders ?? [])
     setMyCards(data.cards ?? [])
     setTerms(data.terms ?? null)
+    setNetWorth({ items: [], history: [], ...(data.netWorth ?? {}) })
+    setIncomeSplit({ ...DEFAULT_SPLIT, ...(data.incomeSplit ?? {}) })
+    setRecapWeek(data.recapWeek ?? null)
     ranRule.current = new Set()
     setDrift(0)
     setSentToday(0)
@@ -479,6 +492,9 @@ export default function App() {
       reminders,
       cards: myCards,
       terms,
+      netWorth,
+      incomeSplit,
+      recapWeek,
     }),
     [
       balance,
@@ -500,6 +516,9 @@ export default function App() {
       reminders,
       myCards,
       terms,
+      netWorth,
+      incomeSplit,
+      recapWeek,
     ],
   )
   const [saveFailed, setSaveFailed] = useState(false)
@@ -770,9 +789,13 @@ export default function App() {
       const rule = makeRule({ ...input, id: uid() })
       if (!rule) return false
       setRecurring((list) => [...list, rule])
-      toast(t('Repeat set up'), t('{name}: {amount}, {every}.', { name: rule.name, amount: money(Math.abs(rule.amount)), every: t(EVERY_LABEL[rule.every]).toLowerCase() }), {
-        icon: 'replay',
-      })
+      toast(
+        t('Repeat set up'),
+        t('{name}: {amount}, {every}.', { name: rule.name, amount: money(Math.abs(rule.amount)), every: t(EVERY_LABEL[rule.every]).toLowerCase() }),
+        {
+          icon: 'replay',
+        },
+      )
       return true
     },
     [toast],
@@ -820,7 +843,12 @@ export default function App() {
     (id) => {
       const c = myCards.find((x) => x.id === id)
       setMyCards((list) => list.filter((x) => x.id !== id))
-      if (c) toast(t('Card removed'), t('{name} ending {digits} is gone. Its past payments stay in your transactions.', { name: c.label, digits: c.last4 }), { icon: 'trash' })
+      if (c)
+        toast(
+          t('Card removed'),
+          t('{name} ending {digits} is gone. Its past payments stay in your transactions.', { name: c.label, digits: c.last4 }),
+          { icon: 'trash' },
+        )
     },
     [myCards, toast],
   )
@@ -876,7 +904,14 @@ export default function App() {
       if (!clean || budgets.some((b) => b.name.toLowerCase() === clean.toLowerCase())) return false
       setBudgets((list) => [
         ...list,
-        { id: uid(), name: clean, icon: iconOfCategory(clean), limit: Math.max(1, Math.round(Number(limit) || 0)), locked: Boolean(locked), ...(rollover ? { rollover: true, rollFrom: monthKey() } : {}) },
+        {
+          id: uid(),
+          name: clean,
+          icon: iconOfCategory(clean),
+          limit: Math.max(1, Math.round(Number(limit) || 0)),
+          locked: Boolean(locked),
+          ...(rollover ? { rollover: true, rollFrom: monthKey() } : {}),
+        },
       ])
       toast(t('Budget added'), t('{name}: {amount} a month.', { name: t(clean), amount: money(Math.round(Number(limit) || 0), '$', 0) }), {
         icon: 'pie',
@@ -897,6 +932,59 @@ export default function App() {
     [budgets, toast],
   )
 
+  /** When pay lands: move the set percentages into pots and goals. Returns what moved. */
+  const splitIncome = useCallback(
+    (amount, category) => {
+      const { split, pots: potsNow, goals: goalsNow } = splitRef.current
+      const moves = planSplit(amount, category, split, potsNow, goalsNow)
+      if (!moves.length) return []
+      const toPots = moves.filter((m) => m.kind === 'pot')
+      const toGoals = moves.filter((m) => m.kind === 'goal')
+      if (toPots.length)
+        setPots((list) =>
+          list.map((x) => {
+            const m = toPots.find((y) => y.target === x.id)
+            return m ? { ...x, amount: Math.round((x.amount + m.amount) * 100) / 100 } : x
+          }),
+        )
+      if (toGoals.length) {
+        setGoals((list) =>
+          list.map((x) => {
+            const m = toGoals.find((y) => y.target === x.id)
+            return m ? { ...x, saved: Math.round((x.saved + m.amount) * 100) / 100 } : x
+          }),
+        )
+        // goal money leaves the balance, like topping up a goal by hand
+        const cents = toGoals.reduce((sum, m) => sum + Math.round(m.amount * 100), 0)
+        setBalance((b) => Math.round(b * 100 - cents) / 100)
+      }
+      toast(t('Pay split'), moves.map((m) => `${t(m.name)} ${money(m.amount)}`).join(' · '), { icon: 'transfer', ms: 6000 })
+      return moves
+    },
+    [toast],
+  )
+
+  const addWorthItem = useCallback((input) => {
+    const item = makeItem({ ...input, id: uid() })
+    if (!item) return false
+    setNetWorth((w) => ({ ...w, items: [...w.items, item] }))
+    return true
+  }, [])
+  const updateWorthItem = useCallback((id, input) => {
+    let ok = false
+    setNetWorth((w) => ({
+      ...w,
+      items: w.items.map((x) => {
+        if (x.id !== id) return x
+        const next = makeItem({ ...x, ...input, id })
+        ok = Boolean(next)
+        return next ?? x
+      }),
+    }))
+    return ok
+  }, [])
+  const removeWorthItem = useCallback((id) => setNetWorth((w) => ({ ...w, items: w.items.filter((x) => x.id !== id) })), [])
+
   /** Record money in (amount > 0) or out (amount < 0) by hand. A card payment that would use
       money locked for another budget is declined: returns false and nothing changes. */
   const addTransaction = useCallback(
@@ -914,9 +1002,10 @@ export default function App() {
         setPots((list) => list.map((p) => (p.id === potId ? { ...p, amount: Math.max(0, Math.round((p.amount + amount) * 100) / 100) } : p)))
       addTx({ name, amount, category, kind: KIND_FOR[category] ?? 'transfer', method: method || 'Cash', date: date || localIso(), note })
       toast(amount > 0 ? t('Income added') : t('Expense added'), `${t(name)} · ${money(Math.abs(amount))}`, { icon: amount > 0 ? 'receive' : 'send' })
+      if (amount > 0) splitIncome(amount, category)
       return true
     },
-    [addTx, toast, declined],
+    [addTx, toast, declined, splitIncome],
   )
 
   const addContact = useCallback(
@@ -1003,6 +1092,7 @@ export default function App() {
       )
       const cents = fresh.reduce((sum, x) => sum + Math.round(x.amount * 100), 0)
       setBalance((b) => Math.round(b * 100 + cents) / 100)
+      for (const x of fresh) if (x.amount > 0) splitIncome(x.amount, x.category)
       const first = fresh[0]
       notify({
         icon: 'replay',
@@ -1019,7 +1109,7 @@ export default function App() {
       window.clearInterval(timer)
       window.removeEventListener('focus', run)
     }
-  }, [rulesReady, recurring, notify])
+  }, [rulesReady, recurring, notify, splitIncome])
 
   /* ---------- cancel reminders: nudge on the day ---------- */
   useEffect(() => {
@@ -1037,10 +1127,18 @@ export default function App() {
           body: 'It charges {amount} on {date}. Cancel with them before then if you don’t need it.',
           vars: { name: r.name, amount: money(r.amount), date: r.charge },
         })
-        toast(t('Cancel {name}?', { name: r.name }), t('It charges {amount} on {date}. Cancel with them before then if you don’t need it.', { name: r.name, amount: money(r.amount), date: r.charge }), {
-          icon: 'bell',
-          ms: 8000,
-        })
+        toast(
+          t('Cancel {name}?', { name: r.name }),
+          t('It charges {amount} on {date}. Cancel with them before then if you don’t need it.', {
+            name: r.name,
+            amount: money(r.amount),
+            date: r.charge,
+          }),
+          {
+            icon: 'bell',
+            ms: 8000,
+          },
+        )
       }
     }
     check()
@@ -1337,6 +1435,47 @@ export default function App() {
   useLayoutEffect(() => {
     spendRef.current = { budgets: stats.budgets, balance }
   }, [stats, balance])
+  useLayoutEffect(() => {
+    splitRef.current = { split: incomeSplit, pots, goals }
+  }, [incomeSplit, pots, goals])
+
+  /* ---------- net worth: keep this month's snapshot up to date ---------- */
+  const worthNow = useMemo(() => netWorthNow({ balance, goals, holdings, items: netWorth.items }).value, [balance, goals, holdings, netWorth.items])
+  useEffect(() => {
+    if (!rulesReady || isDemo) return
+    const snap = () =>
+      setNetWorth((w) => {
+        const history = withSnapshot(w.history, worthNow)
+        return history === w.history ? w : { ...w, history }
+      })
+    snap()
+  }, [rulesReady, isDemo, worthNow])
+
+  /* ---------- weekly recap: once a week, about the week before ---------- */
+  useEffect(() => {
+    if (!rulesReady || isDemo) return
+    const now = new Date()
+    const key = weekKey(new Date(weekStart(now).getTime() - 7 * 86400000))
+    if (recapWeek === key) return
+    const send = () => {
+      const r = weeklyRecap({ transactions, budgets: stats.budgets }, now)
+      setRecapWeek(key)
+      if (r.empty) return
+      notify({
+        icon: 'chart',
+        tone: 'accent',
+        title: 'Your week: {spent} spent',
+        body: r.change == null ? 'Most of it on {category}. Ask Grace “how was my week?”' : '{change} vs the week before. Most of it on {category}.',
+        vars: {
+          spent: money(r.spent),
+          change: `${r.change >= 0 ? '+' : ''}${r.change}%`,
+          category: r.top[0]?.category ?? '',
+        },
+      })
+    }
+    send()
+  }, [rulesReady, isDemo, recapWeek, transactions, stats.budgets, notify])
+
   // unusual spending, kept fresh (off the main thread for big accounts)
   const mlFlags = useMlFlags(transactions, mlVerdicts)
   const cards = useMemo(() => (isDemo ? seed.CARDS : myCards.map((c) => ({ ...c, holder: user.name }))), [isDemo, myCards, user])
@@ -1513,6 +1652,12 @@ export default function App() {
       removeCard,
       terms,
       acceptTerms,
+      netWorth,
+      addWorthItem,
+      updateWorthItem,
+      removeWorthItem,
+      incomeSplit,
+      setIncomeSplit,
       toast,
       openModal,
       social,
@@ -1604,6 +1749,12 @@ export default function App() {
       removeCard,
       terms,
       acceptTerms,
+      netWorth,
+      addWorthItem,
+      updateWorthItem,
+      removeWorthItem,
+      incomeSplit,
+      setIncomeSplit,
       toast,
       openModal,
       social,
@@ -1734,7 +1885,9 @@ export default function App() {
       <SplitModal open={modal?.type === 'split'} payload={modal?.payload} onClose={closeModal} />
       <GroupModal open={modal?.type === 'newGroup'} onClose={closeModal} />
       <SettleModal open={modal?.type === 'settle'} payload={modal?.payload} onClose={closeModal} />
+      <GroupGoalsModal open={modal?.type === 'groupGoals'} payload={modal?.payload} onClose={closeModal} />
       <TermsModal open={modal?.type === 'terms'} onClose={closeModal} />
+      <IncomeSplitModal open={modal?.type === 'split-income'} onClose={closeModal} />
       <RecurringModal open={modal?.type === 'recurring'} onClose={closeModal} />
       <ImportModal open={modal?.type === 'import'} payload={modal?.payload} onClose={closeModal} />
       <GuardModal open={modal?.type === 'guard'} onClose={closeModal} />

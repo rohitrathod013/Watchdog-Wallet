@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { clockTime } from '../lib/dayTheme'
 import Icon from './Icon'
 import { Avatar, Logo, Persona } from './Brand'
@@ -8,6 +8,7 @@ import { LANGUAGES } from '../data/seed'
 import { PAGES } from '../lib/routes'
 import { BRAND } from '../config'
 import { setLocale, t } from '../lib/i18n'
+import { disablePush, enablePush, pushIsOn, pushSupported } from '../lib/push'
 
 const ACCENTS = [
   { id: 'orange', color: '#ef6c2f' },
@@ -16,6 +17,43 @@ const ACCENTS = [
   { id: 'violet', color: '#7c4fe0' },
   { id: 'rose', color: '#e5407a' },
 ]
+
+/* push notifications on this device (only for accounts, and only once the app is set up for push) */
+function PushRow() {
+  const app = useApp()
+  const [on, setOn] = useState(false)
+  const [note, setNote] = useState('')
+  const userId = app.user?.id
+  useEffect(() => {
+    let alive = true
+    pushIsOn().then((v) => alive && setOn(v))
+    return () => {
+      alive = false
+    }
+  }, [])
+  if (app.demo || !userId || !pushSupported()) return null
+  const flip = async (next) => {
+    setNote('')
+    if (!next) {
+      await disablePush()
+      setOn(false)
+      return
+    }
+    const r = await enablePush(userId)
+    setOn(r === 'on')
+    if (r === 'denied') setNote(t('Notifications are blocked for this site. Allow them in your browser’s site settings, then try again.'))
+    else if (r !== 'on') setNote(t('Couldn’t turn notifications on. Install the app or open the live site, then try again.'))
+  }
+  return (
+    <>
+      <div className="set-row">
+        <span>{t('Notifications when closed')}</span>
+        <Toggle on={on} onChange={flip} label={t('Notifications when closed')} />
+      </div>
+      {note ? <small className="set-note">{note}</small> : null}
+    </>
+  )
+}
 
 export default function TopBar() {
   const app = useApp()
@@ -247,6 +285,7 @@ export default function TopBar() {
               <span>{t('Reduce motion')}</span>
               <Toggle on={app.reduceMotion} onChange={app.setReduceMotion} label={t('Reduce motion')} />
             </div>
+            <PushRow />
             <hr />
             <MenuItem
               icon="replay"

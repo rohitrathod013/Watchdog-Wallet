@@ -12,10 +12,12 @@
 //   4. In the function's settings, turn OFF "Verify JWT" (this file checks the
 //      signed-in user itself)
 //
-// Any OpenAI-compatible provider works instead (Groq, OpenRouter, Cerebras,
-// Mistral, GitHub Models): set LLM_API_KEY, LLM_BASE_URL and LLM_MODEL, e.g.
-//   LLM_BASE_URL=https://api.groq.com/openai/v1  LLM_MODEL=llama-3.3-70b-versatile
-// Gemini is used when GEMINI_API_KEY is set, otherwise the LLM_* provider.
+// A backup provider: when Gemini fails (its free limit, or it's busy), the question goes to Groq.
+//   Get a free key at https://console.groq.com/keys and add it as the secret GROQ_API_KEY
+//   (optional: GROQ_MODEL, by default llama-3.3-70b-versatile).
+// Any other OpenAI-compatible provider works the same way (OpenRouter, Cerebras, Mistral,
+// GitHub Models): set LLM_API_KEY, LLM_BASE_URL and LLM_MODEL instead of GROQ_API_KEY.
+// Order: Gemini first when GEMINI_API_KEY is set, then the backup.
 //
 //   POST /functions/v1/grace { question, history: [{ from: 'me'|'bot', text }], brief, language }
 //     -> { text }
@@ -29,9 +31,12 @@ const GEMINI_MODELS = [
   'gemini-flash-lite-latest',
   'gemini-2.0-flash',
 ].filter((m, i, all): m is string => Boolean(m) && all.indexOf(m) === i)
-const LLM_KEY = Deno.env.get('LLM_API_KEY')
-const LLM_BASE = (Deno.env.get('LLM_BASE_URL') ?? '').replace(/\/+$/, '')
-const LLM_MODEL = Deno.env.get('LLM_MODEL') ?? ''
+// the backup: Groq by default, or any OpenAI-compatible provider
+const GROQ_KEY = Deno.env.get('GROQ_API_KEY')
+const LLM_KEY = Deno.env.get('LLM_API_KEY') ?? GROQ_KEY
+const LLM_BASE = (Deno.env.get('LLM_BASE_URL') ?? (GROQ_KEY ? 'https://api.groq.com/openai/v1' : '')).replace(/\/+$/, '')
+const LLM_MODEL = Deno.env.get('LLM_MODEL') ?? Deno.env.get('GROQ_MODEL') ?? (GROQ_KEY ? 'llama-3.3-70b-versatile' : '')
+const HAS_BACKUP = Boolean(LLM_KEY && LLM_BASE && LLM_MODEL)
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')
 
@@ -180,7 +185,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return json({ error: 'Use POST' }, 405)
   const useGemini = Boolean(GEMINI_KEY)
-  if (!useGemini && !(LLM_KEY && LLM_BASE && LLM_MODEL)) return json({ error: 'No LLM key is set', setup: true }, 503)
+  if (!useGemini && !HAS_BACKUP) return json({ error: 'No LLM key is set', setup: true }, 503)
   if (!(await userOf(req))) return json({ error: 'Log in first' }, 401)
 
   let input: any = {}
@@ -196,7 +201,17 @@ Deno.serve(async (req) => {
   const turns = turnsOf(input.history, question)
 
   try {
-    const text = useGemini ? await gemini(system, turns) : await openaiCompatible(system, turns)
+    let text = ''
+    if (useGemini) {
+      try {
+        text = await gemini(system, turns)
+      } catch (err: any) {
+        // Gemini is over its free limit, busy or failing: hand the question to the backup instead
+        if (!HAS_BACKUP) throw err
+        console.error(`gemini failed (${err?.status ?? ''} ${err?.message ?? err}), using the backup`)
+      }
+    }
+    if (!text && HAS_BACKUP) text = await openaiCompatible(system, turns)
     if (!text) return json({ error: 'No answer' }, 502)
     return json({ text: text.slice(0, 2000) })
   } catch (err: any) {

@@ -105,3 +105,37 @@ self.addEventListener('fetch', (event) => {
   else if (url.pathname.includes('/assets/')) event.respondWith(cacheFirst(request))
   else event.respondWith(staleWhileRevalidate(request))
 })
+
+/* push notifications (new messages, requests, payments, bills due): shown even when the app is closed */
+self.addEventListener('push', (event) => {
+  let note = {}
+  try {
+    note = event.data ? event.data.json() : {}
+  } catch {
+    note = { title: 'Watchdog Wallet', body: event.data?.text() ?? '' }
+  }
+  event.waitUntil(
+    self.registration.showNotification(note.title || 'Watchdog Wallet', {
+      body: note.body || '',
+      icon: new URL('icon-192.png', scope).href,
+      badge: new URL('icon-192.png', scope).href,
+      tag: note.tag,
+      data: { url: note.url || scope.href },
+    }),
+  )
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const url = event.notification.data?.url || scope.href
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      const open = list.find((c) => c.url.startsWith(scope.href))
+      if (open) {
+        open.navigate?.(url)
+        return open.focus()
+      }
+      return self.clients.openWindow(url)
+    }),
+  )
+})

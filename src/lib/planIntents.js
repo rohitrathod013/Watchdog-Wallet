@@ -8,7 +8,9 @@
 import { checkPayment, setAside } from './envelopes'
 import { EVERY_LABEL } from './recurring'
 import { nextDays, dayOf } from './upcoming'
-import { categoryIn } from './ml/grace.js'
+import { categoryIn, openFlags } from './ml/grace.js'
+import { weeklyRecap } from './recap'
+import { compareMethods, debtFreeBy, monthChange, netWorthNow } from './wealth'
 import { makeTrace } from './trace'
 import { money } from './format'
 import { t } from './i18n'
@@ -257,10 +259,97 @@ function repeatsList(app) {
   }
 }
 
+/* ---------------- the weekly recap, net worth, and paying off debt ---------------- */
+const monthYear = (d) => d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+
+function recapReply(app) {
+  const now = app.now ?? new Date()
+  const r = weeklyRecap({ transactions: app.transactions ?? [], budgets: app.budgets ?? [], flags: openFlags(app), upcoming: nextDays(app, 7, now) }, now)
+  if (r.empty) return { text: t('Nothing came in or went out last week, so there’s nothing to sum up yet.') }
+  const lines = [
+    t('**Last week** ({from} to {to}): **{spent}** went out and **{income}** came in.', {
+      from: dayText(dayOf(r.from)),
+      to: dayText(dayOf(r.to)),
+      spent: money(r.spent),
+      income: money(r.income),
+    }),
+  ]
+  if (r.change != null)
+    lines.push(
+      r.change > 0
+        ? t('That’s **{pct}% more** spending than the week before.', { pct: Math.abs(r.change) })
+        : r.change < 0
+          ? t('That’s **{pct}% less** spending than the week before. 👏', { pct: Math.abs(r.change) })
+          : t('About the same as the week before.'),
+    )
+  if (r.top.length) lines.push(t('Most of it went on {list}.', { list: r.top.map((x) => `${t(x.category)} (${money(x.amount)})`).join(', ') }))
+  if (r.biggest) lines.push(t('Biggest payment: **{name}**, {amount}.', { name: r.biggest.name, amount: money(-r.biggest.amount) }))
+  if (r.flags.length) lines.push(t('{n} looked unusual. Ask me “anything unusual?” to see.', { n: r.flags.length }))
+  if (r.nearLimit.length) lines.push(t('Near the limit: {names}.', { names: r.nearLimit.map((b) => t(b.name)).join(', ') }))
+  const due = r.upcoming.filter((x) => x.amount < 0)
+  if (due.length) lines.push(t('Coming out this week: {list}.', { list: due.map((x) => `${x.name} ${money(-x.amount)}`).join(', ') }))
+  return {
+    text: lines.join('\n'),
+    chips: [chip('Forecast my month'), chip('Anything unusual?')],
+  }
+}
+
+function worthReply(app) {
+  const items = app.netWorth?.items ?? []
+  const n = netWorthNow({ balance: app.balance ?? 0, goals: app.goals ?? [], holdings: app.holdings ?? [], items })
+  const ch = monthChange(app.netWorth?.history ?? [], app.now ?? new Date())
+  return {
+    text:
+      t('Your **net worth** is **{value}**: {owned} you own minus {owed} you owe.', { value: money(n.value), owned: money(n.owned), owed: money(n.owed) }) +
+      (ch ? ` ${ch.change >= 0 ? t('Up {amount} since last month. 📈', { amount: money(ch.change) }) : t('Down {amount} since last month.', { amount: money(-ch.change) })}` : '') +
+      (items.length ? '' : `\n${t('Add a home, car, loans or cards you owe on under Dashboard › Net worth, so it’s complete.')}`),
+    traces: [
+      makeTrace(
+        t('Net worth'),
+        t('Cash + savings goals + investments (at what you paid) + things you own − what you owe.'),
+        [],
+        [...n.parts.map((x) => `${t(x.name)}: ${money(x.amount)}`), ...n.assets.map((x) => `${x.name}: ${money(x.amount)}`), ...n.debts.map((x) => `${x.name}: −${money(x.amount)}`)],
+        null,
+        { value: n.value },
+      ),
+    ],
+    links: [{ label: t('Open Net worth'), run: () => app.go?.('dashboard', { tab: 'networth' }) }],
+  }
+}
+
+function debtReply(s, app) {
+  const debts = (app.netWorth?.items ?? []).filter((x) => x.kind === 'debt')
+  if (!debts.length)
+    return {
+      text: t('Add your debts under **Dashboard › Net worth** (the balance, interest rate and minimum payment of each) and I’ll work out when you’ll be debt-free, and the cheapest order to pay them off.'),
+      links: [{ label: t('Open Net worth'), run: () => app.go?.('dashboard', { tab: 'networth' }) }],
+    }
+  const m = s.match(/\$?\s?(\d[\d,]*)\s*(?:extra|more|a month|per month|\/ ?month|monthly)/)
+  const extra = m ? Number(m[1].replace(/,/g, '')) : 0
+  const { avalanche, snowball, saves } = compareMethods(debts, extra)
+  if (!avalanche.ok)
+    return { text: t('With these minimum payments the interest grows faster than you pay, so the debt never clears. Paying more each month is the only way out; try “debt plan with $200 extra a month”.') }
+  const now = app.now ?? new Date()
+  return {
+    text: [
+      extra ? t('Paying your minimums plus **{extra}** extra a month:', { extra: money(extra) }) : t('Paying just your minimums each month:'),
+      `• ${t('**Avalanche** (highest interest first): debt-free by **{date}**, {interest} in interest. Pay off {first} first.', { date: monthYear(debtFreeBy(avalanche.months, now)), interest: money(avalanche.interest), first: avalanche.order[0]?.name })}`,
+      `• ${t('**Snowball** (smallest balance first): debt-free by **{date}**, {interest} in interest. Pay off {first} first.', { date: monthYear(debtFreeBy(snowball.months, now)), interest: money(snowball.interest), first: snowball.order[0]?.name })}`,
+      saves > 0 ? t('The avalanche saves you **{amount}**.', { amount: money(saves) }) : t('Both cost about the same here, so pick whichever keeps you going.'),
+    ].join('\n'),
+    chips: [chip('Debt plan with $200 extra a month', 'With {amount} extra a month', { amount: money(200, '$', 0) })],
+    links: [{ label: t('Open Net worth'), run: () => app.go?.('dashboard', { tab: 'networth' }) }],
+  }
+}
+
 export function planIntent(s, app) {
   if (app.stats?.demo) return null
   // "how do I lock a budget?", "what is rollover?": explained by the help answers, not acted on
   const howTo = /^(how|where|what is|what are|what does|why)\b/.test(s) && !/\bhow much\b/.test(s)
+  if (/\b(weekly (recap|summary|review)|week in review|how was my week|my week|last week'?s? (recap|summary)|recap (of )?(my |last )?week|sum up (my |last )?week)\b/.test(s)) return recapReply(app)
+  if (/\bnet ?worth\b/.test(s) && !howTo) return worthReply(app)
+  if (/\b(debt[- ]free|pay ?off (my |all my )?(debts?|loans?|cards?)|debt (plan|payoff|planner|snowball|avalanche)|when will i (be )?(out of debt|debt[- ]free|pay off))\b/.test(s) && !/^(what is|what are|what'?s the difference)\b/.test(s) && !/\b(or|vs|versus) (sav|invest)|\b(save|saving|invest\w*) first\b/.test(s))
+    return debtReply(s, app)
   if (SPEND_Q.test(s)) return spendCheck(s, app)
   if (/\b(how much (is |money is |do i have )?(free|unlocked)( to spend)?|free (money|to spend)|what'?s locked|how much is locked|locked (money|budgets?))\b/.test(s)) return freeMoney(app)
   const act = howTo ? null : budgetAction(s, app)

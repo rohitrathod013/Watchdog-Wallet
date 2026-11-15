@@ -799,3 +799,111 @@ revoke all on function public.group_debts(uuid) from public, anon;
 revoke all on function public.simplify_group_debts(uuid) from public, anon;
 grant execute on function public.group_debts(uuid) to authenticated;
 grant execute on function public.simplify_group_debts(uuid) to authenticated;
+
+-- ==================================================================
+-- Shared goals: a group saves towards something together ("Goa trip, $2,000").
+-- Members see the goal and who put in what; changes only go through the
+-- functions below. Money someone adds comes out of their own balance in the
+-- app (recorded as savings); the goal keeps the record for everyone.
+-- ==================================================================
+create table if not exists public.group_goals (
+  id         uuid primary key default gen_random_uuid(),
+  group_id   uuid not null references public.groups (id) on delete cascade,
+  name       text not null check (char_length(name) between 1 and 60),
+  target     numeric(12, 2) not null check (target > 0 and target <= 1000000),
+  created_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists group_goals_group on public.group_goals (group_id);
+create table if not exists public.group_goal_contributions (
+  id         uuid primary key default gen_random_uuid(),
+  goal_id    uuid not null references public.group_goals (id) on delete cascade,
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  amount     numeric(12, 2) not null check (amount > 0 and amount <= 10000),
+  created_at timestamptz not null default now()
+);
+create index if not exists group_goal_contributions_goal on public.group_goal_contributions (goal_id);
+
+alter table public.group_goals enable row level security;
+alter table public.group_goal_contributions enable row level security;
+drop policy if exists "members see group goals" on public.group_goals;
+create policy "members see group goals" on public.group_goals
+  for select using (public.is_member(group_id, auth.uid()));
+drop policy if exists "members see contributions" on public.group_goal_contributions;
+create policy "members see contributions" on public.group_goal_contributions
+  for select using (exists (select 1 from public.group_goals g where g.id = goal_id and public.is_member(g.group_id, auth.uid())));
+
+create or replace function public.create_group_goal(p_group uuid, p_name text, p_target numeric)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := auth.uid();
+  gid uuid;
+  title text := left(coalesce(trim(p_name), ''), 60);
+begin
+  if me is null then raise exception 'Not signed in'; end if;
+  if not public.is_member(p_group, me) then raise exception 'You''re not in this group'; end if;
+  if title = '' then raise exception 'Give the goal a name'; end if;
+  if p_target is null or p_target <= 0 or p_target > 1000000 then raise exception 'The target must be between 0.01 and 1,000,000'; end if;
+  insert into public.group_goals (group_id, name, target, created_by) values (p_group, title, round(p_target, 2), me) returning id into gid;
+  insert into public.messages (sender, group_id, kind, body) values (me, p_group, 'system', 'goalnew:' || title);
+  return gid;
+end;
+$$;
+
+create or replace function public.add_to_group_goal(p_goal uuid, p_amount numeric)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := auth.uid();
+  g public.group_goals;
+  cid uuid;
+  amt numeric(12, 2) := round(p_amount, 2);
+begin
+  if me is null then raise exception 'Not signed in'; end if;
+  select * into g from public.group_goals where id = p_goal;
+  if not found or not public.is_member(g.group_id, me) then raise exception 'That goal isn''t available'; end if;
+  if amt is null or amt <= 0 or amt > 10000 then raise exception 'Amount must be between 0.01 and 10,000'; end if;
+  insert into public.group_goal_contributions (goal_id, user_id, amount) values (p_goal, me, amt) returning id into cid;
+  insert into public.messages (sender, group_id, kind, body) values (me, g.group_id, 'system', 'goaladd:' || amt || '|' || g.name);
+  return cid;
+end;
+$$;
+
+-- the person who started it, or a group admin, can remove a goal
+create or replace function public.delete_group_goal(p_goal uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := auth.uid();
+  g public.group_goals;
+begin
+  select * into g from public.group_goals where id = p_goal;
+  if not found then raise exception 'That goal isn''t available'; end if;
+  if not (g.created_by = me or public.is_admin(g.group_id, me)) then raise exception 'Only the person who started it or an admin can remove it'; end if;
+  delete from public.group_goals where id = p_goal;
+  insert into public.messages (sender, group_id, kind, body) values (me, g.group_id, 'system', 'goaldel:' || g.name);
+end;
+$$;
+
+revoke all on function public.create_group_goal(uuid, text, numeric) from public, anon;
+revoke all on function public.add_to_group_goal(uuid, numeric) from public, anon;
+revoke all on function public.delete_group_goal(uuid) from public, anon;
+grant execute on function public.create_group_goal(uuid, text, numeric) to authenticated;
+grant execute on function public.add_to_group_goal(uuid, numeric) to authenticated;
+grant execute on function public.delete_group_goal(uuid) to authenticated;
+
+-- ==================================================================
+-- Push notifications: each device that turned them on keeps one row here
+-- (the browser's push address and keys). Only its owner can see or change
+-- it; the push Edge Function reads them with the service key to send.
+-- ==================================================================
+create table if not exists public.push_subscriptions (
+  endpoint   text primary key,
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  p256dh     text not null,
+  auth       text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists push_subscriptions_user on public.push_subscriptions (user_id);
+alter table public.push_subscriptions enable row level security;
+drop policy if exists "own push subscriptions" on public.push_subscriptions;
+create policy "own push subscriptions" on public.push_subscriptions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

@@ -60,3 +60,11 @@ export const FEATURES = {
   /** Start with the small real-time drift in the balance switched on. */
   liveUpdates: true,
 }
+
+/**
+ * Push notifications when the app is closed. The public VAPID key only (it's meant to be public);
+ * the private key lives in Supabase secrets. Empty: the setting is hidden.
+ */
+export const PUSH = {
+  publicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY || '',
+}

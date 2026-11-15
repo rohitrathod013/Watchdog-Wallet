@@ -15,7 +15,7 @@ import { useApp } from '../lib/store'
 import { money } from '../lib/format'
 import { t } from '../lib/i18n'
 import { expenseCategories } from '../lib/stats'
-import { friendError, MAX_FRIEND_PAYMENT, MAX_GROUP, splitEqually } from '../lib/social'
+import { addToGroupGoal, createGroupGoal, deleteGroupGoal, friendError, loadGroupGoals, MAX_FRIEND_PAYMENT, MAX_GROUP, splitEqually } from '../lib/social'
 import { netText, paysText, settlePlan } from '../lib/settle'
 
 const QUICK = [10, 25, 50, 100]
@@ -569,6 +569,175 @@ export function SettleModal({ open, payload, onClose }) {
   return (
     <Modal open={open} onClose={onClose} title={t('Settle up')} sub={t('The fewest payments that clear the group')} width={560}>
       {open ? <SettleBody payload={payload} onClose={onClose} /> : null}
+    </Modal>
+  )
+}
+
+/* ---------------- shared goals in a group ---------------- */
+function GoalsBody({ payload }) {
+  const { social, balance, addTransaction, toast } = useApp()
+  const group = social.groups.find((g) => g.id === payload?.group)
+  const [goals, setGoals] = useState(null)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const [name, setName] = useState('')
+  const [target, setTarget] = useState('')
+  const [amounts, setAmounts] = useState({})
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    if (!group) return undefined
+    let alive = true
+    loadGroupGoals(group.id)
+      .then((list) => alive && setGoals(list))
+      .catch((err) => alive && setError(/group_goals|relation|PGRST20|schema cache/i.test(err?.message ?? '') ? 'setup' : friendError(err)))
+    return () => {
+      alive = false
+    }
+  }, [group?.id, tick]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!group) return <p className="tool-sum">{t('That group isn’t available any more.')}</p>
+  if (error === 'setup')
+    return <p className="tool-sum">{t('Shared goals need a one-time setup: run the latest supabase/schema.sql in your Supabase project, then try again.')}</p>
+  const first = (id) => (id === social.me ? t('You') : social.nameOf(id).split(' ')[0])
+  const me = group.members.find((m) => m.me)
+
+  const create = async (e) => {
+    e.preventDefault()
+    if (!name.trim() || !(Number(target) > 0) || busy) return
+    setBusy(true)
+    try {
+      await createGroupGoal({ group: group.id, name: name.trim(), target: Number(target) })
+      setName('')
+      setTarget('')
+      setAdding(false)
+      setTick((n) => n + 1)
+      social.refresh?.()
+    } catch (err) {
+      setError(friendError(err))
+    }
+    setBusy(false)
+  }
+  const add = async (g) => {
+    const n = Number(amounts[g.id])
+    if (!(n > 0) || busy) return
+    if (n > balance) return setError(t('That is more than your balance of {amount}.', { amount: money(balance) }))
+    setBusy(true)
+    try {
+      await addToGroupGoal(g.id, n)
+      // the money leaves your own balance, saved for the group
+      addTransaction({ name: `${g.name} (${group.name})`, amount: -n, category: 'Savings', method: 'Shared goal' })
+      setAmounts((a) => ({ ...a, [g.id]: '' }))
+      setTick((k) => k + 1)
+      social.refresh?.()
+      if (g.saved + n >= g.target) toast(t('Goal reached! 🎉'), t('{name} is fully funded.', { name: g.name }), { icon: 'trophy' })
+    } catch (err) {
+      setError(friendError(err))
+    }
+    setBusy(false)
+  }
+  const remove = async (g) => {
+    if (busy) return
+    setBusy(true)
+    try {
+      await deleteGroupGoal(g.id)
+      setTick((k) => k + 1)
+      social.refresh?.()
+    } catch (err) {
+      setError(friendError(err))
+    }
+    setBusy(false)
+  }
+
+  return (
+    <div className="form">
+      {error ? (
+        <p className="auth-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {goals === null ? <div className="friends-loading settle-loading" role="status" aria-label={t('Loading…')} /> : null}
+      {goals?.length === 0 && !adding ? <p className="tool-sum">{t('Save towards something together: a trip, a gift, a new sofa for the flat. Everyone sees the progress and who put in what.')}</p> : null}
+      {goals?.map((g) => {
+        const pct = Math.min(100, Math.round((g.saved / g.target) * 100))
+        const canRemove = g.createdBy === social.me || me?.role === 'admin'
+        return (
+          <section key={g.id} className="gg-goal">
+            <div className="gg-top">
+              <b>{g.name}</b>
+              <span>
+                {money(g.saved)} <em>{t('of {amount}', { amount: money(g.target) })}</em>
+              </span>
+            </div>
+            <div className="meter">
+              <i style={{ '--p': `${pct}%` }} />
+            </div>
+            {g.byPerson.length ? (
+              <p className="gg-who">{g.byPerson.map(([id, amt]) => `${first(id)} ${money(amt)}`).join(' · ')}</p>
+            ) : (
+              <p className="gg-who">{t('Nobody has added money yet.')}</p>
+            )}
+            {g.saved < g.target ? (
+              <div className="gg-add">
+                <input
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={amounts[g.id] ?? ''}
+                  onChange={(e) => setAmounts((a) => ({ ...a, [g.id]: e.target.value.replace(/[^\d.]/g, '') }))}
+                  aria-label={t('Amount to add to {name}', { name: g.name })}
+                />
+                <button type="button" className="btn solid sm" disabled={busy || !(Number(amounts[g.id]) > 0)} onClick={() => add(g)}>
+                  {t('Add money')}
+                </button>
+                {canRemove ? (
+                  <button type="button" className="btn sm" disabled={busy} onClick={() => remove(g)}>
+                    {t('Remove')}
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <p className="gg-done">🎉 {t('Fully funded')}</p>
+            )}
+          </section>
+        )
+      })}
+      {adding ? (
+        <form className="form rule-form" onSubmit={create}>
+          <div className="field-row">
+            <label className="field">
+              <span>{t('Goal')}</span>
+              <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder={t('Goa trip, Mum’s birthday…')} autoFocus />
+            </label>
+            <label className="field">
+              <span>{t('Target')}</span>
+              <input inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value.replace(/[^\d.]/g, ''))} placeholder="0.00" />
+            </label>
+          </div>
+          <div className="budget-form-btns">
+            <button type="button" className="btn" onClick={() => setAdding(false)}>
+              {t('Cancel')}
+            </button>
+            <button type="submit" className="btn solid" disabled={busy || !name.trim() || !(Number(target) > 0)}>
+              {t('Start the goal')}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button type="button" className="btn solid lg block" onClick={() => setAdding(true)}>
+          <Icon name="target" size={18} />
+          {t('New shared goal')}
+        </button>
+      )}
+      <p className="tool-sum">{t('Money you add comes out of your own balance, recorded as savings. Removing a goal doesn’t move money back.')}</p>
+    </div>
+  )
+}
+
+export function GroupGoalsModal({ open, payload, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose} title={t('Shared goals')} sub={t('Save towards something together')} width={520}>
+      {open ? <GoalsBody payload={payload} /> : null}
     </Modal>
   )
 }

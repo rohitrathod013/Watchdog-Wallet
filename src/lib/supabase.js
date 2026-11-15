@@ -38,6 +38,9 @@ export const SAVED_KEYS = [
   'reminders',
   'cards',
   'terms',
+  'netWorth',
+  'incomeSplit',
+  'recapWeek',
 ]
 
 /** Load this user's saved dashboard, or null if they have none yet. */

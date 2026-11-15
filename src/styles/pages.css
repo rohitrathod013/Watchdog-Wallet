@@ -2784,3 +2784,168 @@
   line-height: 1.6;
   color: var(--ink-2);
 }
+
+/* ---------------- net worth and the debt planner ---------------- */
+.nw-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.nw-top strong {
+  font-size: clamp(32px, 4vw, 44px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.nw-top strong.neg {
+  color: var(--red);
+}
+.nw-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.nw-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 2px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+}
+.nw-list li:first-child {
+  border-top: 0;
+}
+.nw-list li > span:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.nw-list li small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+.nw-list li b {
+  font-variant-numeric: tabular-nums;
+}
+.nw-list li.debt b {
+  color: var(--red);
+}
+.nw-acts {
+  display: flex;
+  gap: 4px;
+}
+.nw-form {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+}
+.dp-extra {
+  max-width: 150px;
+}
+.dp-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+.dp-col {
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--soft);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dp-col.best {
+  background: var(--accent-soft);
+}
+.dp-col h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.dp-col small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.dp-col strong {
+  margin-top: 8px;
+  font-size: 20px;
+}
+.dp-col > span {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.dp-col ol {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.dp-col ol em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 12px;
+}
+.dp-stuck {
+  margin: 8px 0 0;
+  color: var(--red);
+  font-size: 13px;
+}
+@media (max-width: 560px) {
+  .dp-cols {
+    grid-template-columns: 1fr;
+  }
+}
+/* income split */
+.split-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.split-cats .chip {
+  cursor: pointer;
+}
+.split-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.split-rows li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.split-rows select {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line-2);
+  background: var(--card);
+  color: var(--ink);
+}
+.split-pct {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+.split-pct input {
+  width: 64px;
+  height: 42px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line-2);
+  background: var(--card);
+  color: var(--ink);
+  text-align: right;
+}
+.tool-sum.err {
+  color: var(--red);
+}

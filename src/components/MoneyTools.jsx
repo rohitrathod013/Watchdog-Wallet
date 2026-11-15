@@ -14,6 +14,7 @@ import { expenseCategories, INCOME_CATEGORIES } from '../lib/stats'
 import { EVERY, EVERY_LABEL, monthlyTotal } from '../lib/recurring'
 import { isDuplicate, MAX_ROWS, readStatement, readStatementText } from '../lib/importCsv'
 import { modelFor, predict } from '../lib/ml/categorize.js'
+import { INCOME_KINDS, planSplit, totalPercent } from '../lib/incomeSplit'
 
 /* ---------------- repeating transactions ---------------- */
 function RecurringBody() {
@@ -365,6 +366,97 @@ export function ImportModal({ open, payload, onClose }) {
   return (
     <Modal open={open} onClose={onClose} title={t('Import a bank statement')} sub={t('Add many transactions at once from a CSV file')} width={640}>
       {open ? <ImportBody payload={payload} onClose={onClose} /> : null}
+    </Modal>
+  )
+}
+
+/* ---------------- income split ---------------- */
+function SplitBody({ onClose }) {
+  const { incomeSplit, setIncomeSplit, pots, goals } = useApp()
+  // a first rule starts switched on; an existing one keeps its setting
+  const [on, setOn] = useState(incomeSplit?.parts?.length ? Boolean(incomeSplit.on) : true)
+  const [cats, setCats] = useState(incomeSplit?.categories?.length ? incomeSplit.categories : ['Salary'])
+  const [parts, setParts] = useState(incomeSplit?.parts?.length ? incomeSplit.parts : [])
+  const targets = [...pots.map((p) => ({ kind: 'pot', id: p.id, name: p.name })), ...goals.filter((g) => g.saved < g.target).map((g) => ({ kind: 'goal', id: g.id, name: g.name }))]
+  const total = totalPercent(parts)
+  const preview = planSplit(1000, cats[0] ?? 'Salary', { on: true, categories: cats, parts }, pots, goals)
+  const ok = total <= 100 && parts.every((p) => p.target && Number(p.percent) > 0)
+  const set = (i, patch) => setParts((list) => list.map((p, k) => (k === i ? { ...p, ...patch } : p)))
+  const add = () => {
+    const free = targets.find((x) => !parts.some((p) => p.target === x.id)) ?? targets[0]
+    if (free) setParts((list) => [...list, { id: Math.random().toString(36).slice(2, 9), kind: free.kind, target: free.id, percent: 10 }])
+  }
+  const save = () => {
+    if (!ok) return
+    setIncomeSplit({ on, categories: cats, parts: parts.map((p) => ({ ...p, percent: Number(p.percent) })) })
+    onClose()
+  }
+  if (!targets.length)
+    return <p className="tool-sum">{t('Make a pot or a savings goal first (Wallet › New pot, or Add Goal on the Dashboard), then split your pay into it.')}</p>
+  return (
+    <div className="form">
+      <label className="budget-lock-opt">
+        <input type="checkbox" checked={on} onChange={(e) => setOn(e.target.checked)} />
+        <span>
+          <b>{t('Split my pay automatically')}</b>
+          <small>{t('When income lands, these percentages move into your pots and goals.')}</small>
+        </span>
+      </label>
+      <div className="split-cats">
+        {INCOME_KINDS.map((k) => (
+          <label key={k} className={`chip ${cats.includes(k) ? 'on' : ''}`}>
+            <input type="checkbox" hidden checked={cats.includes(k)} onChange={(e) => setCats((list) => (e.target.checked ? [...list, k] : list.filter((x) => x !== k)))} />
+            {t(k)}
+          </label>
+        ))}
+      </div>
+      <ul className="split-rows">
+        {parts.map((p, i) => (
+          <li key={p.id}>
+            <select
+              value={`${p.kind}:${p.target}`}
+              onChange={(e) => {
+                const [kind, target] = e.target.value.split(':')
+                set(i, { kind, target })
+              }}
+              aria-label={t('Where it goes')}
+            >
+              {targets.map((x) => (
+                <option key={`${x.kind}:${x.id}`} value={`${x.kind}:${x.id}`}>
+                  {x.kind === 'goal' ? `🎯 ${t(x.name)}` : `🪙 ${t(x.name)}`}
+                </option>
+              ))}
+            </select>
+            <span className="split-pct">
+              <input inputMode="decimal" value={p.percent} onChange={(e) => set(i, { percent: e.target.value.replace(/[^\d.]/g, '') })} aria-label={t('Percent')} />%
+            </span>
+            <button type="button" className="icon-btn soft" onClick={() => setParts((list) => list.filter((_, k) => k !== i))} aria-label={t('Remove')}>
+              <Icon name="trash" size={14} />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button type="button" className="btn" onClick={add}>
+        <Icon name="plus" size={15} stroke={2} />
+        {t('Add a pot or goal')}
+      </button>
+      <p className={`tool-sum ${total > 100 ? 'err' : ''}`}>
+        {total > 100
+          ? t('That’s {pct}%: the parts can add up to 100% at most.', { pct: total })
+          : t('{pct}% is split; the other {rest}% stays unassigned.', { pct: total, rest: Math.round((100 - total) * 10) / 10 })}
+        {preview.length ? ` ${t('From $1,000 of pay: {list}.', { list: preview.map((m) => `${t(m.name)} ${money(m.amount)}`).join(', ') })}` : ''}
+      </p>
+      <button type="button" className="btn solid lg block" disabled={!ok} onClick={save}>
+        {t('Save')}
+      </button>
+    </div>
+  )
+}
+
+export function IncomeSplitModal({ open, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose} title={t('Split my income')} sub={t('Pay goes into pots and goals by itself')} width={520}>
+      {open ? <SplitBody onClose={onClose} /> : null}
     </Modal>
   )
 }

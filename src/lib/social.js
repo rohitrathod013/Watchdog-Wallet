@@ -51,6 +51,27 @@ export const markGroupRead = (group) => rpc('mark_group_read', { p_group: group 
 // settle up: every open debt in a group (members only), and replacing them with the fewest payments
 export const groupDebts = (group) => rpc('group_debts', { p_group: group })
 export const simplifyGroupDebts = (group) => rpc('simplify_group_debts', { p_group: group })
+// shared goals: a group saving towards something together
+export const createGroupGoal = ({ group, name, target }) => rpc('create_group_goal', { p_group: group, p_name: name, p_target: target })
+export const addToGroupGoal = (goal, amount) => rpc('add_to_group_goal', { p_goal: goal, p_amount: amount })
+export const deleteGroupGoal = (goal) => rpc('delete_group_goal', { p_goal: goal })
+/** A group's goals with every contribution (members only, by the security rules). */
+export async function loadGroupGoals(group) {
+  const supabase = await getSupabase()
+  const { data, error } = await supabase
+    .from('group_goals')
+    .select('id, name, target, created_by, created_at, group_goal_contributions(user_id, amount, created_at)')
+    .eq('group_id', group)
+    .order('created_at')
+  if (error) throw error
+  return (data ?? []).map((g) => {
+    const list = g.group_goal_contributions ?? []
+    const byPerson = new Map()
+    for (const c of list) byPerson.set(c.user_id, Math.round(((byPerson.get(c.user_id) ?? 0) + Number(c.amount)) * 100) / 100)
+    const saved = Math.round(list.reduce((s, c) => s + Number(c.amount) * 100, 0)) / 100
+    return { id: g.id, name: g.name, target: Number(g.target), createdBy: g.created_by, saved, byPerson: [...byPerson].sort((a, b) => b[1] - a[1]) }
+  })
+}
 
 export async function sendGroupChat(group, body) {
   const supabase = await getSupabase()
@@ -164,6 +185,12 @@ export function systemText(m, me, nameOf) {
   if (what === 'removed') return t('{name} removed {other}', { name: who, other })
   if (what === 'left') return t('{name} left', { name: who })
   if (what === 'renamed') return t('{name} renamed the group to “{title}”', { name: who, title: arg })
+  if (what === 'goalnew') return t('{name} started a shared goal: “{title}”', { name: who, title: arg })
+  if (what === 'goaldel') return t('{name} removed the shared goal “{title}”', { name: who, title: arg })
+  if (what === 'goaladd') {
+    const [amount, title] = arg.split(/\|(.*)/s)
+    return t('{name} added {amount} to “{title}”', { name: who, amount: `$${Number(amount).toFixed(2)}`, title })
+  }
   if (what === 'simplified') {
     const [before, after] = arg.split(':').map(Number)
     return after === 1

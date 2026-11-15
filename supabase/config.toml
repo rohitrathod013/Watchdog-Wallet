@@ -10,3 +10,7 @@ verify_jwt = false
 # Grace's LLM answers: checks the signed-in user itself.
 [functions.grace]
 verify_jwt = false
+
+# Push notifications: checks PUSH_WEBHOOK_SECRET itself.
+[functions.push]
+verify_jwt = false

@@ -1355,6 +1355,10 @@ export function Chat({ peer, onBack, docked = false, onClose }) {
                 <Icon name="check" size={16} />
                 <span>{t('Settle up')}</span>
               </button>
+              <button type="button" className="ch-act extra" onClick={() => openModal('groupGoals', { group: peer.id })} title={t('Shared goals')}>
+                <Icon name="target" size={16} />
+                <span>{t('Goals')}</span>
+              </button>
               <button
                 type="button"
                 className="ch-act more"

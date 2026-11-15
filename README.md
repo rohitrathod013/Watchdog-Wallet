@@ -28,6 +28,8 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 - **Add transaction**: record money in or out with a description, category and date.
 - **Repeating transactions**: set up rent, salary or a subscription once (weekly, every 2 weeks, monthly or yearly) and it's added by itself on its date, with your balance following. Pick **Repeat** when adding a transaction, or manage them all under **Repeating** on the Transactions tab: pause, resume or remove. A rule for the 31st runs on the last day of shorter months. If you were away, missed ones are caught up (24 at most per rule); resuming a paused rule skips what it missed.
 - **Import a bank statement**: **Import** on the Transactions tab reads a CSV export from your bank, in the browser, without uploading it. It finds the date, description and amount columns (one signed amount, or separate money out and money in), copes with day-first or month-first dates and 1,234.56 or 1.234,56 numbers, suggests a category for each row, and unticks rows that look like ones you already have. You review everything before it's added, and can choose whether the balance changes too.
+- **Import a PDF statement too**: the same window takes PDF statements, read on your device; dated lines with amounts become rows, and the running balance tells money in from money out. CSV is still the most reliable.
+- **Split my income**: **Split pay** on the Pots card sets percentages of your pay that go into pots and goals by themselves when salary (or other income you pick) lands, whether you add it by hand or it arrives as a repeating transaction. A goal only takes what it still needs; the rest stays unassigned.
 - **Pay by card**: top up your balance with a card through Stripe Checkout (see [Card payments](#card-payments-stripe)).
 - **Add contact**, **Add bill** and **Add Goal**.
 - **Send money** and **request money** from your contacts. **Pay bills** and **top up goals** in one tap.
@@ -62,6 +64,7 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
   - the same chat as with one friend (photos, videos, files, voice notes, typing…), with each person's name on their messages and **Seen by** on yours;
   - **Split a bill** with the group: every member gets a request for their share and pays it right in the group, even if they aren't your friend directly. The person who paid sees who has paid and who hasn't;
   - **Settle up**: after a few splits, a group's debts turn into the fewest payments that clear them. The window shows what each person is owed or owes, today's payments and the simpler plan (for example, Ana pays Bob, Bob pays Carol, Carol pays Ana becomes one payment, or none). Nobody ends up owing or being owed a different amount; only who pays whom changes. The old requests are cancelled, the new ones appear in the group with a **Pay** button, and the chat says what happened;
+  - **Shared goals**: **Goals** in a group chat lets the group save towards something together (a trip, a gift). Each person adds money from their own balance (recorded as savings); everyone sees the progress and who put in what, and the chat says when someone adds to it;
   - admins can rename the group and add or remove people; anyone can leave, and if the last admin leaves, the longest member takes over.
 - Grace's payment guard (large-payment check, first-payment warning) works on friend payments too.
 
@@ -81,6 +84,7 @@ Investing here is **tracked, not traded**: Watchdog Wallet records what you boug
   - **Overview**: balance, earnings, KPIs, savings goals, cash flow, spending, quick transfer, recent transactions, bills, budget health and the spending heatmap.
   - **Transactions**: search, filters, sorting and CSV export.
   - **Subscriptions**: everything you pay for on repeat in one list: the repeating transactions you set up plus repeat charges Grace spotted in your history. Monthly and yearly cost, next charge date and price rises. **Make it repeating** turns a spotted charge into a rule, and **Remind me to cancel** sends a notification 2 days before the next charge.
+  - **Net worth**: cash, savings goals and investments (at what you paid), plus a home, car or pension you add, minus loans and cards you owe on, with the change since last month and a snapshot each month for the trend chart. The **Debt payoff planner** takes each debt's interest rate and minimum payment plus any extra you can pay each month, and compares the **avalanche** (highest rate first, the cheapest) with the **snowball** (smallest balance first, the quickest wins): the debt-free month, the interest each costs, and the order debts clear.
   - **Reports**: income by source and downloadable statements.
 - **Analytics**: KPI sparklines, cash flow, earnings, spending and the heatmap.
 - **Transfer**: quick transfer, recent transfers and transfer limits.
@@ -114,6 +118,10 @@ Grace wears a guard cap and a gold shield badge, and she guards the account (**G
 - **Warns before you ask**: bills you can't cover, budgets near the limit, duplicate charges and subscription price rises show up when the chat opens.
 - **Forecasts** your end-of-month balance from bills still due and your usual daily spending, and lists your **subscriptions** with monthly and yearly totals.
 - **Knows your locked budgets, rollover and repeats**: "can I spend $80 on dinner?" checks free money against what's locked; "how much is free to spend?", "what's coming out this week?", "what carried over?"; and with a confirm step, "lock my groceries budget" or "turn on rollover for groceries".
+- **Weekly recap**: once a week a notification sums up the week before (spending, the change from the week before, where most of it went); ask "how was my week?" for the full version, with the biggest payment, anything unusual, budgets near their limit and what's due this week.
+- **Net worth and debts**: "what's my net worth?" and "when will I be debt-free with $200 extra a month?".
+- **Reads your files**: the paperclip next to the message box takes a photo or screenshot of a receipt or bill, a PDF (receipt, bill or bank statement) or a CSV statement; you can also drop or paste a file. Receipts and bills become an expense to confirm; statements open in the import window to review.
+- **Answers common money questions herself**: credit scores, Roth IRAs, 401(k)s, paying off debt or saving first, compound interest, index funds, inflation, the 50/30/20 budget and more, so they work even when the AI model is busy.
 - **Plans**: "can I afford a $1,200 trip in March?" answers with the trade-off; "save $5k by June" gives a weekly amount, which budget to trim, and can create the goal.
 - **Takes actions with a confirm step**: record spending or income from a sentence ("I spent $300 on dinner"), send or request money, pay bills, move money between pots, top up goals and change budgets. Several in a row work too ("move $200 to savings, then pay the electric bill, then tell me what's left"), and "make it $80" changes the last amount.
 - **Helps with the site** ("where do I export a CSV?") and explains terms like fees, overdrafts, APR, pending or chargebacks.
@@ -146,6 +154,7 @@ English, Español, Français, Deutsch and العربية. Everything is translat
 - Reduce motion setting, and respect for the system reduced-motion preference.
 - Works on phones (tested down to 360px wide), tablets and desktops.
 - **Installable**: add it to your home screen (Chrome: the install icon in the address bar; iPhone: Share > Add to Home Screen) and it opens like an app, with its own icon. A service worker (`public/sw.js`) keeps the app's files, so it **opens without a connection**. Your account's data is never cached by the service worker; instead the app keeps a copy of it on the device after each load and save, and with no connection it opens that copy with a banner saying when it's from, read only until you're back online. Signing out, deactivating or deleting the account removes the copy.
+- **Push notifications** (Settings > Notifications when closed, per device): new messages, friend requests, money requests and payments received, and a reminder the day before a bill is due, even when the app is closed. Sent by the `push` Edge Function through standard Web Push; each device's push address is saved to the account and removed when push is switched off.
 
 ## Tech stack
 
@@ -186,6 +195,8 @@ Crypto prices and exchange rates come from free public APIs. Stock prices come f
 ### Grace's LLM
 
 Grace's own rules handle every action. For questions they don't recognise, the chat calls a Supabase Edge Function ([`supabase/functions/grace`](supabase/functions/grace/index.ts)) that keeps the API key on the server and passes the question to Google Gemini (the newest Gemini Flash, falling back to other Flash models when one is busy). Only signed-in accounts use it; the function checks the login itself.
+
+If Gemini is over its free limit or busy, the question goes to a backup provider (Groq's free Llama models) instead, so Grace keeps answering.
 
 What the model sees: the question, the last 10 messages, and a few lines about the account (balance, this month's totals, budgets, goals, unpaid bills, pots and the latest 8 transactions), with any run of 4 or more digits hidden. If the model is busy or unavailable, Grace gives her usual answer.
 
