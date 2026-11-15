@@ -15,6 +15,8 @@ import { t } from './i18n'
 import {
   acceptConnection,
   connectWith,
+  groupDebts,
+  simplifyGroupDebts,
   createSplit,
   ensureProfile,
   inviteLink,
@@ -276,6 +278,9 @@ export function useSocial({ enabled, userId, userName, transactions, since, setB
         await ensureProfile(name || userName).catch(() => null)
         refresh()
       },
+      // settle up: read every open debt in the group, or replace them with the fewest payments
+      groupDebts: (group) => groupDebts(group),
+      settleGroup: after(simplifyGroupDebts),
       readGroup: async (group) => {
         const g = shaped?.groups.find((x) => x.id === group)
         if (!g?.unread || reading.current.has(group)) return

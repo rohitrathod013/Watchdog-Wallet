@@ -36,6 +36,8 @@ export const SAVED_KEYS = [
   'categoryCorrections',
   'recurring',
   'reminders',
+  'cards',
+  'terms',
 ]
 
 /** Load this user's saved dashboard, or null if they have none yet. */

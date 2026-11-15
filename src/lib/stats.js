@@ -5,7 +5,6 @@
    ------------------------------------------------------------------ */
 import { isoDay, MONTHS } from './format'
 import * as seed from '../data/seed'
-import { BRAND } from '../config'
 
 const DAY = 86400000
 
@@ -332,12 +331,29 @@ export function demoStats(budgets) {
   }
 }
 
-/** The one card a new account has: a virtual card in the user's name. */
-export function accountCards(user) {
-  const digits = (user.id ?? '').replace(/\D/g, '').padEnd(4, '7').slice(-4)
-  const now = new Date()
-  const exp = `${String(now.getMonth() + 1).padStart(2, '0')}/${String((now.getFullYear() + 4) % 100).padStart(2, '0')}`
-  return [{ id: 'virtual', skin: 'onyx', label: `${BRAND.name} Virtual`, number: `5412 0000 0000 ${digits}`, holder: user.name, exp, cvv: '•••' }]
+/* ---- the user's own cards: they add them; only a name and the last 4 digits are kept ---- */
+export const CARD_NETWORKS = ['visa', 'mastercard', 'amex', 'rupay', 'other']
+export const CARD_SKINS = ['onyx', 'ember', 'ocean']
+/** The last 4 digits of a card (the demo's sample cards have a full made-up number). */
+export const lastFour = (card) => card?.last4 ?? String(card?.number ?? '').slice(-4)
+
+/** A card the user typed in, cleaned up; null if it isn't usable. Never keeps more than the last 4 digits. */
+export function makeCard({ id, label, last4, network = 'other', kind = 'debit', exp = '', skin = 'onyx' }) {
+  const digits = String(last4 ?? '').replace(/\D/g, '')
+  const name = String(label ?? '').trim().slice(0, 30)
+  if (!name || digits.length !== 4) return null
+  const e = String(exp ?? '').trim()
+  const m = e.match(/^(\d{1,2})\s*\/\s*(\d{2})$/)
+  if (e && !(m && +m[1] >= 1 && +m[1] <= 12)) return null
+  return {
+    id,
+    label: name,
+    last4: digits,
+    network: CARD_NETWORKS.includes(network) ? network : 'other',
+    kind: kind === 'credit' ? 'credit' : 'debit',
+    exp: m ? `${m[1].padStart(2, '0')}/${m[2]}` : '',
+    skin: CARD_SKINS.includes(skin) ? skin : 'onyx',
+  }
 }
 
 /** "Nov 4" and days left for a bill saved with a dueDate (YYYY-MM-DD). */

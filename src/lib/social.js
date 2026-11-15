@@ -48,6 +48,9 @@ export const removeGroupMember = (group, user) => rpc('remove_group_member', { p
 export const leaveGroup = (group) => rpc('leave_group', { p_group: group })
 export const renameGroup = (group, name) => rpc('rename_group', { p_group: group, p_name: name })
 export const markGroupRead = (group) => rpc('mark_group_read', { p_group: group })
+// settle up: every open debt in a group (members only), and replacing them with the fewest payments
+export const groupDebts = (group) => rpc('group_debts', { p_group: group })
+export const simplifyGroupDebts = (group) => rpc('simplify_group_debts', { p_group: group })
 
 export async function sendGroupChat(group, body) {
   const supabase = await getSupabase()
@@ -161,6 +164,14 @@ export function systemText(m, me, nameOf) {
   if (what === 'removed') return t('{name} removed {other}', { name: who, other })
   if (what === 'left') return t('{name} left', { name: who })
   if (what === 'renamed') return t('{name} renamed the group to “{title}”', { name: who, title: arg })
+  if (what === 'simplified') {
+    const [before, after] = arg.split(':').map(Number)
+    return after === 1
+      ? t('{name} settled up the group: {before} payments became 1', { name: who, before })
+      : after
+        ? t('{name} settled up the group: {before} payments became {after}', { name: who, before, after })
+        : t('{name} settled up the group: everyone’s square', { name: who })
+  }
   return m.body
 }
 

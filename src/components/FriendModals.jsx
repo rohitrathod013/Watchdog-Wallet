@@ -5,7 +5,7 @@
    run in Supabase; these windows add the balance check and Grace's
    payment guard on top.
    ------------------------------------------------------------------ */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Icon from './Icon'
 import { Persona } from './Brand'
 import { Modal, Success } from './ui'
@@ -16,6 +16,7 @@ import { money } from '../lib/format'
 import { t } from '../lib/i18n'
 import { expenseCategories } from '../lib/stats'
 import { friendError, MAX_FRIEND_PAYMENT, MAX_GROUP, splitEqually } from '../lib/social'
+import { netText, paysText, settlePlan } from '../lib/settle'
 
 const QUICK = [10, 25, 50, 100]
 const round = (n) => Math.round(n * 100) / 100
@@ -428,6 +429,146 @@ export function GroupModal({ open, onClose }) {
       width={500}
     >
       {open ? <GroupBody onClose={onClose} /> : null}
+    </Modal>
+  )
+}
+
+/* ---------------- settle up a group ----------------
+   Everyone's open debts in the group, and the fewest payments that clear
+   them. Nobody ends up owing or being owed a different amount. */
+function SettleBody({ payload, onClose }) {
+  const { social, toast } = useApp()
+  const group = social.groups.find((g) => g.id === payload?.group)
+  const [debts, setDebts] = useState(null) // null while loading
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(null)
+
+  useEffect(() => {
+    if (!group) return undefined
+    let alive = true
+    social
+      .groupDebts(group.id)
+      .then((rows) => alive && setDebts(rows ?? []))
+      .catch((err) => alive && setError(/group_debts|PGRST202|function/i.test(err?.message ?? '') ? 'setup' : friendError(err)))
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [group?.id])
+
+  if (!group) return <p className="tool-sum">{t('That group isn’t available any more.')}</p>
+  if (done !== null)
+    return (
+      <Success
+        title={t('Settled up')}
+        body={
+          done === 1
+            ? t('1 payment now clears everything. It can be paid in the group chat.')
+            : done
+              ? t('{n} payments now clear everything. Everyone can pay their part in the group chat.', { n: done })
+              : t('Everyone’s square.')
+        }
+      />
+    )
+  if (error === 'setup')
+    return (
+      <p className="tool-sum">
+        {t(
+          'Settle up needs a one-time setup: run the latest supabase/schema.sql in your Supabase project (SQL Editor > New query > paste > Run), then try again.',
+        )}
+      </p>
+    )
+  if (error)
+    return (
+      <p className="auth-error" role="alert">
+        {error}
+      </p>
+    )
+  if (!debts) return <div className="friends-loading settle-loading" role="status" aria-label={t('Loading…')} />
+
+  const plan = settlePlan(debts)
+  const first = (id) => social.nameOf(id).split(' ')[0]
+  const pays = (from, to) => paysText(t, from, to, social.me, first)
+  const count = (n, one, many) => (n === 1 ? t(one) : t(many, { n }))
+  const people = [...plan.net].filter(([, c]) => c !== 0).sort((a, b) => b[1] - a[1])
+
+  if (plan.square)
+    return (
+      <div className="form">
+        <div className="settle-square">
+          <Icon name="check" size={22} />
+          <b>{t('Everyone’s square')}</b>
+          <small>{t('Nobody in {name} owes anyone right now.', { name: group.name })}</small>
+        </div>
+      </div>
+    )
+
+  const go = async () => {
+    setBusy(true)
+    try {
+      const made = await social.settleGroup(group.id)
+      toast(t('Settled up'), t('{name}: {before} payments became {after}.', { name: group.name, before: plan.before, after: made }), {
+        icon: 'check',
+      })
+      setDone(made)
+      window.setTimeout(onClose, 1800)
+    } catch (err) {
+      setError(/simplify_group_debts|PGRST202|function/i.test(err?.message ?? '') ? 'setup' : friendError(err))
+    }
+    setBusy(false)
+  }
+
+  return (
+    <div className="form">
+      <div className="settle-net">
+        {people.map(([id, c]) => (
+          <span key={id} className={`${c > 0 ? 'in' : 'out'} ${id === social.me ? 'me' : ''}`}>
+            {netText(t, id, c, social.me, first, money)}
+          </span>
+        ))}
+      </div>
+      <div className="settle-cols">
+        <section>
+          <h3>{count(plan.before, 'Now: 1 payment', 'Now: {n} payments')}</h3>
+          <ul>
+            {debts.map((r) => (
+              <li key={r.id}>
+                {pays(r.payer, r.requester)} <b>{money(Number(r.amount))}</b>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section className="after">
+          <h3>{count(plan.after.length, 'After: 1 payment', 'After: {n} payments')}</h3>
+          <ul>
+            {plan.after.map((p, k) => (
+              <li key={k} className={p.from === social.me || p.to === social.me ? 'me' : ''}>
+                {pays(p.from, p.to)} <b>{money(p.amount)}</b>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+      <p className="tool-sum">
+        {plan.saves > 0
+          ? (plan.saves === 1 ? t('That’s 1 fewer payment.') : t('That’s {n} fewer payments.', { n: plan.saves })) +
+            ' ' +
+            t('Nobody ends up owing or being owed a different amount; only who pays whom changes. Everyone in the group sees the new payments.')
+          : t('This is already the fewest payments. Settling up would just replace them with the same ones.')}
+      </p>
+      <button type="button" className="btn solid lg block" disabled={busy || plan.saves <= 0} onClick={go}>
+        <Icon name="check" size={18} />
+        {busy ? t('Settling up…') : t('Settle up')}
+      </button>
+    </div>
+  )
+}
+
+export function SettleModal({ open, payload, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose} title={t('Settle up')} sub={t('The fewest payments that clear the group')} width={560}>
+      {open ? <SettleBody payload={payload} onClose={onClose} /> : null}
     </Modal>
   )
 }

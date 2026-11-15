@@ -61,6 +61,7 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
   - start one with **New group**, give it a name and pick friends;
   - the same chat as with one friend (photos, videos, files, voice notes, typing…), with each person's name on their messages and **Seen by** on yours;
   - **Split a bill** with the group: every member gets a request for their share and pays it right in the group, even if they aren't your friend directly. The person who paid sees who has paid and who hasn't;
+  - **Settle up**: after a few splits, a group's debts turn into the fewest payments that clear them. The window shows what each person is owed or owes, today's payments and the simpler plan (for example, Ana pays Bob, Bob pays Carol, Carol pays Ana becomes one payment, or none). Nobody ends up owing or being owed a different amount; only who pays whom changes. The old requests are cancelled, the new ones appear in the group with a **Pay** button, and the chat says what happened;
   - admins can rename the group and add or remove people; anyone can leave, and if the last admin leaves, the longest member takes over.
 - Grace's payment guard (large-payment check, first-payment warning) works on friend payments too.
 
@@ -84,7 +85,9 @@ Investing here is **tracked, not traded**: Watchdog Wallet records what you boug
 - **Analytics**: KPI sparklines, cash flow, earnings, spending and the heatmap.
 - **Transfer**: quick transfer, recent transfers and transfer limits.
 - **Friends**: friend requests, groups, your friends with who owes who, invite link, and a chat with each friend or group.
-- **Wallet**: your card, balances by currency and bills.
+- **Wallet**: your cards, balances by currency and bills.
+  - **My Cards** starts empty. **Add card** saves a name, debit or credit, the network (Visa, Mastercard, American Express, RuPay or other), an optional expiry and a colour, plus **only the last 4 digits**: the app never asks for or stores a full card number, PIN or CVV. Your cards appear under **Paid with** when you add an expense, so locked budgets apply to them. Flip a card to remove it (two taps).
+  - **Bank and card terms**: a link under My Cards and on the card top-up. They say plainly what the app is (a money tracker, not a bank), what's stored about a card, that locked budgets don't block a real card, how Stripe top-ups and money between friends work, and how your data is kept. You agree once before adding your first card or paying by card; the agreement and its version are saved with your account, and changing `TERMS_VERSION` in `src/lib/terms.js` asks everyone again. The terms text is in English; the buttons around it are translated.
 - **Budget**: category budgets with a one-tap smart rebalance.
   - Monthly limits per category. **Add a budget** for any of 23 spending categories (Groceries, Utilities, Subscriptions, Insurance, Education, Pets, Kids, Gifts & Donations, Debt Payments, Taxes and more) or make up your own, and remove any with two taps. Custom categories also appear when you add an expense or a bill, so their spending is counted.
   - **Rollover**: tap the circular arrow on a budget and whatever it doesn't use is added to next month's limit, counted from the month you turn it on (up to 12 months back). Overspending a month eats into what was carried, never below zero. The card shows the limit and the carried amount separately.
@@ -142,6 +145,7 @@ English, Español, Français, Deutsch and العربية. Everything is translat
 - Staggered entrances, counting numbers, self-drawing charts and sections that reveal as you scroll.
 - Reduce motion setting, and respect for the system reduced-motion preference.
 - Works on phones (tested down to 360px wide), tablets and desktops.
+- **Installable**: add it to your home screen (Chrome: the install icon in the address bar; iPhone: Share > Add to Home Screen) and it opens like an app, with its own icon. A service worker (`public/sw.js`) keeps the app's files, so it **opens without a connection**. Your account's data is never cached by the service worker; instead the app keeps a copy of it on the device after each load and save, and with no connection it opens that copy with a banner saying when it's from, read only until you're back online. Signing out, deactivating or deleting the account removes the copy.
 
 ## Tech stack
 
@@ -194,6 +198,7 @@ Finnhub's free plan covers US stocks and ETFs.
 Friends work between real accounts, so they live in Supabase. If you set up Supabase before this feature, run the latest [`supabase/schema.sql`](supabase/schema.sql) again (**SQL Editor > New query > paste > Run**). It's safe to run more than once: it only adds what's missing. Until then, the Friends page shows a setup note.
 
 - Row level security shows each person only their own friends, messages, requests and transfers. People who aren't friends can't see each other, chat or send money.
+- Settle up uses two more SQL functions: `group_debts` lets a group's members see every open debt in that group, and `simplify_group_debts` replaces them with the fewest payments on the server, inside one transaction, so two people can't do it at the same moment. If **Settle up** says it needs a one-time setup, run the latest `schema.sql` again.
 - Money only moves through SQL functions (`send_to_friend`, `request_from_friend`, `create_split`) that check both people are friends, the amount is between $0.01 and $10,000, and a request is still open, so it can't be paid twice.
 - Each transfer is added to both people's balances exactly once: the transaction keeps the transfer's id.
 - Live updates use Supabase Realtime; the script adds the tables to the `supabase_realtime` publication for you.
@@ -319,7 +324,8 @@ src/
     Cards.jsx          every dashboard card, with empty states
     Charts.jsx         earning bars, line chart, donut, heatmap, sparkline
     Modals.jsx         send, receive, request, add money (and pay by card), goal, transaction, contact, bill, invest
-    FriendModals.jsx   pay a friend, request from a friend, split a bill
+    FriendModals.jsx   pay a friend, request from a friend, split a bill, settle up a group
+    Terms.jsx          the bank and card terms, and the "I agree" line for card forms
     ChatMedia.jsx      photos, videos, files and voice notes in the chat, and the photo viewer
     MoneyTools.jsx     the Repeating and Import statement windows
     MessengerDock.jsx  the chat button and window on every page except Friends
@@ -353,6 +359,9 @@ src/
     chatPreview.js     the one-line preview of a chat's latest message, for chat lists
     recurring.js       repeating transactions: the rules, their next dates and what's due
     importCsv.js       reading a bank statement saved as CSV: columns, dates, amounts, duplicates
+    settle.js          settle up: a group's debts as the fewest payments (the app's preview; the server does the real change)
+    offline.js         the copy of the account kept on the device for opening without a connection
+    terms.js           which version of the bank and card terms is current, and whether the user agreed
     upcoming.js        what's due in a date range, and the list of everything paid on repeat
     planIntents.js     Grace's answers about locked budgets, rollover and what's coming up
     envelopes.js       locked budgets: what's set aside per category, and whether a card payment can go through
@@ -378,7 +387,7 @@ tests/                 Grace's questions, her voice, receipts, and the Friends a
 | `npm run build`   | Production build into `dist/`                                         |
 | `npm run preview` | Serve the production build at `/Watchdog-Wallet/`, like the live site |
 | `npm test`        | Grace's test set (240+ questions)                                     |
-| `npm run eval`    | Evaluate the on-device models on synthetic data, write `docs/ml-eval.md` |
+| `npm run eval`    | Evaluate the on-device models on synthetic data (and the detector's 500ms speed budget), write `docs/ml-eval.md` |
 | `npm run lint`    | ESLint                                                                |
 | `npm run format`  | Prettier                                                              |
 

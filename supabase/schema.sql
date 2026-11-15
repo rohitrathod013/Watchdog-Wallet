@@ -692,3 +692,110 @@ create policy "avatars: delete your own" on storage.objects
 drop policy if exists "avatars: list your own" on storage.objects;
 create policy "avatars: list your own" on storage.objects
   for select to authenticated using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ==================================================================
+-- Settle up: a group's open debts as the fewest payments.
+-- group_debts: every open request inside a group (between two current members),
+--   for the group's members to see (each person otherwise sees only their own).
+-- simplify_group_debts: cancels those requests and asks for the same money in
+--   as few payments as possible. Everyone's net position stays exactly the same:
+--   the person owed most is paid by the person who owes most, until all are square.
+--   The new requests belong to a "Settle up" split in the group, so they're paid
+--   in the group like any split. Any member can run it.
+-- ==================================================================
+create or replace function public.group_debts(p_group uuid)
+returns table (id uuid, requester uuid, payer uuid, amount numeric, note text, created_at timestamptz)
+language sql stable security definer set search_path = '' as $$
+  select r.id, r.requester, r.payer, r.amount, r.note, r.created_at
+    from public.money_requests r
+    join public.splits s on s.id = r.split_id
+   where s.group_id = p_group
+     and r.status = 'pending'
+     and public.is_member(p_group, auth.uid())
+     and public.is_member(p_group, r.requester)
+     and public.is_member(p_group, r.payer)
+   order by r.created_at
+$$;
+
+create or replace function public.simplify_group_debts(p_group uuid)
+returns integer language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := auth.uid();
+  open_ids uuid[];
+  ids uuid[];
+  bal bigint[];
+  before integer;
+  made integer := 0;
+  owed_total bigint;
+  sid uuid;
+  i integer;
+  j integer;
+  k integer;
+  c bigint;
+  part bigint;
+begin
+  if me is null then raise exception 'Not signed in'; end if;
+  if not public.is_member(p_group, me) then raise exception 'You''re not in this group'; end if;
+
+  -- the open requests, locked so two people can't simplify at the same moment
+  select array_agg(r.id order by r.created_at) into open_ids
+    from public.money_requests r
+    join public.splits s on s.id = r.split_id
+   where s.group_id = p_group and r.status = 'pending'
+     and public.is_member(p_group, r.requester) and public.is_member(p_group, r.payer)
+     and r.requester <> r.payer
+     for update of r;
+  before := coalesce(array_length(open_ids, 1), 0);
+  if before = 0 then return 0; end if;
+
+  -- everyone's net position in cents (positive: they're owed)
+  select array_agg(person order by person), array_agg(net order by person) into ids, bal
+    from (
+      select person, sum(cents) as net from (
+        select r.requester as person, round(r.amount * 100)::bigint as cents from public.money_requests r where r.id = any (open_ids)
+        union all
+        select r.payer, -round(r.amount * 100)::bigint from public.money_requests r where r.id = any (open_ids)
+      ) x group by person
+    ) y
+   where net <> 0;
+
+  update public.money_requests set status = 'cancelled', settled_at = now() where id = any (open_ids);
+
+  select coalesce(sum(b), 0) into owed_total from unnest(bal) b where b > 0;
+  if owed_total > 0 then
+    if owed_total > 10000000 then raise exception 'That’s too much to settle at once'; end if;
+    insert into public.splits (created_by, title, total, group_id) values (me, 'Settle up', owed_total / 100.0, p_group) returning id into sid;
+    loop
+      -- the person owed most, and the person who owes most (ties by id, like the app's preview)
+      i := null;
+      j := null;
+      for k in 1 .. coalesce(array_length(ids, 1), 0) loop
+        if bal[k] > 0 and (i is null or bal[k] > bal[i] or (bal[k] = bal[i] and ids[k] < ids[i])) then i := k; end if;
+        if bal[k] < 0 and (j is null or bal[k] < bal[j] or (bal[k] = bal[j] and ids[k] < ids[j])) then j := k; end if;
+      end loop;
+      exit when i is null or j is null;
+      c := least(bal[i], -bal[j]);
+      bal[i] := bal[i] - c;
+      bal[j] := bal[j] + c;
+      -- one request can be at most 10,000
+      while c > 0 loop
+        part := least(c, 1000000);
+        insert into public.money_requests (requester, payer, amount, note, split_id) values (ids[i], ids[j], part / 100.0, 'Settle up', sid);
+        made := made + 1;
+        c := c - part;
+      end loop;
+    end loop;
+  end if;
+
+  insert into public.messages (sender, group_id, kind, body) values (me, p_group, 'system', 'simplified:' || before || ':' || made);
+  if sid is not null then
+    insert into public.messages (sender, group_id, kind, body, ref) values (me, p_group, 'split', 'Settle up', sid);
+  end if;
+  return made;
+end;
+$$;
+
+revoke all on function public.group_debts(uuid) from public, anon;
+revoke all on function public.simplify_group_debts(uuid) from public, anon;
+grant execute on function public.group_debts(uuid) to authenticated;
+grant execute on function public.simplify_group_debts(uuid) to authenticated;

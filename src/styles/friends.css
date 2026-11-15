@@ -1685,3 +1685,97 @@ img.persona {
     min-height: 0;
   }
 }
+
+/* ---------- settle up ---------- */
+.settle-loading {
+  height: 160px;
+}
+.settle-net {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.settle-net span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  background: var(--soft);
+}
+.settle-net span.in {
+  background: var(--green-bg);
+  color: color-mix(in srgb, var(--green) 75%, var(--ink));
+}
+.settle-net span.out {
+  background: var(--red-bg);
+  color: color-mix(in srgb, var(--red) 80%, var(--ink));
+}
+.settle-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.settle-cols section {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--soft);
+}
+.settle-cols section.after {
+  background: var(--accent-soft);
+}
+.settle-cols h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.settle-cols ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+  max-height: 220px;
+  overflow-y: auto;
+}
+.settle-cols li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.settle-cols li b {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.settle-cols li.me {
+  font-weight: 600;
+  color: var(--ink);
+}
+.settle-square {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 26px 16px;
+  text-align: center;
+  color: var(--green);
+}
+.settle-square b {
+  color: var(--ink);
+  font-size: 16px;
+}
+.settle-square small {
+  color: var(--muted);
+}
+.settle-card .split-shares li {
+  align-items: center;
+}
+@media (max-width: 520px) {
+  .settle-cols {
+    grid-template-columns: 1fr;
+  }
+}

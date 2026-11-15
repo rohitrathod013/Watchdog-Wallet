@@ -30,7 +30,7 @@ import { PAGES, TABS } from './lib/routes'
 import { liquidSwitch } from './lib/themeTransition'
 import { lightHours, locate, msUntilSwitch, rememberSun, resolveTheme, savedPlace } from './lib/dayTheme'
 import { isoDay, localIso, MONTHS, money, uid } from './lib/format'
-import { accountCards, billDue, computeStats, DEFAULT_BUDGETS, demoStats, iconOfCategory, KIND_FOR, monthKey } from './lib/stats'
+import { billDue, computeStats, DEFAULT_BUDGETS, demoStats, iconOfCategory, KIND_FOR, makeCard, monthKey } from './lib/stats'
 import { LOCALES, setLocale, t, tMonths } from './lib/i18n'
 import { applyRates, loadRates } from './lib/live'
 import { accountsEnabled, confirmPassword, deleteMyAccount, getSupabase, loadUserState, profileOf, SAVED_KEYS, saveUserState } from './lib/supabase'
@@ -41,10 +41,12 @@ import { stashInvite } from './lib/social'
 import { removeAllMyMedia } from './lib/media'
 import { useSocial } from './lib/useSocial'
 import { useMlFlags } from './lib/ml/useMl.js'
+import { dropCopies, keepCopy, looksOffline, readCopy } from './lib/offline'
 import { checkPayment, isCardMethod } from './lib/envelopes'
 import { EVERY_LABEL, makeRule, runAll } from './lib/recurring'
-import { FriendAskModal, FriendPayModal, GroupModal, SplitModal } from './components/FriendModals'
+import { FriendAskModal, FriendPayModal, GroupModal, SettleModal, SplitModal } from './components/FriendModals'
 import { ImportModal, RecurringModal } from './components/MoneyTools'
+import { TermsModal } from './components/Terms'
 import * as seed from './data/seed'
 import { ASSISTANT, BRAND, FEATURES, THEME } from './config'
 
@@ -324,6 +326,10 @@ export default function App() {
   const [recurring, setRecurring] = useState([])
   // "remind me to cancel": a nudge on a day, for one subscription
   const [reminders, setReminders] = useState([])
+  // the user's own debit and credit cards (a name and the last 4 digits only)
+  const [myCards, setMyCards] = useState([])
+  // which version of the bank and card terms the user agreed to, and when
+  const [terms, setTerms] = useState(null)
   const ranRule = useRef(new Set())
 
   /* ---------- accounts (Supabase) ----------
@@ -333,6 +339,8 @@ export default function App() {
   const [recovery, setRecovery] = useState(false)
   const [loadedFor, setLoadedFor] = useState(null)
   const [loadError, setLoadError] = useState('')
+  // set (to when the copy was made) while showing this device's copy because there's no connection
+  const [offlineSince, setOfflineSince] = useState(null)
   const [authMode, setAuthMode] = useState('login')
   // exploring the sample dashboard without an account
   const [demo, setDemo] = useState(false)
@@ -382,6 +390,8 @@ export default function App() {
     setCategoryCorrections(data.categoryCorrections ?? [])
     setRecurring(data.recurring ?? [])
     setReminders(data.reminders ?? [])
+    setMyCards(data.cards ?? [])
+    setTerms(data.terms ?? null)
     ranRule.current = new Set()
     setDrift(0)
     setSentToday(0)
@@ -425,9 +435,23 @@ export default function App() {
         if (!alive) return
         stopSaving.current = false
         applyState(data)
+        setOfflineSince(null)
         setLoadedFor(userId)
+        keepCopy(userId, data)
       })
-      .catch((err) => alive && setLoadError(err?.message || 'Could not load your data.'))
+      .catch((err) => {
+        if (!alive) return
+        // no connection: open this device's copy, read only, until it's back
+        const copy = looksOffline(err) ? readCopy(userId) : null
+        if (copy) {
+          stopSaving.current = true
+          applyState(copy.data)
+          setOfflineSince(copy.at)
+          setLoadedFor(userId)
+          return
+        }
+        setLoadError(err?.message || 'Could not load your data.')
+      })
     return () => {
       alive = false
     }
@@ -453,6 +477,8 @@ export default function App() {
       categoryCorrections,
       recurring,
       reminders,
+      cards: myCards,
+      terms,
     }),
     [
       balance,
@@ -472,15 +498,31 @@ export default function App() {
       categoryCorrections,
       recurring,
       reminders,
+      myCards,
+      terms,
     ],
   )
   const [saveFailed, setSaveFailed] = useState(false)
   useEffect(() => {
+    if (!offlineSince) return undefined
+    const back = () => {
+      stopSaving.current = false
+      setOfflineSince(null)
+      setLoadedFor(null)
+    }
+    window.addEventListener('online', back)
+    return () => window.removeEventListener('online', back)
+  }, [offlineSince])
+  useEffect(() => {
     if (!accountsEnabled || !userId || loadedFor !== userId) return undefined
     const h = window.setTimeout(() => {
       if (stopSaving.current) return
-      saveUserState(userId, Object.fromEntries(SAVED_KEYS.map((k) => [k, saved[k]])))
-        .then(() => setSaveFailed(false))
+      const data = Object.fromEntries(SAVED_KEYS.map((k) => [k, saved[k]]))
+      saveUserState(userId, data)
+        .then(() => {
+          setSaveFailed(false)
+          keepCopy(userId, data)
+        })
         .catch(() => setSaveFailed(true))
     }, 800)
     return () => window.clearTimeout(h)
@@ -761,6 +803,27 @@ export default function App() {
     [toast],
   )
   const removeReminder = useCallback((id) => setReminders((list) => list.filter((r) => r.id !== id)), [])
+  const acceptTerms = useCallback((version) => setTerms({ version, at: new Date().toISOString() }), [])
+  /** Add one of the user's cards; returns false if it isn't usable or is already there. */
+  const addCard = useCallback(
+    (input) => {
+      const card = makeCard({ ...input, id: uid() })
+      if (!card) return false
+      if (myCards.some((c) => c.last4 === card.last4 && c.network === card.network)) return false
+      setMyCards((list) => [...list, card])
+      toast(t('Card added'), t('{name} ending {digits}.', { name: card.label, digits: card.last4 }), { icon: 'card' })
+      return true
+    },
+    [myCards, toast],
+  )
+  const removeCard = useCallback(
+    (id) => {
+      const c = myCards.find((x) => x.id === id)
+      setMyCards((list) => list.filter((x) => x.id !== id))
+      if (c) toast(t('Card removed'), t('{name} ending {digits} is gone. Its past payments stay in your transactions.', { name: c.label, digits: c.last4 }), { icon: 'trash' })
+    },
+    [myCards, toast],
+  )
 
   /** Add rows read from a bank statement. changeBalance: also move the balance by their total. Returns how many were added. */
   const importTransactions = useCallback(
@@ -1215,6 +1278,7 @@ export default function App() {
       setAuthMode('login')
     } else if (accountsEnabled) {
       setLoadedFor(null)
+      dropCopies()
       getSupabase().then((supabase) => supabase.auth.signOut())
     } else setSignedOut(true)
   }, [demo])
@@ -1275,7 +1339,7 @@ export default function App() {
   }, [stats, balance])
   // unusual spending, kept fresh (off the main thread for big accounts)
   const mlFlags = useMlFlags(transactions, mlVerdicts)
-  const cards = useMemo(() => (isDemo ? seed.CARDS : accountCards(user)), [isDemo, user])
+  const cards = useMemo(() => (isDemo ? seed.CARDS : myCards.map((c) => ({ ...c, holder: user.name }))), [isDemo, myCards, user])
   const wallets = useMemo(
     () => (isDemo ? seed.WALLETS : [{ code: 'USD', name: 'US Dollar', flag: 'us', amount: balance, usd: balance }]),
     [isDemo, balance],
@@ -1306,6 +1370,7 @@ export default function App() {
     setAiOpen(false)
     setFarewell('deactivated')
     setLoadedFor(null)
+    dropCopies()
     const supabase = await getSupabase()
     await supabase.auth.signOut()
   }, [userId, saved])
@@ -1338,6 +1403,7 @@ export default function App() {
       setLoadedFor(null)
       setPaused(null)
       setFarewell('deleted')
+      dropCopies()
       try {
         ;['ww-locked', 'ww-grace-voice'].forEach((k) => localStorage.removeItem(k))
       } catch {
@@ -1443,6 +1509,10 @@ export default function App() {
       reminders,
       addReminder,
       removeReminder,
+      addCard,
+      removeCard,
+      terms,
+      acceptTerms,
       toast,
       openModal,
       social,
@@ -1530,6 +1600,10 @@ export default function App() {
       reminders,
       addReminder,
       removeReminder,
+      addCard,
+      removeCard,
+      terms,
+      acceptTerms,
       toast,
       openModal,
       social,
@@ -1659,6 +1733,8 @@ export default function App() {
       <FriendAskModal open={modal?.type === 'friendAsk'} payload={modal?.payload} onClose={closeModal} />
       <SplitModal open={modal?.type === 'split'} payload={modal?.payload} onClose={closeModal} />
       <GroupModal open={modal?.type === 'newGroup'} onClose={closeModal} />
+      <SettleModal open={modal?.type === 'settle'} payload={modal?.payload} onClose={closeModal} />
+      <TermsModal open={modal?.type === 'terms'} onClose={closeModal} />
       <RecurringModal open={modal?.type === 'recurring'} onClose={closeModal} />
       <ImportModal open={modal?.type === 'import'} onClose={closeModal} />
       <GuardModal open={modal?.type === 'guard'} onClose={closeModal} />
@@ -1693,7 +1769,13 @@ export default function App() {
           <MessengerDock />
         </Suspense>
       ) : null}
-      {saveFailed ? (
+      {offlineSince ? (
+        <div className="save-warn offline-bar" role="status">
+          {t('You’re offline. Showing your data from {when}. Changes won’t be saved until you’re back online.', {
+            when: new Date(offlineSince).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }),
+          })}
+        </div>
+      ) : saveFailed ? (
         <div className="save-warn" role="status">
           {t('Changes aren’t saving right now. Check your connection.')}
         </div>

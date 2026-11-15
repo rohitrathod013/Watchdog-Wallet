@@ -8,11 +8,13 @@ import { useApp } from '../lib/store'
 import { isoDay, localIso, money } from '../lib/format'
 import { ASSISTANT, BRAND } from '../config'
 import { t } from '../lib/i18n'
-import { expenseCategories, INCOME_CATEGORIES } from '../lib/stats'
+import { expenseCategories, INCOME_CATEGORIES, lastFour } from '../lib/stats'
 import { useGuardCheck } from './useGuardCheck'
 import { useLockCheck } from './useLockCheck'
 import { modelFor, predict } from '../lib/ml/categorize.js'
 import { EVERY, EVERY_LABEL, nextRun } from '../lib/recurring'
+import { TermsAgree } from './Terms'
+import { useTerms } from '../lib/terms'
 
 const QUICK = [50, 100, 250, 500]
 
@@ -371,7 +373,7 @@ function TransactionBody({ payload, onClose }) {
       amount: type === 'income' ? n : -n,
       category,
       date: date === today ? localIso() : `${date}T12:00`,
-      method: type === 'expense' && card ? `Card ending ${card.number.slice(-4)}` : undefined,
+      method: type === 'expense' && card ? `Card ending ${lastFour(card)}` : undefined,
       potId: type === 'expense' ? potId || null : null,
     })
     if (went === false) return
@@ -424,7 +426,7 @@ function TransactionBody({ payload, onClose }) {
           <select value={payWith} onChange={(e) => setPayWith(e.target.value)}>
             {cards.map((c) => (
               <option key={c.id} value={c.id}>
-                {t(c.label)} ••{c.number.slice(-4)}
+                {t(c.label)} ••{lastFour(c)}
               </option>
             ))}
             <option value="cash">{t('Cash')}</option>
@@ -605,14 +607,17 @@ function CardTopUp({ payload }) {
   const [potId, setPotId] = useState(payload?.potId ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const terms = useTerms()
+  const [agree, setAgree] = useState(false)
   const n = Number(amount)
-  const ok = n >= MIN_TOPUP && n <= MAX_TOPUP
+  const ok = n >= MIN_TOPUP && n <= MAX_TOPUP && (terms.agreed || agree)
 
   const submit = async (e) => {
     e.preventDefault()
     if (!ok || busy) return
     setBusy(true)
     setError('')
+    if (!terms.agreed) terms.agree()
     try {
       // leaves the site for Stripe's payment page; the money is added when Stripe sends the user back
       await startCardPayment({ amount: Math.round(n * 100) / 100, potId })
@@ -666,6 +671,7 @@ function CardTopUp({ payload }) {
           <b>{t('Test mode:')}</b> {t('use card 4242 4242 4242 4242, any future date and any CVC. No real money moves.')}
         </p>
       </div>
+      <TermsAgree checked={agree} onChange={setAgree} />
       {error ? (
         <p className="auth-error" role="alert">
           {error}

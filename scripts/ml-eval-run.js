@@ -137,6 +137,19 @@ export async function run() {
   const forecast = forecastEval()
   const categorizer = categorizerEval()
 
+  // ---- speed: the detector on 5,000 transactions, best of 5, run alone (the strict budget lives here, not in the
+  // parallel test suite, where a busy machine makes wall-clock limits flaky)
+  const many = []
+  for (let k = 1; many.length < 5000; k++) many.push(...syntheticAccount({ seed: k }).transactions)
+  const list5k = many.slice(0, 5000)
+  let speed = Infinity
+  for (let k = 0; k < 5; k++) {
+    const t1 = performance.now()
+    detectAnomalies(list5k)
+    speed = Math.min(speed, performance.now() - t1)
+  }
+  const SPEED_BUDGET = 500
+
   const md = `# Grace's on-device ML: evaluation
 
 > **All numbers are on synthetic data** (seeded fake accounts from \`src/lib/ml/synthetic.js\`), plus the demo's sample data for one forecast backtest. They show the models behave sensibly on known, planted cases. They are **not** a measure of accuracy on real people's money, which is messier. Re-run with \`npm run eval\`.
@@ -199,11 +212,16 @@ ${table(
 
 Corrections are simulated as the user fixing each wrong guess in date order. Synthetic names repeat a lot, which flatters these numbers.
 
+## Speed
+
+Anomaly detection on 5,000 transactions: **${Math.round(speed)} ms** (best of 5; budget ${SPEED_BUDGET} ms: ${speed < SPEED_BUDGET ? 'within budget' : '**over budget**'}). Above ${400} transactions the app runs it in a Web Worker, so the page stays responsive either way.
+
 _Generated ${new Date().toISOString().slice(0, 10)} in ${((Date.now() - t0) / 1000).toFixed(1)}s._
 `
   const out = path.resolve('docs/ml-eval.md')
   fs.mkdirSync(path.dirname(out), { recursive: true })
   fs.writeFileSync(out, md)
+  if (speed >= SPEED_BUDGET) process.exitCode = 1
   console.log(md)
   console.log(`Written to ${path.relative(process.cwd(), out)}`)
 }

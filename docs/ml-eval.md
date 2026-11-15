@@ -49,4 +49,8 @@ The demo’s sample data spans too short a time for a backtest: each one needs t
 
 Corrections are simulated as the user fixing each wrong guess in date order. Synthetic names repeat a lot, which flatters these numbers.
 
-_Generated 2026-11-12 in 4.4s._
+## Speed
+
+Anomaly detection on 5,000 transactions: **318 ms** (best of 5; budget 500 ms: within budget). Above 400 transactions the app runs it in a Web Worker, so the page stays responsive either way.
+
+_Generated 2026-11-15 in 6.1s._

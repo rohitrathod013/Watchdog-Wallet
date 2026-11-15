@@ -16,6 +16,7 @@ import { money, shortDate } from '../lib/format'
 import { t, tMonths } from '../lib/i18n'
 import { BRAND } from '../config'
 import { preview } from '../lib/chatPreview'
+import { paysText } from '../lib/settle'
 import { allowContacts, canPickContacts, contactsAllowed, inviteHref, pickContacts } from '../lib/contacts'
 
 const STATUS = { pending: 'Pending', paid: 'Paid', declined: 'Declined', cancelled: 'Cancelled' }
@@ -440,6 +441,44 @@ function FriendList({ selected, onPick }) {
 const personFor = (social, id) => ({ id, name: social.nameOf(id), hue: [...id].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7), email: '' })
 
 /** A bill split inside a group: everyone sees it; each payer gets Pay on their own share. */
+/** After "Settle up": the new, fewer payments. Each person sees the ones they pay or get. */
+function SettleCard({ m }) {
+  const { social, openModal } = useApp()
+  const shares = [...social.requests.values()].filter((r) => r.split_id === m.ref)
+  const who = m.sender === social.me ? t('You') : social.nameOf(m.sender).split(' ')[0]
+  const first = (id) => social.nameOf(id).split(' ')[0]
+  return (
+    <div className="money-msg request group-split settle-card">
+      <span className="mm-ic">
+        <Icon name="check" size={17} />
+      </span>
+      <div>
+        <b>{t('Settled up')}</b>
+        <small>{t('{name} replaced the group’s debts with fewer payments', { name: who })}</small>
+        {shares.length ? (
+          <ul className="split-shares">
+            {shares.map((r) => (
+              <li key={r.id} className={r.status}>
+                <span>{paysText(t, r.payer, r.requester, social.me, first)}</span>
+                <b>{money(Number(r.amount))}</b>
+                {r.payer === social.me && r.status === 'pending' ? (
+                  <button type="button" className="btn sm solid" onClick={() => openModal('friendPay', { friend: personFor(social, r.requester), request: r })}>
+                    {t('Pay {amount}', { amount: money(Number(r.amount)) })}
+                  </button>
+                ) : (
+                  <em>{t(STATUS[r.status])}</em>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <small>{t('Nothing for you to pay or get here.')}</small>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function GroupSplitCard({ m }) {
   const { social, openModal } = useApp()
   const [busy, setBusy] = useState(false)
@@ -515,7 +554,7 @@ function MoneyCard({ m, friend }) {
   const { social, openModal } = useApp()
   const [busy, setBusy] = useState(false)
   const mine = m.sender === social.me
-  if (m.group_id && m.kind === 'split') return <GroupSplitCard m={m} />
+  if (m.group_id && m.kind === 'split') return m.body === 'Settle up' ? <SettleCard m={m} /> : <GroupSplitCard m={m} />
   if (m.group_id && m.kind === 'payment') {
     const x = social.transfers.get(m.ref)
     const who = mine ? t('You') : social.nameOf(m.sender).split(' ')[0]
@@ -1311,6 +1350,10 @@ export function Chat({ peer, onBack, docked = false, onClose }) {
               <button type="button" className="ch-act solid" onClick={() => openModal('split', { group: peer.id })} title={t('Split a bill')}>
                 <Icon name="receipt" size={16} />
                 <span>{t('Split a bill')}</span>
+              </button>
+              <button type="button" className="ch-act" onClick={() => openModal('settle', { group: peer.id })} title={t('Settle up')}>
+                <Icon name="check" size={16} />
+                <span>{t('Settle up')}</span>
               </button>
               <button
                 type="button"
