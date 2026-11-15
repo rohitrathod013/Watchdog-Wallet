@@ -26,6 +26,8 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 ### Your money
 
 - **Add transaction**: record money in or out with a description, category and date.
+- **Repeating transactions**: set up rent, salary or a subscription once (weekly, every 2 weeks, monthly or yearly) and it's added by itself on its date, with your balance following. Pick **Repeat** when adding a transaction, or manage them all under **Repeating** on the Transactions tab: pause, resume or remove. A rule for the 31st runs on the last day of shorter months. If you were away, missed ones are caught up (24 at most per rule); resuming a paused rule skips what it missed.
+- **Import a bank statement**: **Import** on the Transactions tab reads a CSV export from your bank, in the browser, without uploading it. It finds the date, description and amount columns (one signed amount, or separate money out and money in), copes with day-first or month-first dates and 1,234.56 or 1.234,56 numbers, suggests a category for each row, and unticks rows that look like ones you already have. You review everything before it's added, and can choose whether the balance changes too.
 - **Pay by card**: top up your balance with a card through Stripe Checkout (see [Card payments](#card-payments-stripe)).
 - **Add contact**, **Add bill** and **Add Goal**.
 - **Send money** and **request money** from your contacts. **Pay bills** and **top up goals** in one tap.
@@ -84,6 +86,7 @@ Investing here is **tracked, not traded**: Watchdog Wallet records what you boug
 - **Wallet**: your card, balances by currency and bills.
 - **Budget**: category budgets with a one-tap smart rebalance.
   - Monthly limits per category. **Add a budget** for any of 23 spending categories (Groceries, Utilities, Subscriptions, Insurance, Education, Pets, Kids, Gifts & Donations, Debt Payments, Taxes and more) or make up your own, and remove any with two taps. Custom categories also appear when you add an expense or a bill, so their spending is counted.
+  - **Rollover**: tap the circular arrow on a budget and whatever it doesn't use is added to next month's limit, counted from the month you turn it on (up to 12 months back). Overspending a month eats into what was carried, never below zero. The card shows the limit and the carried amount separately.
   - **Locked budgets**: tap the lock on a budget (or tick it when adding one) and what's left of it is set aside for that category only. A card payment for Groceries uses the Groceries money first, then free money; a card payment for anything else, or a transfer, can only use the money that isn't locked, and is declined if it would dip into it. The payment window says where the money will come from before you pay, and the Budget page shows how much is locked and how much is free to spend. Cash records aren't blocked, since that money is already spent.
 
 ### Grace, the guard dog
@@ -316,6 +319,7 @@ src/
     Modals.jsx         send, receive, request, add money (and pay by card), goal, transaction, contact, bill, invest
     FriendModals.jsx   pay a friend, request from a friend, split a bill
     ChatMedia.jsx      photos, videos, files and voice notes in the chat, and the photo viewer
+    MoneyTools.jsx     the Repeating and Import statement windows
     MessengerDock.jsx  the chat button and window on every page except Friends
     Account.jsx        account settings: download, deactivate, delete
     Profile.jsx        your profile: photo, name, email, phone, address
@@ -345,6 +349,8 @@ src/
     typos.js           typo correction with Fuse.js
     guard.js           guard defaults shared by the app and Grace
     chatPreview.js     the one-line preview of a chat's latest message, for chat lists
+    recurring.js       repeating transactions: the rules, their next dates and what's due
+    importCsv.js       reading a bank statement saved as CSV: columns, dates, amounts, duplicates
     envelopes.js       locked budgets: what's set aside per category, and whether a card payment can go through
     live.js            exchange rates, crypto and stock prices, search and holidays, with caching
     i18n.js            translation helper

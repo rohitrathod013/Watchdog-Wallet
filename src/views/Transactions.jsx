@@ -78,6 +78,18 @@ export default function TransactionsView({ attached = true }) {
             <Icon name="send" size={17} />
             {t('Send')}
           </button>
+          {stats.demo ? null : (
+            <>
+              <button type="button" className="btn" onClick={() => openModal('recurring')}>
+                <Icon name="replay" size={17} />
+                {t('Repeating')}
+              </button>
+              <button type="button" className="btn" onClick={() => openModal('import')}>
+                <Icon name="upload" size={17} />
+                {t('Import')}
+              </button>
+            </>
+          )}
           <button type="button" className="btn solid" onClick={exportCsv}>
             <Icon name="download" size={18} />
             {t('Export CSV')}

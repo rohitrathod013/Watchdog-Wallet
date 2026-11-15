@@ -29,8 +29,8 @@ import { AppContext } from './lib/store'
 import { PAGES, TABS } from './lib/routes'
 import { liquidSwitch } from './lib/themeTransition'
 import { lightHours, locate, msUntilSwitch, rememberSun, resolveTheme, savedPlace } from './lib/dayTheme'
-import { localIso, MONTHS, money, uid } from './lib/format'
-import { accountCards, billDue, computeStats, DEFAULT_BUDGETS, demoStats, iconOfCategory, KIND_FOR } from './lib/stats'
+import { isoDay, localIso, MONTHS, money, uid } from './lib/format'
+import { accountCards, billDue, computeStats, DEFAULT_BUDGETS, demoStats, iconOfCategory, KIND_FOR, monthKey } from './lib/stats'
 import { LOCALES, setLocale, t, tMonths } from './lib/i18n'
 import { applyRates, loadRates } from './lib/live'
 import { accountsEnabled, confirmPassword, deleteMyAccount, getSupabase, loadUserState, profileOf, SAVED_KEYS, saveUserState } from './lib/supabase'
@@ -42,7 +42,9 @@ import { removeAllMyMedia } from './lib/media'
 import { useSocial } from './lib/useSocial'
 import { useMlFlags } from './lib/ml/useMl.js'
 import { checkPayment, isCardMethod } from './lib/envelopes'
+import { EVERY_LABEL, makeRule, runAll } from './lib/recurring'
 import { FriendAskModal, FriendPayModal, GroupModal, SplitModal } from './components/FriendModals'
+import { ImportModal, RecurringModal } from './components/MoneyTools'
 import * as seed from './data/seed'
 import { ASSISTANT, BRAND, FEATURES, THEME } from './config'
 
@@ -318,6 +320,9 @@ export default function App() {
   // Grace's on-device models: the user's answers to flags, and their category corrections (the models are rebuilt from these)
   const [mlVerdicts, setMlVerdicts] = useState({})
   const [categoryCorrections, setCategoryCorrections] = useState([])
+  // repeating transactions (rent, salary, subscriptions): the rules; the app adds each one on its date
+  const [recurring, setRecurring] = useState([])
+  const ranRule = useRef(new Set())
 
   /* ---------- accounts (Supabase) ----------
      session: undefined while checking, null when logged out.
@@ -373,6 +378,8 @@ export default function App() {
     setSocialSince(data.socialSince ?? null)
     setMlVerdicts(data.mlVerdicts ?? {})
     setCategoryCorrections(data.categoryCorrections ?? [])
+    setRecurring(data.recurring ?? [])
+    ranRule.current = new Set()
     setDrift(0)
     setSentToday(0)
   }, [])
@@ -441,6 +448,7 @@ export default function App() {
       socialSince,
       mlVerdicts,
       categoryCorrections,
+      recurring,
     }),
     [
       balance,
@@ -458,6 +466,7 @@ export default function App() {
       socialSince,
       mlVerdicts,
       categoryCorrections,
+      recurring,
     ],
   )
   const [saveFailed, setSaveFailed] = useState(false)
@@ -691,6 +700,80 @@ export default function App() {
     [toast],
   )
 
+  /** Rollover on or off: what a budget doesn't use carries into next month, counted from the month it's turned on. */
+  const toggleBudgetRollover = useCallback(
+    (id) => {
+      const b = budgets.find((x) => x.id === id)
+      if (!b) return
+      setBudgets((list) => list.map((x) => (x.id === id ? { ...x, rollover: !x.rollover, rollFrom: x.rollover ? undefined : monthKey() } : x)))
+      toast(
+        b.rollover ? t('Rollover off') : t('Rollover on'),
+        b.rollover
+          ? t('{name} starts each month at its limit again.', { name: t(b.name) })
+          : t('Whatever {name} doesn’t use this month is added to next month.', { name: t(b.name) }),
+        { icon: 'replay' },
+      )
+    },
+    [budgets, toast],
+  )
+
+  /* ---------- repeating transactions ---------- */
+  const addRecurring = useCallback(
+    (input) => {
+      const rule = makeRule({ ...input, id: uid() })
+      if (!rule) return false
+      setRecurring((list) => [...list, rule])
+      toast(t('Repeat set up'), t('{name}: {amount}, {every}.', { name: rule.name, amount: money(Math.abs(rule.amount)), every: t(EVERY_LABEL[rule.every]).toLowerCase() }), {
+        icon: 'replay',
+      })
+      return true
+    },
+    [toast],
+  )
+  const toggleRecurring = useCallback(
+    (id) =>
+      setRecurring((list) =>
+        list.map((r) => {
+          if (r.id !== id) return r
+          // coming back from a pause: don't add the runs that were missed, start from the next one
+          if (!r.active) {
+            const today = isoDay(new Date())
+            let caught = { ...r, active: true }
+            caught = runAll([caught], today).rules[0]
+            return caught
+          }
+          return { ...r, active: false }
+        }),
+      ),
+    [],
+  )
+  const removeRecurring = useCallback((id) => setRecurring((list) => list.filter((r) => r.id !== id)), [])
+
+  /** Add rows read from a bank statement. changeBalance: also move the balance by their total. Returns how many were added. */
+  const importTransactions = useCallback(
+    (rows, { changeBalance = false } = {}) => {
+      const fresh = rows.map((r) => ({
+        id: uid(),
+        name: r.name,
+        amount: r.amount,
+        category: r.category,
+        kind: KIND_FOR[r.category] ?? 'transfer',
+        method: 'Imported',
+        date: `${r.date}T12:00`,
+        status: 'Completed',
+      }))
+      if (!fresh.length) return 0
+      setTransactions((list) => [...fresh, ...list].sort((a, b) => String(b.date).localeCompare(String(a.date))))
+      if (changeBalance) {
+        const cents = fresh.reduce((sum, x) => sum + Math.round(x.amount * 100), 0)
+        setBalance((b) => Math.round(b * 100 + cents) / 100)
+      }
+      toast(t('Import done'), fresh.length === 1 ? t('1 transaction added.') : t('{n} transactions added.', { n: fresh.length }), { icon: 'upload' })
+      return fresh.length
+    },
+    [toast],
+  )
+
   /** Lock (or unlock) a budget: its unspent money can then only go on card payments in its own category. */
   const toggleBudgetLock = useCallback(
     (id) => {
@@ -710,14 +793,14 @@ export default function App() {
 
   /** A new budget for a category (one per category); returns false if it already has one. */
   const addBudget = useCallback(
-    ({ name, limit, locked = false }) => {
+    ({ name, limit, locked = false, rollover = false }) => {
       const clean = String(name ?? '')
         .trim()
         .slice(0, 40)
       if (!clean || budgets.some((b) => b.name.toLowerCase() === clean.toLowerCase())) return false
       setBudgets((list) => [
         ...list,
-        { id: uid(), name: clean, icon: iconOfCategory(clean), limit: Math.max(1, Math.round(Number(limit) || 0)), locked: Boolean(locked) },
+        { id: uid(), name: clean, icon: iconOfCategory(clean), limit: Math.max(1, Math.round(Number(limit) || 0)), locked: Boolean(locked), ...(rollover ? { rollover: true, rollFrom: monthKey() } : {}) },
       ])
       toast(t('Budget added'), t('{name}: {amount} a month.', { name: t(clean), amount: money(Math.round(Number(limit) || 0), '$', 0) }), {
         icon: 'pie',
@@ -812,6 +895,55 @@ export default function App() {
     },
     [addTx, pots, toast],
   )
+
+  /* ---------- repeating transactions: add the ones whose date has come ---------- */
+  const rulesReady = !accountsEnabled || isDemo || Boolean(userId && loadedFor === userId)
+  useEffect(() => {
+    if (!rulesReady) return undefined
+    const run = () => {
+      const { add, rules, changed } = runAll(recurring, isoDay(new Date()))
+      if (!changed) return
+      // each run is added once, even if this fires twice before the rules are saved
+      const fresh = add.filter((x) => !ranRule.current.has(`${x.rule}|${x.day}`))
+      for (const x of fresh) ranRule.current.add(`${x.rule}|${x.day}`)
+      setRecurring(rules)
+      if (!fresh.length) return
+      const today = isoDay(new Date())
+      setTransactions((list) =>
+        [
+          ...fresh.map((x) => ({
+            id: uid(),
+            name: x.name,
+            amount: x.amount,
+            category: x.category,
+            kind: KIND_FOR[x.category] ?? 'transfer',
+            method: x.method || 'Repeats',
+            date: x.day === today ? localIso() : `${x.day}T09:00`,
+            status: 'Completed',
+            repeat: x.rule,
+          })),
+          ...list,
+        ].sort((a, b) => String(b.date).localeCompare(String(a.date))),
+      )
+      const cents = fresh.reduce((sum, x) => sum + Math.round(x.amount * 100), 0)
+      setBalance((b) => Math.round(b * 100 + cents) / 100)
+      const first = fresh[0]
+      notify({
+        icon: 'replay',
+        tone: 'accent',
+        title: fresh.length === 1 ? 'Added: {name}' : 'Added {n} repeating transactions',
+        body: fresh.length === 1 ? '{amount}, as scheduled' : 'Including {name}',
+        vars: { name: first.name, amount: money(Math.abs(first.amount)), n: fresh.length },
+      })
+    }
+    run()
+    const timer = window.setInterval(run, 60 * 60 * 1000)
+    window.addEventListener('focus', run)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', run)
+    }
+  }, [rulesReady, recurring, notify])
 
   /* ---------- card top-ups: coming back from Stripe Checkout ----------
      Stripe sends the user back with ?paid=<session id>. The payments
@@ -1258,6 +1390,12 @@ export default function App() {
       addBudget,
       removeBudget,
       toggleBudgetLock,
+      toggleBudgetRollover,
+      recurring,
+      addRecurring,
+      toggleRecurring,
+      removeRecurring,
+      importTransactions,
       toast,
       openModal,
       social,
@@ -1336,6 +1474,12 @@ export default function App() {
       addBudget,
       removeBudget,
       toggleBudgetLock,
+      toggleBudgetRollover,
+      recurring,
+      addRecurring,
+      toggleRecurring,
+      removeRecurring,
+      importTransactions,
       toast,
       openModal,
       social,
@@ -1465,6 +1609,8 @@ export default function App() {
       <FriendAskModal open={modal?.type === 'friendAsk'} payload={modal?.payload} onClose={closeModal} />
       <SplitModal open={modal?.type === 'split'} payload={modal?.payload} onClose={closeModal} />
       <GroupModal open={modal?.type === 'newGroup'} onClose={closeModal} />
+      <RecurringModal open={modal?.type === 'recurring'} onClose={closeModal} />
+      <ImportModal open={modal?.type === 'import'} onClose={closeModal} />
       <GuardModal open={modal?.type === 'guard'} onClose={closeModal} />
       <AccountModal open={modal?.type === 'account'} onClose={closeModal} />
       <ProfileModal open={modal?.type === 'profile'} onClose={closeModal} />

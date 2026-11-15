@@ -133,6 +133,36 @@ const LABELS = {
   year: ['This Year', 'vs Last Year'],
 }
 
+/** 'YYYY-MM' for a date: the month a budget's rollover starts counting from. */
+export const monthKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+
+/**
+ * Rollover: what a budget didn't use in the full months since rollover was turned on (rollFrom),
+ * carried into this month. Overspending a month eats into what was carried, never below zero.
+ * Looks back 12 months at most, and uses today's limit for every month.
+ */
+export function carryOver(b, transactions = [], now = new Date()) {
+  if (!b?.rollover || !/^\d{4}-\d{2}$/.test(b.rollFrom ?? '')) return 0
+  const [fy, fm] = b.rollFrom.split('-').map(Number)
+  const y = now.getFullYear()
+  const m = now.getMonth()
+  const months = Math.min(12, (y - fy) * 12 + (m - (fm - 1)))
+  if (months <= 0) return 0
+  const from = new Date(y, m - months, 1)
+  const to = new Date(y, m, 1)
+  const spent = new Array(months).fill(0)
+  for (const x of transactions) {
+    if (x.amount >= 0 || x.category !== b.name || (x.status && x.status !== 'Completed')) continue
+    const d = parse(x.date)
+    if (d < from || d >= to) continue
+    spent[(d.getFullYear() - from.getFullYear()) * 12 + d.getMonth() - from.getMonth()] += Math.round(-x.amount * 100)
+  }
+  const limit = Math.round((Number(b.limit) || 0) * 100)
+  let carry = 0
+  for (const s of spent) carry = Math.max(0, carry + limit - s)
+  return carry / 100
+}
+
 export function computeStats(transactions, budgets = [], now = new Date()) {
   const tx = settled(transactions)
   const win = windows(now)
@@ -216,7 +246,11 @@ export function computeStats(transactions, budgets = [], now = new Date()) {
   const categories = [...byCat.entries()].sort((a, b) => b[1] - a[1]).map(([name, v]) => ({ id: name, name, v, icon: iconFor[name] ?? 'receipt' }))
 
   /* ---- budgets: spent this month comes from the transactions ---- */
-  const budgetsView = budgets.map((b) => ({ ...b, spent: byCat.get(b.name) ?? 0 }))
+  // a budget with rollover also gets what it didn't use in earlier months (baseLimit is the limit the user set)
+  const budgetsView = budgets.map((b) => {
+    const carry = carryOver(b, tx, now)
+    return { ...b, spent: byCat.get(b.name) ?? 0, baseLimit: b.limit, carry, limit: Math.round((b.limit + carry) * 100) / 100 }
+  })
 
   /* ---- 52 weeks of daily spending ---- */
   const end = startOfDay(now)
@@ -264,7 +298,7 @@ export function computeStats(transactions, budgets = [], now = new Date()) {
     incomeSources,
     categories,
     budgets: budgetsView,
-    budgetTotal: budgets.reduce((s, b) => s + b.limit, 0),
+    budgetTotal: budgetsView.reduce((s, b) => s + b.limit, 0),
     heat,
     daily,
     weekNet: week.net,

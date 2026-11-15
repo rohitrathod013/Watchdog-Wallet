@@ -34,6 +34,7 @@ export const SAVED_KEYS = [
   'socialSince',
   'mlVerdicts',
   'categoryCorrections',
+  'recurring',
 ]
 
 /** Load this user's saved dashboard, or null if they have none yet. */

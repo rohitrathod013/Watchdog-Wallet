@@ -18,6 +18,7 @@ function AddBudget({ d }) {
   const [own, setOwn] = useState('')
   const [limit, setLimit] = useState('300')
   const [locked, setLocked] = useState(true)
+  const [rollover, setRollover] = useState(false)
   const name = pick === '__own' ? own.trim() : pick || free[0]?.name || ''
   const clash = pick === '__own' && taken.has(own.trim().toLowerCase())
   const ok = name && !clash && Number(limit) > 0
@@ -25,7 +26,7 @@ function AddBudget({ d }) {
   const submit = (e) => {
     e.preventDefault()
     if (!ok) return
-    if (addBudget({ name, limit: Number(limit), locked })) {
+    if (addBudget({ name, limit: Number(limit), locked, rollover })) {
       setOpen(false)
       setPick('')
       setOwn('')
@@ -81,6 +82,13 @@ function AddBudget({ d }) {
           <small>{t('Card payments for anything else can’t use it.')}</small>
         </span>
       </label>
+      <label className="budget-lock-opt">
+        <input type="checkbox" checked={rollover} onChange={(e) => setRollover(e.target.checked)} />
+        <span>
+          <b>{t('Carry over what’s left each month')}</b>
+          <small>{t('Unused money is added to next month’s limit.')}</small>
+        </span>
+      </label>
       <div className="budget-form-btns">
         <button type="button" className="btn" onClick={() => setOpen(false)}>
           {t('Cancel')}
@@ -94,7 +102,9 @@ function AddBudget({ d }) {
 }
 
 function BudgetCard({ b, i, d }) {
-  const { setBudgetLimit, removeBudget, toggleBudgetLock } = useApp()
+  const { setBudgetLimit, removeBudget, toggleBudgetLock, toggleBudgetRollover } = useApp()
+  // the limit the user set; b.limit also holds anything carried over from earlier months
+  const base = b.baseLimit ?? b.limit
   const lead = useLead()
   // remove needs a second tap within a few seconds
   const [sure, setSure] = useState(false)
@@ -103,7 +113,7 @@ function BudgetCard({ b, i, d }) {
     const timer = window.setTimeout(() => setSure(false), 3000)
     return () => window.clearTimeout(timer)
   }, [sure])
-  const top = Math.max(4000, Math.ceil((b.limit * 1.5) / 500) * 500)
+  const top = Math.max(4000, Math.ceil((base * 1.5) / 500) * 500)
   const p = b.spent / b.limit
   const tone = p > 1 ? 'over' : p > 0.9 ? 'warn' : ''
   const color = CAT_COLORS[i % CAT_COLORS.length]
@@ -117,6 +127,18 @@ function BudgetCard({ b, i, d }) {
         <span className={`pill-tag ${p > 1 ? 'red' : p > 0.9 ? 'amber' : 'green'}`}>
           {p > 1 ? t('Over budget') : p > 0.9 ? t('Near limit') : t('On track')}
         </span>
+        {toggleBudgetRollover ? (
+          <button
+            type="button"
+            className={`budget-lock ${b.rollover ? 'on' : ''}`}
+            onClick={() => toggleBudgetRollover(b.id)}
+            aria-pressed={Boolean(b.rollover)}
+            aria-label={b.rollover ? t('Stop carrying over the {name} budget', { name: t(b.name) }) : t('Carry over what’s left of the {name} budget', { name: t(b.name) })}
+            title={b.rollover ? t('Rollover is on: unused money moves to next month. Tap to turn off.') : t('Carry over what’s left each month')}
+          >
+            <Icon name="replay" size={14} />
+          </button>
+        ) : null}
         {toggleBudgetLock ? (
           <button
             type="button"
@@ -148,6 +170,12 @@ function BudgetCard({ b, i, d }) {
         </strong>
         <span>{t('of {amount}', { amount: whole(b.limit) })}</span>
       </div>
+      {b.carry > 0 ? (
+        <p className="budget-carry rv" style={{ '--i': 1 }}>
+          <Icon name="replay" size={13} />
+          {t('{limit} limit + {carry} carried over', { limit: whole(base), carry: whole(b.carry) })}
+        </p>
+      ) : null}
       <div className="meter rv" style={{ '--i': 2 }}>
         <i className={tone} style={{ '--p': `${Math.min(100, p * 100)}%`, '--r': i }} />
       </div>
@@ -164,16 +192,16 @@ function BudgetCard({ b, i, d }) {
       <label className="range rv" style={{ '--i': 4 }}>
         <span>
           <span>{t('Monthly limit')}</span>
-          <b style={{ color: 'var(--ink)' }}>{whole(b.limit)}</b>
+          <b style={{ color: 'var(--ink)' }}>{whole(base)}</b>
         </span>
         <input
           type="range"
           min={100}
           max={top}
           step={50}
-          value={b.limit}
+          value={base}
           onChange={(e) => setBudgetLimit(b.id, Number(e.target.value))}
-          style={{ '--fill': `${((b.limit - 100) / (top - 100)) * 100}%` }}
+          style={{ '--fill': `${((base - 100) / (top - 100)) * 100}%` }}
           aria-label={t('{name} monthly limit', { name: t(b.name) })}
         />
       </label>

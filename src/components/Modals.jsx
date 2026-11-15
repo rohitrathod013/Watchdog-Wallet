@@ -12,6 +12,7 @@ import { expenseCategories, INCOME_CATEGORIES } from '../lib/stats'
 import { useGuardCheck } from './useGuardCheck'
 import { useLockCheck } from './useLockCheck'
 import { modelFor, predict } from '../lib/ml/categorize.js'
+import { EVERY, EVERY_LABEL, nextRun } from '../lib/recurring'
 
 const QUICK = [50, 100, 250, 500]
 
@@ -331,7 +332,9 @@ export function GoalModal({ open, onClose }) {
 
 /* ---------------- Add a transaction by hand ---------------- */
 function TransactionBody({ payload, onClose }) {
-  const { addTransaction, balance, pots, budgets, transactions, categoryCorrections, correctCategory, cards = [] } = useApp()
+  const { addTransaction, balance, pots, budgets, transactions, categoryCorrections, correctCategory, cards = [], addRecurring, demo } = useApp()
+  // '' (just this once) or how often it repeats from here on
+  const [repeat, setRepeat] = useState('')
   const [type, setType] = useState(payload?.type ?? 'expense')
   // paid with one of the user's cards (locked budgets apply) or cash (a record of money already gone)
   const [payWith, setPayWith] = useState(cards[0]?.id ?? 'cash')
@@ -372,6 +375,8 @@ function TransactionBody({ payload, onClose }) {
       potId: type === 'expense' ? potId || null : null,
     })
     if (went === false) return
+    // repeats: this one is added now, the rule takes over from the next date
+    if (repeat) addRecurring?.({ name: name.trim(), amount: type === 'income' ? n : -n, category, every: repeat, start: nextRun(date, repeat) })
     // the user overruled Grace's guess: remember it, so next time she knows
     if (picked && guessed && picked !== guessed) correctCategory?.({ ids: [], text: name.trim(), from: guessed, to: picked })
     onClose()
@@ -464,6 +469,20 @@ function TransactionBody({ payload, onClose }) {
           <input type="date" value={date} max={isoDay(new Date())} onChange={(e) => setDate(e.target.value || isoDay(new Date()))} />
         </label>
       </div>
+      {addRecurring && !demo ? (
+        <label className="field">
+          <span>{t('Repeat')}</span>
+          <select value={repeat} onChange={(e) => setRepeat(e.target.value)}>
+            <option value="">{t('Just this once')}</option>
+            {EVERY.map((x) => (
+              <option key={x} value={x}>
+                {t(EVERY_LABEL[x])}
+              </option>
+            ))}
+          </select>
+          {repeat ? <small>{t('It’s added by itself from the next date on. Change or stop it under Repeating on the Transactions tab.')}</small> : null}
+        </label>
+      ) : null}
       {lockNotice}
       {guardNotice}
       <button type="submit" className="btn solid lg block" disabled={!ok}>

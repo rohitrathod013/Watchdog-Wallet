@@ -2362,3 +2362,185 @@
   color: var(--red);
   font-size: 13.5px;
 }
+
+/* rollover: what was carried into this month's limit */
+.budget-carry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -6px 0 0;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+/* ---------------- repeating transactions and statement import ---------------- */
+.tool-sum {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.rule-list,
+.import-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.rule-list li,
+.import-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--soft);
+}
+.rule-list li.paused,
+.import-list li.off {
+  opacity: 0.55;
+}
+.rule-ic {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--card);
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.rule-ic.in {
+  color: var(--green);
+}
+.rule-main,
+.imp-main {
+  flex: 1;
+  min-width: 0;
+}
+.rule-main b,
+.imp-main b {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rule-main small,
+.imp-main small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rule-list strong,
+.import-list strong {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.rule-list strong.pos,
+.import-list strong.pos {
+  color: var(--green);
+}
+.rule-form {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+}
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 34px 20px;
+  border-radius: 18px;
+  border: 1.5px dashed var(--line-2);
+  color: var(--muted);
+  text-align: center;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
+}
+.drop-zone:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.drop-zone b {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+.drop-zone small {
+  font-size: 12.5px;
+  max-width: 340px;
+  line-height: 1.45;
+}
+.import-opts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.import-opts .guard-ack {
+  margin: 0;
+  font-weight: 500;
+}
+.import-list input[type='checkbox'] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+.import-list select {
+  max-width: 150px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 10px;
+  border: 1px solid var(--line-2);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 12.5px;
+}
+.import-list select.unsure {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--amber) 25%, transparent);
+}
+.imp-dup {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--amber-bg);
+  color: color-mix(in srgb, var(--amber) 70%, var(--ink));
+  font-style: normal;
+  font-size: 11px;
+}
+@media (max-width: 560px) {
+  .import-list li {
+    flex-wrap: wrap;
+  }
+  .import-list .imp-main {
+    flex-basis: calc(100% - 30px);
+  }
+  .import-list select {
+    margin-left: 27px;
+    flex: 1;
+    max-width: none;
+  }
+  .rule-list li {
+    flex-wrap: wrap;
+  }
+  .rule-list .rule-main {
+    flex-basis: calc(100% - 130px);
+  }
+}
