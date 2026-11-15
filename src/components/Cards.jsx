@@ -597,7 +597,7 @@ export function QuickTransferCard({ d = 0, big = false, className = '' }) {
 
   const send = () => {
     if (!n || over || sent || !person) return
-    sendMoney({ to: person.name, amount: n, note: repeat ? 'Repeats monthly' : '' })
+    if (sendMoney({ to: person.name, amount: n, note: repeat ? 'Repeats monthly' : '' }) === false) return
     setSent(true)
     window.setTimeout(() => setSent(false), 1800)
   }

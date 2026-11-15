@@ -661,7 +661,15 @@ export default function Assistant({ open, onClose, prompt }) {
   )
 
   const onConfirm = (m) => {
-    m.confirm.run()
+    // false: the payment was declined (it would use money locked for a budget), and nothing moved
+    if (m.confirm.run() === false) {
+      setMsgs((list) => list.map((x) => (x.id === m.id ? { ...x, status: 'cancelled' } : x)))
+      window.setTimeout(
+        () => pushBot({ text: t('I couldn’t do that: it would use money you locked for a budget. Nothing was sent. You can unlock it on the Budget page.') }),
+        380,
+      )
+      return
+    }
     const steps = m.confirm.steps ?? [m.confirm]
     for (const st of steps)
       app.logActivity?.({

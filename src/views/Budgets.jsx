@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import Icon from '../components/Icon'
 import { CountUp, Ring } from '../components/ui'
 import { useApp, useLead } from '../lib/store'
-import { whole } from '../lib/format'
+import { money, whole } from '../lib/format'
+import { setAside } from '../lib/envelopes'
 import { CAT_COLORS } from '../data/seed'
 import { t } from '../lib/i18n'
 import { iconOfCategory, SPENDING_CATEGORIES } from '../lib/stats'
@@ -16,6 +17,7 @@ function AddBudget({ d }) {
   const [pick, setPick] = useState('')
   const [own, setOwn] = useState('')
   const [limit, setLimit] = useState('300')
+  const [locked, setLocked] = useState(true)
   const name = pick === '__own' ? own.trim() : pick || free[0]?.name || ''
   const clash = pick === '__own' && taken.has(own.trim().toLowerCase())
   const ok = name && !clash && Number(limit) > 0
@@ -23,7 +25,7 @@ function AddBudget({ d }) {
   const submit = (e) => {
     e.preventDefault()
     if (!ok) return
-    if (addBudget({ name, limit: Number(limit) })) {
+    if (addBudget({ name, limit: Number(limit), locked })) {
       setOpen(false)
       setPick('')
       setOwn('')
@@ -72,6 +74,13 @@ function AddBudget({ d }) {
         <span>{t('Monthly limit')}</span>
         <input type="number" inputMode="decimal" min="1" step="any" value={limit} onChange={(e) => setLimit(e.target.value)} />
       </label>
+      <label className="budget-lock-opt">
+        <input type="checkbox" checked={locked} onChange={(e) => setLocked(e.target.checked)} />
+        <span>
+          <b>{t('Lock this money for {name} only', { name: name ? t(name) : t('this category') })}</b>
+          <small>{t('Card payments for anything else can’t use it.')}</small>
+        </span>
+      </label>
       <div className="budget-form-btns">
         <button type="button" className="btn" onClick={() => setOpen(false)}>
           {t('Cancel')}
@@ -85,7 +94,7 @@ function AddBudget({ d }) {
 }
 
 function BudgetCard({ b, i, d }) {
-  const { setBudgetLimit, removeBudget } = useApp()
+  const { setBudgetLimit, removeBudget, toggleBudgetLock } = useApp()
   const lead = useLead()
   // remove needs a second tap within a few seconds
   const [sure, setSure] = useState(false)
@@ -108,6 +117,19 @@ function BudgetCard({ b, i, d }) {
         <span className={`pill-tag ${p > 1 ? 'red' : p > 0.9 ? 'amber' : 'green'}`}>
           {p > 1 ? t('Over budget') : p > 0.9 ? t('Near limit') : t('On track')}
         </span>
+        {toggleBudgetLock ? (
+          <button
+            type="button"
+            className={`budget-lock ${b.locked ? 'on' : ''}`}
+            onClick={() => toggleBudgetLock(b.id)}
+            aria-pressed={Boolean(b.locked)}
+            aria-label={b.locked ? t('Unlock the {name} budget', { name: t(b.name) }) : t('Lock the {name} budget', { name: t(b.name) })}
+            title={b.locked ? t('Locked: only {name} card payments can use it. Tap to unlock.', { name: t(b.name) }) : t('Lock this money for {name} only', { name: t(b.name) })}
+          >
+            <Icon name="lock" size={14} />
+            {b.locked ? <span>{t('Locked')}</span> : null}
+          </button>
+        ) : null}
         {removeBudget ? (
           <button
             type="button"
@@ -131,7 +153,11 @@ function BudgetCard({ b, i, d }) {
       </div>
       <div className="budget-foot rv" style={{ '--i': 3 }}>
         <span>
-          {p > 1 ? t('{amount} over plan', { amount: whole(b.spent - b.limit) }) : t('{amount} left to spend', { amount: whole(b.limit - b.spent) })}
+          {p > 1
+            ? t('{amount} over plan', { amount: whole(b.spent - b.limit) })
+            : b.locked
+              ? t('{amount} locked for {name}', { amount: whole(b.limit - b.spent), name: t(b.name) })
+              : t('{amount} left to spend', { amount: whole(b.limit - b.spent) })}
         </span>
         <b>{Math.round(p * 100)}%</b>
       </div>
@@ -156,7 +182,8 @@ function BudgetCard({ b, i, d }) {
 }
 
 export default function BudgetsView({ attached = true }) {
-  const { budgets, stats, addBudget } = useApp()
+  const { budgets, stats, addBudget, balance } = useApp()
+  const aside = setAside(budgets, balance)
   const now = new Date()
   const daysLeft = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate()
   const lead = useLead()
@@ -235,6 +262,26 @@ export default function BudgetsView({ attached = true }) {
           </div>
         </div>
       </section>
+
+      {aside.any ? (
+        <div className="lock-sum card" style={{ '--d': '80ms' }} role="note">
+          <span className="lock-ic">
+            <Icon name="lock" size={16} />
+          </span>
+          <p>
+            {aside.rows.length === 1
+              ? t('{aside} is locked for {name}, so card payments for other things can’t use it.', {
+                  aside: money(aside.total),
+                  name: t(aside.rows[0].name),
+                })
+              : t('{aside} is locked in {n} budgets, so card payments for other things can’t use it.', {
+                  aside: money(aside.total),
+                  n: aside.rows.length,
+                })}{' '}
+            <b>{t('Free to spend: {free}', { free: money(aside.free) })}</b>
+          </p>
+        </div>
+      ) : null}
 
       <div className="grid-3">
         {budgets.map((b, i) => (

@@ -10,6 +10,7 @@ import { ASSISTANT, BRAND } from '../config'
 import { t } from '../lib/i18n'
 import { expenseCategories, INCOME_CATEGORIES } from '../lib/stats'
 import { useGuardCheck } from './useGuardCheck'
+import { useLockCheck } from './useLockCheck'
 import { modelFor, predict } from '../lib/ml/categorize.js'
 
 const QUICK = [50, 100, 250, 500]
@@ -72,14 +73,15 @@ function SendBody({ payload, onClose }) {
   const person = contacts.find((c) => c.id === to)
   const firstTime = Boolean(person) && !transactions.some((x) => x.name === `Transfer to ${person.name}`)
   const [guardNotice, guardOk] = useGuardCheck(n, { payee: person?.name, firstTime })
+  const [lockNotice, lockOk] = useLockCheck(n, { card: false })
 
   if (done) return <Success title={t('Money sent')} body={t('{amount} is on its way to {name}.', { amount: money(done.amount), name: done.name })} />
   if (!person) return <NoContacts then="send" />
 
   const submit = (e) => {
     e.preventDefault()
-    if (!n || over || !guardOk) return
-    sendMoney({ to: person.name, amount: n, note })
+    if (!n || over || !guardOk || !lockOk) return
+    if (sendMoney({ to: person.name, amount: n, note }) === false) return
     setDone({ amount: n, name: person.name })
     window.setTimeout(onClose, 1500)
   }
@@ -110,8 +112,9 @@ function SendBody({ payload, onClose }) {
         <span>{t('Note (optional)')}</span>
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('Dinner, rent, birthday…')} />
       </label>
+      {lockNotice}
       {guardNotice}
-      <button type="submit" className="btn solid lg block" disabled={!n || over || !guardOk}>
+      <button type="submit" className="btn solid lg block" disabled={!n || over || !guardOk || !lockOk}>
         <Icon name="send" size={18} />
         {n ? t('Send {amount} to {name}', { amount: money(n), name: person.name.split(' ')[0] }) : t('Enter an amount')}
       </button>
@@ -328,8 +331,11 @@ export function GoalModal({ open, onClose }) {
 
 /* ---------------- Add a transaction by hand ---------------- */
 function TransactionBody({ payload, onClose }) {
-  const { addTransaction, balance, pots, budgets, transactions, categoryCorrections, correctCategory } = useApp()
+  const { addTransaction, balance, pots, budgets, transactions, categoryCorrections, correctCategory, cards = [] } = useApp()
   const [type, setType] = useState(payload?.type ?? 'expense')
+  // paid with one of the user's cards (locked budgets apply) or cash (a record of money already gone)
+  const [payWith, setPayWith] = useState(cards[0]?.id ?? 'cash')
+  const card = cards.find((c) => c.id === payWith)
   const [potId, setPotId] = useState(payload?.potId ?? '')
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
@@ -342,10 +348,11 @@ function TransactionBody({ payload, onClose }) {
   const [date, setDate] = useState(isoDay(new Date()))
   const n = Number(amount)
   const [guardNotice, guardOk] = useGuardCheck(type === 'expense' ? n : 0)
-  const ok = name.trim() && n > 0 && guardOk
   const cats = type === 'income' ? INCOME_CATEGORIES : expenseCategories(budgets)
   const guessed = guess && !guess.ask && cats.includes(guess.category) ? guess.category : null
   const category = picked ?? guessed ?? (type === 'income' ? 'Salary' : 'Food & Dining')
+  const [lockNotice, lockOk] = useLockCheck(type === 'expense' && card ? n : 0, { category, card: true })
+  const ok = name.trim() && n > 0 && guardOk && lockOk
 
   const pickType = (next) => {
     setType(next)
@@ -356,13 +363,15 @@ function TransactionBody({ payload, onClose }) {
     e.preventDefault()
     if (!ok) return
     const today = isoDay(new Date())
-    addTransaction({
+    const went = addTransaction({
       name: name.trim(),
       amount: type === 'income' ? n : -n,
       category,
       date: date === today ? localIso() : `${date}T12:00`,
+      method: type === 'expense' && card ? `Card ending ${card.number.slice(-4)}` : undefined,
       potId: type === 'expense' ? potId || null : null,
     })
+    if (went === false) return
     // the user overruled Grace's guess: remember it, so next time she knows
     if (picked && guessed && picked !== guessed) correctCategory?.({ ids: [], text: name.trim(), from: guessed, to: picked })
     onClose()
@@ -404,6 +413,19 @@ function TransactionBody({ payload, onClose }) {
         onChange={setAmount}
         hint={type === 'expense' && n > balance ? <small>{t('This will take your balance below zero.')}</small> : null}
       />
+      {type === 'expense' && cards.length ? (
+        <label className="field">
+          <span>{t('Paid with')}</span>
+          <select value={payWith} onChange={(e) => setPayWith(e.target.value)}>
+            {cards.map((c) => (
+              <option key={c.id} value={c.id}>
+                {t(c.label)} ••{c.number.slice(-4)}
+              </option>
+            ))}
+            <option value="cash">{t('Cash')}</option>
+          </select>
+        </label>
+      ) : null}
       {type === 'expense' && pots.length ? (
         <label className="field">
           <span>{t('Pay from')}</span>
@@ -442,6 +464,7 @@ function TransactionBody({ payload, onClose }) {
           <input type="date" value={date} max={isoDay(new Date())} onChange={(e) => setDate(e.target.value || isoDay(new Date()))} />
         </label>
       </div>
+      {lockNotice}
       {guardNotice}
       <button type="submit" className="btn solid lg block" disabled={!ok}>
         <Icon name="plus" size={18} stroke={2} />

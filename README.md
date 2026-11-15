@@ -77,6 +77,7 @@ Investing here is **tracked, not traded**: Watchdog Wallet records what you boug
   - **Overview**: balance, earnings, KPIs, savings goals, cash flow, spending, quick transfer, recent transactions, bills, budget health and the spending heatmap.
   - **Transactions**: search, filters, sorting and CSV export.
   - **Budgets**: monthly limits per category. **Add a budget** for any of 23 spending categories (Groceries, Utilities, Subscriptions, Insurance, Education, Pets, Kids, Gifts & Donations, Debt Payments, Taxes and more) or make up your own, and remove any with two taps. Custom categories also appear when you add an expense or a bill, so their spending is counted.
+  - **Locked budgets**: tap the lock on a budget (or tick it when adding one) and what's left of it is set aside for that category only. A card payment for Groceries uses the Groceries money first, then free money; a card payment for anything else, or a transfer, can only use the money that isn't locked, and is declined if it would dip into it. The payment window says where the money will come from before you pay, and the Budget page shows how much is locked and how much is free to spend. Cash records aren't blocked, since that money is already spent.
   - **Reports**: income by source and downloadable statements.
 - **Analytics**: KPI sparklines, cash flow, earnings, spending and the heatmap.
 - **Transfer**: quick transfer, recent transfers and transfer limits.
@@ -341,6 +342,7 @@ src/
     assistant.js       Grace's intent engine
     typos.js           typo correction with Fuse.js
     guard.js           guard defaults shared by the app and Grace
+    envelopes.js       locked budgets: what's set aside per category, and whether a card payment can go through
     live.js            exchange rates, crypto and stock prices, search and holidays, with caching
     i18n.js            translation helper
     format.js          money and date helpers

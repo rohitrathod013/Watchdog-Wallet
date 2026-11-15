@@ -41,6 +41,7 @@ import { stashInvite } from './lib/social'
 import { removeAllMyMedia } from './lib/media'
 import { useSocial } from './lib/useSocial'
 import { useMlFlags } from './lib/ml/useMl.js'
+import { checkPayment, isCardMethod } from './lib/envelopes'
 import { FriendAskModal, FriendPayModal, GroupModal, SplitModal } from './components/FriendModals'
 import * as seed from './data/seed'
 import { ASSISTANT, BRAND, FEATURES, THEME } from './config'
@@ -330,6 +331,8 @@ export default function App() {
   const [farewell, setFarewell] = useState(null)
   // set while an account is being deactivated or deleted, so autosave can't write it back
   const stopSaving = useRef(false)
+  // this month's budgets (with what's spent) and the balance, for the locked-budget check on payments
+  const spendRef = useRef({ budgets: [], balance: 0 })
   /* locked: null, or why ('idle' | 'manual'). It survives a reload, so refreshing doesn't get past the lock. */
   const [lock, setLock] = useState(() => {
     try {
@@ -545,15 +548,49 @@ export default function App() {
   const addTx = useCallback((row) => setTransactions((list) => [{ id: uid(), date: localIso(), status: 'Completed', ...row }, ...list]), [])
   const notify = useCallback((n) => setNotifications((list) => [{ id: uid(), time: 'Now', unread: true, ...n }, ...list]), [])
 
+  /* a payment that would use money locked for other categories: say why, and that nothing was taken */
+  const declined = useCallback(
+    (check, amount, category) => {
+      const names = check.blockedBy.map((r) => t(r.name)).join(', ')
+      toast(
+        t('Payment declined'),
+        category
+          ? t('{amount} for {category} would use money locked for {names}. Free to spend: {free}.', {
+              amount: money(amount),
+              category: t(category),
+              names,
+              free: money(check.free),
+            })
+          : t('{amount} would use money locked for {names}. Free to spend: {free}.', { amount: money(amount), names, free: money(check.free) }),
+        { icon: 'lock', ms: 6000 },
+      )
+      notify({
+        icon: 'lock',
+        tone: 'red',
+        title: 'Payment declined: {amount}',
+        body: 'It would use money locked for {names}',
+        vars: { amount: money(amount), names },
+      })
+    },
+    [notify, toast],
+  )
+
+  /** Returns false (and takes nothing) when the transfer would dip into money locked for a budget. */
   const sendMoney = useCallback(
     ({ to, amount, note }) => {
+      const check = checkPayment({ ...spendRef.current, amount, card: false })
+      if (!check.ok) {
+        declined(check, amount)
+        return false
+      }
       setBalance((b) => b - amount)
       setSentToday((s) => s + amount)
       addTx({ name: `Transfer to ${to}`, category: 'Transfer', kind: 'transfer', method: `${BRAND.name} Pay`, amount: -amount, note })
       notify({ icon: 'arrowUpRight', tone: 'accent', title: 'You sent {amount}', body: 'To {name}', vars: { amount: money(amount), name: to } })
       toast(t('Transfer sent'), t('{amount} is on its way to {name}.', { amount: money(amount), name: to }), { icon: 'send' })
+      return true
     },
-    [addTx, notify, toast],
+    [addTx, notify, toast, declined],
   )
 
   const requestMoney = useCallback(
@@ -650,14 +687,34 @@ export default function App() {
     [toast],
   )
 
+  /** Lock (or unlock) a budget: its unspent money can then only go on card payments in its own category. */
+  const toggleBudgetLock = useCallback(
+    (id) => {
+      const b = budgets.find((x) => x.id === id)
+      if (!b) return
+      setBudgets((list) => list.map((x) => (x.id === id ? { ...x, locked: !x.locked } : x)))
+      toast(
+        b.locked ? t('Budget unlocked') : t('Budget locked'),
+        b.locked
+          ? t('{name} money can be spent on anything again.', { name: t(b.name) })
+          : t('What’s left of {name} can only be spent on {name} with your card.', { name: t(b.name) }),
+        { icon: 'lock' },
+      )
+    },
+    [budgets, toast],
+  )
+
   /** A new budget for a category (one per category); returns false if it already has one. */
   const addBudget = useCallback(
-    ({ name, limit }) => {
+    ({ name, limit, locked = false }) => {
       const clean = String(name ?? '')
         .trim()
         .slice(0, 40)
       if (!clean || budgets.some((b) => b.name.toLowerCase() === clean.toLowerCase())) return false
-      setBudgets((list) => [...list, { id: uid(), name: clean, icon: iconOfCategory(clean), limit: Math.max(1, Math.round(Number(limit) || 0)) }])
+      setBudgets((list) => [
+        ...list,
+        { id: uid(), name: clean, icon: iconOfCategory(clean), limit: Math.max(1, Math.round(Number(limit) || 0)), locked: Boolean(locked) },
+      ])
       toast(t('Budget added'), t('{name}: {amount} a month.', { name: t(clean), amount: money(Math.round(Number(limit) || 0), '$', 0) }), {
         icon: 'pie',
       })
@@ -677,17 +734,26 @@ export default function App() {
     [budgets, toast],
   )
 
-  /** Record money in (amount > 0) or out (amount < 0) by hand. */
+  /** Record money in (amount > 0) or out (amount < 0) by hand. A card payment that would use
+      money locked for another budget is declined: returns false and nothing changes. */
   const addTransaction = useCallback(
     ({ name, amount, category, date, method, note, potId }) => {
+      if (amount < 0 && isCardMethod(method)) {
+        const check = checkPayment({ ...spendRef.current, amount: -amount, category, card: true })
+        if (!check.ok) {
+          declined(check, -amount, category)
+          return false
+        }
+      }
       setBalance((b) => Math.round((b + amount) * 100) / 100)
       // spending from a pot empties that pot first; the rest comes out of unassigned
       if (potId && amount < 0)
         setPots((list) => list.map((p) => (p.id === potId ? { ...p, amount: Math.max(0, Math.round((p.amount + amount) * 100) / 100) } : p)))
       addTx({ name, amount, category, kind: KIND_FOR[category] ?? 'transfer', method: method || 'Cash', date: date || localIso(), note })
       toast(amount > 0 ? t('Income added') : t('Expense added'), `${t(name)} · ${money(Math.abs(amount))}`, { icon: amount > 0 ? 'receive' : 'send' })
+      return true
     },
-    [addTx, toast],
+    [addTx, toast, declined],
   )
 
   const addContact = useCallback(
@@ -1024,6 +1090,9 @@ export default function App() {
 
   /* every chart and summary, from the sample figures or this account's own transactions */
   const stats = useMemo(() => (isDemo ? demoStats(budgets) : computeStats(transactions, budgets)), [isDemo, transactions, budgets])
+  useLayoutEffect(() => {
+    spendRef.current = { budgets: stats.budgets, balance }
+  }, [stats, balance])
   // unusual spending, kept fresh (off the main thread for big accounts)
   const mlFlags = useMlFlags(transactions, mlVerdicts)
   const cards = useMemo(() => (isDemo ? seed.CARDS : accountCards(user)), [isDemo, user])
@@ -1184,6 +1253,7 @@ export default function App() {
       correctCategory,
       addBudget,
       removeBudget,
+      toggleBudgetLock,
       toast,
       openModal,
       social,
@@ -1261,6 +1331,7 @@ export default function App() {
       correctCategory,
       addBudget,
       removeBudget,
+      toggleBudgetLock,
       toast,
       openModal,
       social,

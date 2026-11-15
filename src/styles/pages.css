@@ -2259,3 +2259,106 @@
   opacity: 0.45;
   cursor: default;
 }
+
+/* locked budgets: the toggle on each budget, the option when adding one, and the summary */
+.budget-lock {
+  height: 30px;
+  min-width: 30px;
+  padding: 0 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+.budget-lock:hover {
+  background: var(--soft);
+  color: var(--ink);
+}
+.budget-lock.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.budget-lock-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.budget-lock-opt input {
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+.budget-lock-opt small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.lock-sum {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+}
+.lock-sum p {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+.lock-sum b {
+  color: var(--ink);
+  white-space: nowrap;
+}
+.lock-ic {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+/* in payment windows */
+.lock-notice {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--soft);
+}
+.lock-notice small {
+  display: block;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.lock-notice small + small {
+  margin-top: 4px;
+}
+.lock-notice.bad {
+  background: var(--red-bg);
+}
+.lock-notice.bad .lock-ic {
+  background: color-mix(in srgb, var(--red) 16%, var(--card));
+  color: var(--red);
+}
+.lock-notice.bad b {
+  color: var(--red);
+  font-size: 13.5px;
+}
