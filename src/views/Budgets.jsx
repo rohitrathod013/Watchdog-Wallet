@@ -145,7 +145,7 @@ function BudgetCard({ b, i, d }) {
             className={`budget-lock ${b.locked ? 'on' : ''}`}
             onClick={() => toggleBudgetLock(b.id)}
             aria-pressed={Boolean(b.locked)}
-            aria-label={b.locked ? t('Unlock the {name} budget', { name: t(b.name) }) : t('Lock the {name} budget', { name: t(b.name) })}
+            aria-label={b.locked ? `${t('Locked')}: ${t('Unlock the {name} budget', { name: t(b.name) })}` : t('Lock the {name} budget', { name: t(b.name) })}
             title={b.locked ? t('Locked: only {name} card payments can use it. Tap to unlock.', { name: t(b.name) }) : t('Lock this money for {name} only', { name: t(b.name) })}
           >
             <Icon name="lock" size={14} />

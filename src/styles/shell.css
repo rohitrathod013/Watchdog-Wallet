@@ -369,7 +369,7 @@
   padding: 0 22px;
   border-radius: 999px;
   background: var(--soft-2);
-  color: #7b7b7b;
+  color: #5f5f64; /* 5:1 on the tab grey (WCAG AA) */
   font-size: 17px;
   white-space: nowrap;
   transition:
@@ -451,7 +451,7 @@
 }
 .live-ic {
   position: relative;
-  color: var(--accent);
+  color: var(--accent-text);
   display: grid;
   place-items: center;
 }
@@ -627,7 +627,7 @@
 }
 .notif-ic.accent {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .notif-ic.green {
   background: var(--green-bg);
@@ -1215,4 +1215,96 @@ body:has(.demo-bar) .copyright {
   font-size: 12px;
   line-height: 1.4;
   color: var(--muted);
+}
+
+/* the first-run tour: a card at the bottom, out of the way of the page */
+.tour {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 95;
+  width: min(440px, calc(100vw - 24px));
+  animation: tourIn 0.35s var(--ease) both;
+}
+.tour-card {
+  padding: 18px 20px;
+  border-radius: 22px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-pop);
+  outline: none;
+}
+.tour-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tour-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.tour-buddy {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.tour-count {
+  flex: 1;
+  font-size: 12px;
+  color: var(--muted);
+}
+.tour-card h2 {
+  margin: 12px 0 6px;
+  font-size: 18px;
+}
+.tour-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.tour-dots {
+  display: flex;
+  gap: 6px;
+  margin: 14px 0;
+}
+.tour-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line-2);
+}
+.tour-dots i.on {
+  width: 20px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.tour-btns {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+@keyframes tourIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 16px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour {
+    animation: none;
+  }
+}
+@media (max-width: 720px) {
+  .tour {
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
 }

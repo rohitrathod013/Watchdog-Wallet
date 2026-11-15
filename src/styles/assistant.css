@@ -529,7 +529,7 @@
   background: rgba(255, 255, 255, 0.3);
 }
 .ai-head .icon-btn.on {
-  color: var(--accent);
+  color: var(--accent-text);
   background: #fff;
 }
 
@@ -813,7 +813,7 @@
   transform: scale(0.94);
 }
 .ai-links button.go {
-  color: var(--accent);
+  color: var(--accent-text);
   border-color: color-mix(in srgb, var(--accent) 35%, var(--card));
 }
 
@@ -900,7 +900,7 @@
   margin-top: 8px;
   text-align: center;
   font-size: 11px;
-  color: var(--faint);
+  color: var(--muted);
 }
 
 /* make room for the panel and the docked buddy */
@@ -940,7 +940,7 @@ html.ai-open .toasts {
 .ai-stats em {
   font-style: normal;
   margin-left: 6px;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .ai-hint kbd {
   font-family: inherit;
@@ -1105,7 +1105,7 @@ html:not([lang='en']) .bal-actions .btn.xl {
   border-radius: 999px;
   font-size: 12.5px;
   font-weight: 500;
-  color: var(--accent);
+  color: var(--accent-text);
   background: var(--accent-soft);
 }
 .show-work-btn:hover {
@@ -1540,7 +1540,7 @@ html:not([lang='en']) .bal-actions .btn.xl {
   border-radius: inherit;
   border: 2px dashed var(--accent);
   background: color-mix(in srgb, var(--card) 88%, transparent);
-  color: var(--accent);
+  color: var(--accent-text);
   pointer-events: none;
 }
 .ai-drop b {
@@ -1554,4 +1554,11 @@ html:not([lang='en']) .bal-actions .btn.xl {
   .ai-attach {
     animation: none;
   }
+}
+
+/* Grace's suggestions */
+.sug-text {
+  margin: 0 0 8px;
+  font-size: 13.5px;
+  line-height: 1.5;
 }

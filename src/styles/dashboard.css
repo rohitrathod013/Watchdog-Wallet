@@ -141,7 +141,7 @@
 }
 @keyframes tick {
   20% {
-    color: var(--accent);
+    color: var(--accent-text);
   }
 }
 .eye-btn {
@@ -360,7 +360,7 @@
   translate: -50% 0;
   font-size: 13.5px;
   font-weight: 500;
-  color: var(--accent);
+  color: var(--accent-text);
   white-space: nowrap;
   transition: bottom 0.8s var(--ease);
   animation: tipIn 0.3s var(--ease) both;

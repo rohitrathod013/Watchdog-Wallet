@@ -285,7 +285,7 @@
   font-weight: 600;
 }
 .auth-demo > svg:first-child {
-  color: var(--accent);
+  color: var(--accent-text);
   flex-shrink: 0;
 }
 .auth-demo span {
@@ -496,7 +496,7 @@
   height: 36px;
   border-radius: 12px;
   background: var(--soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .guard-limit {
   display: inline-flex;
@@ -553,7 +553,7 @@
 .guard-ack input {
   width: 17px;
   height: 17px;
-  accent-color: var(--accent);
+  accent-color: var(--accent-text);
 }
 .ai-confirm .btn.armed {
   background: var(--amber, #e8a33c);

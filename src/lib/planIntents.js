@@ -10,6 +10,7 @@ import { EVERY_LABEL } from './recurring'
 import { nextDays, dayOf } from './upcoming'
 import { categoryIn, openFlags } from './ml/grace.js'
 import { weeklyRecap } from './recap'
+import { suggestions as suggestionsFor } from './suggestions'
 import { compareMethods, debtFreeBy, monthChange, netWorthNow } from './wealth'
 import { makeTrace } from './trace'
 import { money } from './format'
@@ -346,6 +347,14 @@ export function planIntent(s, app) {
   if (app.stats?.demo) return null
   // "how do I lock a budget?", "what is rollover?": explained by the help answers, not acted on
   const howTo = /^(how|where|what is|what are|what does|why)\b/.test(s) && !/\bhow much\b/.test(s)
+  if (/\b(any )?(suggestions?|recommendations?|tips for me|what should i (change|improve|do better)|how can i (improve|do better|save more))\b/.test(s) && !/\b(saving tips?|tip)\b$/.test(s)) {
+    const list = suggestionsFor({ transactions: app.transactions ?? [], budgets: app.budgets ?? [], recurring: app.recurring ?? [], dismissed: app.suggestionsDismissed ?? [] }, app.now ?? new Date())
+    if (!list.length) return { text: t('Nothing to change right now: your budgets fit how you spend, and your repeat charges are set up. I’ll mention it when something stands out.'), mood: 'happy' }
+    return {
+      text: list.length === 1 ? t('One thing I’d change:') : t('{n} things I’d change:', { n: Math.min(list.length, 5) }),
+      card: { type: 'suggestions', items: list.slice(0, 5) },
+    }
+  }
   if (/\b(weekly (recap|summary|review)|week in review|how was my week|my week|last week'?s? (recap|summary)|recap (of )?(my |last )?week|sum up (my |last )?week)\b/.test(s)) return recapReply(app)
   if (/\bnet ?worth\b/.test(s) && !howTo) return worthReply(app)
   if (/\b(debt[- ]free|pay ?off (my |all my )?(debts?|loans?|cards?)|debt (plan|payoff|planner|snowball|avalanche)|when will i (be )?(out of debt|debt[- ]free|pay off))\b/.test(s) && !/^(what is|what are|what'?s the difference)\b/.test(s) && !/\b(or|vs|versus) (sav|invest)|\b(save|saving|invest\w*) first\b/.test(s))

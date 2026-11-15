@@ -3,7 +3,7 @@ import Icon from '../components/Icon'
 import { TxRow } from '../components/Cards'
 import { CountUp, Empty, Segmented } from '../components/ui'
 import { useApp, useLead } from '../lib/store'
-import { money, saveFile, stamp } from '../lib/format'
+import { money, saveFile, stamp, csvCell } from '../lib/format'
 import { BRAND } from '../config'
 import { t, tName } from '../lib/i18n'
 
@@ -52,10 +52,9 @@ export default function TransactionsView({ attached = true }) {
   )
 
   const exportCsv = () => {
-    const lines = [[t('Date'), t('Transaction'), t('Category'), t('Method'), t('Status'), t('Amount')].join(',')]
-    rows.forEach((x) =>
-      lines.push([`"${stamp(x.date)}"`, `"${tName(x.name)}"`, `"${t(x.category)}"`, `"${t(x.method)}"`, t(x.status), x.amount.toFixed(2)].join(',')),
-    )
+    const lines = [[t('Date'), t('Transaction'), t('Category'), t('Method'), t('Status'), t('Amount')].map(csvCell).join(',')]
+    // every cell made safe: an imported name like "=HYPERLINK(...)" must never run as a formula in a spreadsheet
+    rows.forEach((x) => lines.push([stamp(x.date), tName(x.name), t(x.category), t(x.method), t(x.status), x.amount.toFixed(2)].map(csvCell).join(',')))
     saveFile(`${BRAND.name.toLowerCase().replace(/\s+/g, '-')}-transactions.csv`, lines.join('\n'), 'text/csv')
     toast(t('Export ready'), t('{n} transactions saved as CSV.', { n: rows.length }), { icon: 'download' })
   }

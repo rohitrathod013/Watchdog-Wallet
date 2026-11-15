@@ -6,6 +6,59 @@ import { saveFile, whole } from '../lib/format'
 import { BRAND } from '../config'
 import { t, tMonths } from '../lib/i18n'
 import { CardEmpty } from '../components/Cards'
+import { useState } from 'react'
+import { money, MONTHS } from '../lib/format'
+import { statementFor, statementHtml, statementMonths } from '../lib/statement'
+
+/* the month's statement as a page to save as PDF (the browser's print window does the PDF) */
+function StatementCard({ d }) {
+  const { transactions, balance, budgets, user, stats } = useApp()
+  const months = statementMonths(transactions)
+  const [month, setMonth] = useState(months[0] ?? '')
+  const label = (m) => `${tMonths(MONTHS[Number(m.slice(5, 7)) - 1])} ${m.slice(0, 4)}`
+  const open = () => {
+    if (!month) return
+    const st = statementFor({ transactions, balance, budgets }, month)
+    const html = statementHtml(st, { t, money, who: user?.name ?? '', brand: BRAND.name, monthName: label(month) })
+    const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }))
+    window.open(url, '_blank', 'noopener')
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000)
+  }
+  return (
+    <section className="card statement-card" style={{ '--d': `${d}ms` }}>
+      <div className="c-head rv" style={{ '--i': 0 }}>
+        <div>
+          <h2 className="card-h">{t('Monthly statement')}</h2>
+          <p className="card-sub">{t('Balances, money in and out, budgets and every transaction, as a PDF')}</p>
+        </div>
+      </div>
+      {months.length && !stats.demo ? (
+        <div className="statement-row rv" style={{ '--i': 1 }}>
+          <select value={month} onChange={(e) => setMonth(e.target.value)} aria-label={t('Month')}>
+            {months.map((m) => (
+              <option key={m} value={m}>
+                {label(m)}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="btn solid" onClick={open}>
+            <Icon name="download" size={16} />
+            {t('Download PDF')}
+          </button>
+        </div>
+      ) : (
+        <p className="tool-sum rv" style={{ '--i': 1 }}>
+          {stats.demo
+            ? t('Statements are made from your own account’s transactions.')
+            : t('Add some transactions and your first statement appears here.')}
+        </p>
+      )}
+      <p className="tool-sum rv" style={{ '--i': 2 }}>
+        {t('It opens ready to print: choose “Save as PDF” as the printer.')}
+      </p>
+    </section>
+  )
+}
 
 const SRC_COLORS = ['var(--solid)', 'var(--green)', 'var(--accent)']
 
@@ -29,6 +82,7 @@ export default function ReportsView({ attached = true }) {
 
   return (
     <>
+      <StatementCard d={0} />
       <section className={`card income-src ${attached ? 'attached' : ''}`} style={{ '--d': '0ms' }}>
         <div className="c-head rv" style={{ '--i': 0 }}>
           <div>

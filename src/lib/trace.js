@@ -19,7 +19,7 @@
    All arithmetic is in whole cents. Numbers only ever come from this
    code: the LLM (lib/llm.js) never produces a figure that gets a trace.
    ------------------------------------------------------------------ */
-import { money } from './format'
+import { money, csvCell } from './format'
 import { getLocale, LOCALES, t } from './i18n'
 
 /** Dollars to whole cents, and back. */
@@ -71,10 +71,7 @@ export const traceAddsUp = (tr) => !tr.sum || toCents(tr.value) === tr.sign * su
 
 /** The rows as CSV, for "Copy as CSV". */
 export function traceCsv(tr) {
-  const cell = (v) => {
-    const s = String(v ?? '')
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-  }
+  const cell = csvCell
   const lines = [['date', 'description', 'amount', 'currency'].join(',')]
   for (const r of tr.rows) lines.push([r.date, r.description, r.amount.toFixed(2), tr.currency].map(cell).join(','))
   if (tr.sum) lines.push(['', 'Total', tr.value.toFixed(2), tr.currency].map(cell).join(','))

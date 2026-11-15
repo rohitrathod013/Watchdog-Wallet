@@ -253,7 +253,7 @@ export function Dropdown({ value, options, onChange, icon, small = false, anchor
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={label}
+        aria-label={label ? `${label}: ${current?.label ?? ''}` : undefined}
       >
         {icon ? <Icon name={icon} size={18} /> : null}
         {current?.label}

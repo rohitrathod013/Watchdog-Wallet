@@ -26,11 +26,10 @@ import { DEFAULT_GUARD } from './lib/guard'
 import Dashboard from './pages/Dashboard'
 
 import { AppContext } from './lib/store'
-import { PAGES, TABS } from './lib/routes'
 import { liquidSwitch } from './lib/themeTransition'
 import { lightHours, locate, msUntilSwitch, rememberSun, resolveTheme, savedPlace } from './lib/dayTheme'
 import { isoDay, localIso, MONTHS, money, uid } from './lib/format'
-import { billDue, computeStats, DEFAULT_BUDGETS, demoStats, iconOfCategory, KIND_FOR, makeCard, monthKey } from './lib/stats'
+import { billDue, computeStats, demoStats, iconOfCategory, KIND_FOR, makeCard, monthKey } from './lib/stats'
 import { LOCALES, setLocale, t, tMonths } from './lib/i18n'
 import { applyRates, loadRates } from './lib/live'
 import { accountsEnabled, confirmPassword, deleteMyAccount, getSupabase, loadUserState, profileOf, SAVED_KEYS, saveUserState } from './lib/supabase'
@@ -41,11 +40,12 @@ import { stashInvite } from './lib/social'
 import { removeAllMyMedia } from './lib/media'
 import { useSocial } from './lib/useSocial'
 import { useMlFlags } from './lib/ml/useMl.js'
+import { useNetWorthSnapshot, usePushPresence, useReminderNudges, useRepeatingRunner, useWeeklyRecap } from './app/useBackgroundJobs'
+import { DEFAULT_WATCHLIST, DEMO_GUARD, DEMO_NOW, demoState, freshState } from './app/state'
+import { fromHash, store, stored } from './app/routing'
 import { dropCopies, keepCopy, looksOffline, readCopy } from './lib/offline'
-import { markActive } from './lib/push'
-import { makeItem, netWorthNow, withSnapshot } from './lib/wealth'
+import { makeItem } from './lib/wealth'
 import { DEFAULT_SPLIT, planSplit } from './lib/incomeSplit'
-import { weekKey, weeklyRecap, weekStart } from './lib/recap'
 import { checkPayment, isCardMethod } from './lib/envelopes'
 import { EVERY_LABEL, makeRule, runAll } from './lib/recurring'
 import { FriendAskModal, FriendPayModal, GroupGoalsModal, GroupModal, SettleModal, SplitModal } from './components/FriendModals'
@@ -71,64 +71,14 @@ const Wallet = lazy(load.wallet)
 const Budget = lazy(load.budget)
 // chats from any page (it brings the Friends chat with it, so it loads on its own)
 const MessengerDock = lazy(() => import('./components/MessengerDock'))
+// the first-run tour, only for accounts that haven't finished it
+const Tour = lazy(() => import('./components/Tour'))
 const Friends = lazy(load.friends)
 const Buddy = lazy(load.buddy)
 const Assistant = lazy(load.assistant)
 const Auth = lazy(() => import('./components/Auth'))
 
 const PAGE_VIEWS = { dashboard: Dashboard, analytics: Analytics, transfer: Transfer, wallet: Wallet, budget: Budget, friends: Friends }
-
-/* A new account starts empty: no money, no history. Only a few budget
-   categories are suggested so the Budget page has something to adjust. */
-/* the coins and stocks on the Markets card until the user picks their own */
-const DEFAULT_WATCHLIST = { crypto: ['bitcoin', 'ethereum', 'ripple', 'solana', 'dogecoin'], stocks: ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN'] }
-
-/* Grace's guard settings (see components/Guard.jsx); the demo doesn't auto-lock */
-const DEMO_GUARD = { ...DEFAULT_GUARD, lock: 0 }
-
-const freshState = () => ({
-  balance: 0,
-  transactions: [],
-  goals: [],
-  budgets: DEFAULT_BUDGETS,
-  bills: [],
-  contacts: [],
-  pots: [],
-  activity: [],
-  watchlist: DEFAULT_WATCHLIST,
-  holdings: [],
-  guard: DEFAULT_GUARD,
-  notifications: [
-    {
-      id: 'welcome',
-      icon: 'sparkle',
-      tone: 'accent',
-      title: 'Welcome to {brand}!',
-      body: 'Your account is ready. Add your first transaction to get started.',
-      vars: { brand: BRAND.name },
-      time: 'Now',
-      unread: true,
-    },
-  ],
-})
-
-const DEMO_NOW = new Date(2026, 9, 28, 18, 0)
-
-/* The demo: the full sample dashboard, never saved anywhere. */
-const demoState = () => ({
-  balance: seed.BALANCE_USD,
-  transactions: seed.TRANSACTIONS,
-  goals: seed.GOALS,
-  budgets: seed.BUDGETS,
-  bills: seed.BILLS,
-  contacts: seed.CONTACTS,
-  notifications: seed.NOTIFICATIONS,
-  pots: seed.POTS,
-  activity: [],
-  watchlist: DEFAULT_WATCHLIST,
-  holdings: seed.HOLDINGS,
-  guard: DEMO_GUARD,
-})
 
 /** Shown while checking the session or loading an account's data. */
 function Splash() {
@@ -137,32 +87,6 @@ function Splash() {
       <Logo size={56} />
     </div>
   )
-}
-
-/* #/dashboard/reports → { page: 'dashboard', tab: 'reports' } */
-const fromHash = () => {
-  const [p, t] = window.location.hash.replace(/^#\/?/, '').split('/')
-  // the Dashboard used to have a Budgets tab: old links open the Budget page
-  if (p === 'dashboard' && t === 'budgets') return { page: 'budget', tab: 'overview' }
-  const page = PAGES.some((x) => x.id === p) ? p : 'dashboard'
-  const tab = page === 'dashboard' && TABS.some((x) => x.id === t) ? t : 'overview'
-  return { page, tab }
-}
-
-const stored = (key, fallback) => {
-  try {
-    return localStorage.getItem(key) ?? fallback
-  } catch {
-    return fallback
-  }
-}
-
-const store = (key, value) => {
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    /* private mode: preferences just will not persist */
-  }
 }
 
 export default function App() {
@@ -340,6 +264,9 @@ export default function App() {
   const [incomeSplit, setIncomeSplit] = useState(DEFAULT_SPLIT)
   // the last week a recap was sent for ("2026-W46")
   const [recapWeek, setRecapWeek] = useState(null)
+  // Grace's suggestions the user said "not now" to, and whether the first-run tour is done
+  const [suggestionsDismissed, setSuggestionsDismissed] = useState([])
+  const [tourDone, setTourDone] = useState(false)
   const ranRule = useRef(new Set())
 
   /* ---------- accounts (Supabase) ----------
@@ -406,6 +333,8 @@ export default function App() {
     setNetWorth({ items: [], history: [], ...(data.netWorth ?? {}) })
     setIncomeSplit({ ...DEFAULT_SPLIT, ...(data.incomeSplit ?? {}) })
     setRecapWeek(data.recapWeek ?? null)
+    setSuggestionsDismissed(data.suggestionsDismissed ?? [])
+    setTourDone(Boolean(data.tourDone))
     ranRule.current = new Set()
     setDrift(0)
     setSentToday(0)
@@ -496,6 +425,8 @@ export default function App() {
       netWorth,
       incomeSplit,
       recapWeek,
+      suggestionsDismissed,
+      tourDone,
     }),
     [
       balance,
@@ -520,6 +451,8 @@ export default function App() {
       netWorth,
       incomeSplit,
       recapWeek,
+      suggestionsDismissed,
+      tourDone,
     ],
   )
   const [saveFailed, setSaveFailed] = useState(false)
@@ -965,6 +898,9 @@ export default function App() {
     [toast],
   )
 
+  /** "Not now" on one of Grace's suggestions: it doesn't come back. */
+  const dismissSuggestion = useCallback((key) => setSuggestionsDismissed((list) => (list.includes(key) ? list : [...list, key].slice(-200))), [])
+
   const addWorthItem = useCallback((input) => {
     const item = makeItem({ ...input, id: uid() })
     if (!item) return false
@@ -1062,111 +998,12 @@ export default function App() {
     [addTx, pots, toast],
   )
 
-  /* ---------- repeating transactions: add the ones whose date has come ---------- */
+  /* ---------- background jobs (src/app/useBackgroundJobs.js) ---------- */
+  // accounts: once this user's data is loaded; the demo and no-login mode: straight away
   const rulesReady = !accountsEnabled || isDemo || Boolean(userId && loadedFor === userId)
-  useEffect(() => {
-    if (!rulesReady) return undefined
-    const run = () => {
-      const { add, rules, changed } = runAll(recurring, isoDay(new Date()))
-      if (!changed) return
-      // each run is added once, even if this fires twice before the rules are saved
-      const fresh = add.filter((x) => !ranRule.current.has(`${x.rule}|${x.day}`))
-      for (const x of fresh) ranRule.current.add(`${x.rule}|${x.day}`)
-      setRecurring(rules)
-      if (!fresh.length) return
-      const today = isoDay(new Date())
-      setTransactions((list) =>
-        [
-          ...fresh.map((x) => ({
-            id: uid(),
-            name: x.name,
-            amount: x.amount,
-            category: x.category,
-            kind: KIND_FOR[x.category] ?? 'transfer',
-            method: x.method || 'Repeats',
-            date: x.day === today ? localIso() : `${x.day}T09:00`,
-            status: 'Completed',
-            repeat: x.rule,
-          })),
-          ...list,
-        ].sort((a, b) => String(b.date).localeCompare(String(a.date))),
-      )
-      const cents = fresh.reduce((sum, x) => sum + Math.round(x.amount * 100), 0)
-      setBalance((b) => Math.round(b * 100 + cents) / 100)
-      for (const x of fresh) if (x.amount > 0) splitIncome(x.amount, x.category)
-      const first = fresh[0]
-      notify({
-        icon: 'replay',
-        tone: 'accent',
-        title: fresh.length === 1 ? 'Added: {name}' : 'Added {n} repeating transactions',
-        body: fresh.length === 1 ? '{amount}, as scheduled' : 'Including {name}',
-        vars: { name: first.name, amount: money(Math.abs(first.amount)), n: fresh.length },
-      })
-    }
-    run()
-    const timer = window.setInterval(run, 60 * 60 * 1000)
-    window.addEventListener('focus', run)
-    return () => {
-      window.clearInterval(timer)
-      window.removeEventListener('focus', run)
-    }
-  }, [rulesReady, recurring, notify, splitIncome])
-
-  /* ---------- push: while the app is open and on screen, tell the server not to push to you ---------- */
-  useEffect(() => {
-    if (!accountsEnabled || isDemo || !userId || loadedFor !== userId) return undefined
-    const beat = () => markActive(document.visibilityState === 'visible')
-    beat()
-    const timer = window.setInterval(() => document.visibilityState === 'visible' && markActive(true), 30 * 1000)
-    document.addEventListener('visibilitychange', beat)
-    const bye = () => markActive(false)
-    window.addEventListener('pagehide', bye)
-    return () => {
-      window.clearInterval(timer)
-      document.removeEventListener('visibilitychange', beat)
-      window.removeEventListener('pagehide', bye)
-      markActive(false)
-    }
-  }, [isDemo, userId, loadedFor])
-
-  /* ---------- cancel reminders: nudge on the day ---------- */
-  useEffect(() => {
-    if (!rulesReady) return undefined
-    const check = () => {
-      const today = isoDay(new Date())
-      const due = reminders.filter((r) => !r.done && r.day <= today)
-      if (!due.length) return
-      setReminders((list) => list.map((r) => (due.some((d) => d.id === r.id) ? { ...r, done: true } : r)))
-      for (const r of due) {
-        notify({
-          icon: 'bell',
-          tone: 'accent',
-          title: 'Cancel {name}?',
-          body: 'It charges {amount} on {date}. Cancel with them before then if you don’t need it.',
-          vars: { name: r.name, amount: money(r.amount), date: r.charge },
-        })
-        toast(
-          t('Cancel {name}?', { name: r.name }),
-          t('It charges {amount} on {date}. Cancel with them before then if you don’t need it.', {
-            name: r.name,
-            amount: money(r.amount),
-            date: r.charge,
-          }),
-          {
-            icon: 'bell',
-            ms: 8000,
-          },
-        )
-      }
-    }
-    check()
-    const timer = window.setInterval(check, 60 * 60 * 1000)
-    window.addEventListener('focus', check)
-    return () => {
-      window.clearInterval(timer)
-      window.removeEventListener('focus', check)
-    }
-  }, [rulesReady, reminders, notify, toast])
+  useRepeatingRunner({ ready: rulesReady, recurring, setRecurring, ranRule, setTransactions, setBalance, splitIncome, notify })
+  usePushPresence(accountsEnabled && !isDemo && Boolean(userId) && loadedFor === userId)
+  useReminderNudges({ ready: rulesReady, reminders, setReminders, notify, toast })
 
   /* ---------- card top-ups: coming back from Stripe Checkout ----------
      Stripe sends the user back with ?paid=<session id>. The payments
@@ -1457,42 +1294,8 @@ export default function App() {
     splitRef.current = { split: incomeSplit, pots, goals }
   }, [incomeSplit, pots, goals])
 
-  /* ---------- net worth: keep this month's snapshot up to date ---------- */
-  const worthNow = useMemo(() => netWorthNow({ balance, goals, holdings, items: netWorth.items }).value, [balance, goals, holdings, netWorth.items])
-  useEffect(() => {
-    if (!rulesReady || isDemo) return
-    const snap = () =>
-      setNetWorth((w) => {
-        const history = withSnapshot(w.history, worthNow)
-        return history === w.history ? w : { ...w, history }
-      })
-    snap()
-  }, [rulesReady, isDemo, worthNow])
-
-  /* ---------- weekly recap: once a week, about the week before ---------- */
-  useEffect(() => {
-    if (!rulesReady || isDemo) return
-    const now = new Date()
-    const key = weekKey(new Date(weekStart(now).getTime() - 7 * 86400000))
-    if (recapWeek === key) return
-    const send = () => {
-      const r = weeklyRecap({ transactions, budgets: stats.budgets }, now)
-      setRecapWeek(key)
-      if (r.empty) return
-      notify({
-        icon: 'chart',
-        tone: 'accent',
-        title: 'Your week: {spent} spent',
-        body: r.change == null ? 'Most of it on {category}. Ask Grace “how was my week?”' : '{change} vs the week before. Most of it on {category}.',
-        vars: {
-          spent: money(r.spent),
-          change: `${r.change >= 0 ? '+' : ''}${r.change}%`,
-          category: r.top[0]?.category ?? '',
-        },
-      })
-    }
-    send()
-  }, [rulesReady, isDemo, recapWeek, transactions, stats.budgets, notify])
+  useNetWorthSnapshot({ ready: rulesReady && !isDemo, balance, goals, holdings, netWorth, setNetWorth })
+  useWeeklyRecap({ ready: rulesReady && !isDemo, recapWeek, setRecapWeek, transactions, budgets: stats.budgets, notify })
 
   // unusual spending, kept fresh (off the main thread for big accounts)
   const mlFlags = useMlFlags(transactions, mlVerdicts)
@@ -1670,6 +1473,10 @@ export default function App() {
       removeCard,
       terms,
       acceptTerms,
+      suggestionsDismissed,
+      dismissSuggestion,
+      tourDone,
+      setTourDone,
       netWorth,
       addWorthItem,
       updateWorthItem,
@@ -1767,6 +1574,10 @@ export default function App() {
       removeCard,
       terms,
       acceptTerms,
+      suggestionsDismissed,
+      dismissSuggestion,
+      tourDone,
+      setTourDone,
       netWorth,
       addWorthItem,
       updateWorthItem,
@@ -1919,6 +1730,11 @@ export default function App() {
         </div>
       ) : null}
       {lock ? <LockScreen user={user} demo={isDemo} reason={lock} onUnlock={unlock} onSignOut={signOut} /> : null}
+      {accountsEnabled && !isDemo && userId && loadedFor === userId && !tourDone && !lock && !booting ? (
+        <Suspense fallback={null}>
+          <Tour onOpenAssistant={() => openAssistant()} />
+        </Suspense>
+      ) : null}
       {accountsEnabled && demo ? (
         <div className="demo-bar" role="status">
           <span className="demo-long">{t('You’re exploring the demo. Nothing here is saved.')}</span>

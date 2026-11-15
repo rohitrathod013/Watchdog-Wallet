@@ -17,7 +17,8 @@
 
   --ink: #151515;
   --ink-2: #3a3a3a;
-  --muted: #8b8b8b;
+  /* secondary text: 4.5:1 or better on the card, soft and line greys (WCAG AA) */
+  --muted: #67676c;
   --faint: #bdbdbd;
 
   --solid: #1b1b1b;
@@ -32,10 +33,12 @@
   --accent-2: #f5925a;
   --accent-deep: #dc5519;
   --accent-soft: color-mix(in srgb, var(--accent) 12%, var(--card));
+  /* the accent as small text: darker in light themes, lighter in dark ones, so it stays readable (AA) */
+  --accent-text: color-mix(in srgb, var(--accent) 66%, #000);
 
-  --green: #4fae84;
+  --green: #24704f;
   --green-bg: #e6f5ed;
-  --red: #e5484d;
+  --red: #c42b31;
   --red-bg: #fde9e9;
   --amber: #f0b400;
   --amber-bg: #fdf4d6;
@@ -66,7 +69,7 @@
 
   --ink: #f4f4f5;
   --ink-2: #d2d2d7;
-  --muted: #8e8e97;
+  --muted: #a1a1aa;
   --faint: #5d5d65;
 
   --solid: #f4f4f5;
@@ -79,6 +82,7 @@
   --green: #4cc28f;
   --green-bg: rgba(76, 194, 143, 0.14);
   --red: #f2666b;
+  --accent-text: color-mix(in srgb, var(--accent) 70%, #fff);
   --red-bg: rgba(242, 102, 107, 0.14);
   --amber: #f5c542;
   --amber-bg: rgba(245, 197, 66, 0.13);
@@ -472,7 +476,7 @@ html.theme-fade *::after {
 }
 
 .link {
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 500;
   font-size: 13.5px;
   display: inline-flex;
@@ -519,7 +523,7 @@ html.theme-fade *::after {
   color: #fff;
 }
 .chg b {
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
@@ -567,7 +571,7 @@ html.theme-fade *::after {
 }
 .pill-tag.accent {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 /* status: • Completed */

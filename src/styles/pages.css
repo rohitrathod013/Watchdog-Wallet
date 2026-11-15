@@ -607,7 +607,7 @@
   color: var(--muted);
 }
 .bill-main small.soon {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .bill > strong {
   font-weight: 600;
@@ -1010,7 +1010,7 @@
     background-color 0.15s;
 }
 .budget-add:hover {
-  border-color: var(--accent);
+  border-color: var(--accent-text);
   background: var(--card);
 }
 .budget-add b {
@@ -1029,7 +1029,7 @@
   display: grid;
   place-items: center;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .budget-form .field {
   margin: 0;
@@ -1689,7 +1689,7 @@
   color: var(--ink-2);
 }
 .qt-meta span svg {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .qt-meta b {
   font-weight: 500;
@@ -2107,7 +2107,7 @@
   color: var(--muted);
 }
 .mk-results button > svg {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .coin-logo.sm {
   width: 30px;
@@ -2283,7 +2283,7 @@
 }
 .budget-lock.on {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .budget-lock-opt {
   display: flex;
@@ -2296,7 +2296,7 @@
   width: 17px;
   height: 17px;
   margin-top: 2px;
-  accent-color: var(--accent);
+  accent-color: var(--accent-text);
   flex-shrink: 0;
 }
 .budget-lock-opt small {
@@ -2329,7 +2329,7 @@
   display: grid;
   place-items: center;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
   flex-shrink: 0;
 }
 /* in payment windows */
@@ -2370,7 +2370,7 @@
   gap: 6px;
   margin: -6px 0 0;
   font-size: 12px;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 /* ---------------- repeating transactions and statement import ---------------- */
@@ -2472,7 +2472,7 @@
     background-color 0.2s;
 }
 .drop-zone:hover {
-  border-color: var(--accent);
+  border-color: var(--accent-text);
   background: var(--accent-soft);
 }
 .drop-zone b {
@@ -2499,7 +2499,7 @@
 .import-list input[type='checkbox'] {
   width: 17px;
   height: 17px;
-  accent-color: var(--accent);
+  accent-color: var(--accent-text);
   flex-shrink: 0;
 }
 .import-list select {
@@ -2622,7 +2622,7 @@
 }
 .tag-accent {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .subs-cost {
   text-align: right;
@@ -2752,7 +2752,7 @@
   width: 17px;
   height: 17px;
   margin-top: 1px;
-  accent-color: var(--accent);
+  accent-color: var(--accent-text);
   flex-shrink: 0;
 }
 .terms-agree .link {
@@ -2948,4 +2948,24 @@
 }
 .tool-sum.err {
   color: var(--red);
+}
+
+/* monthly statement */
+.statement-card {
+  margin-bottom: var(--gap);
+}
+.statement-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.statement-row select {
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line-2);
+  background: var(--card);
+  color: var(--ink);
+  min-width: 170px;
 }

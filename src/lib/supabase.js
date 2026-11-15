@@ -41,6 +41,8 @@ export const SAVED_KEYS = [
   'netWorth',
   'incomeSplit',
   'recapWeek',
+  'suggestionsDismissed',
+  'tourDone',
 ]
 
 /** Load this user's saved dashboard, or null if they have none yet. */

@@ -133,3 +133,36 @@ describe('weekly recap', () => {
     expect(weeklyRecap({ transactions: [] }, now).empty).toBe(true)
   })
 })
+
+import { suggestions } from '../src/lib/suggestions'
+
+describe('Grace’s suggestions', () => {
+  const now = new Date(2026, 10, 15)
+  const tx = (date, name, amount, category) => ({ id: `${date}${name}${amount}`, name, date: `${date}T12:00`, amount, category, status: 'Completed', kind: category === 'Subscriptions' ? 'stream' : 'shop' })
+  const history = []
+  for (const m of ['08', '09', '10']) {
+    history.push(tx(`2026-${m}-05`, 'Netflix', -15.99, 'Subscriptions'))
+    history.push(tx(`2026-${m}-10`, 'Kroger', -480, 'Groceries'))
+    history.push(tx(`2026-${m}-12`, 'Airbnb', -300, 'Travel'))
+  }
+  it('suggests raising a budget that’s over every month, adding one for big unbudgeted spending, and making a repeat charge repeating', () => {
+    const s = suggestions({ transactions: history, budgets: [{ id: 'g', name: 'Groceries', limit: 400 }] }, now)
+    expect(s.map((x) => x.kind)).toEqual(['raise', 'budget', 'repeat'])
+    expect(s[0].change).toEqual({ type: 'raise', id: 'g', limit: 550 })
+    expect(s[1].change).toEqual({ type: 'budget', name: 'Travel', limit: 300 })
+    expect(s[2].change.rule).toMatchObject({ name: 'Netflix', amount: -15.99, every: 'monthly', start: '2026-12-05' })
+  })
+  it('leaves out what’s dismissed, what already fits, and charges that are already rules', () => {
+    const s = suggestions(
+      {
+        transactions: history,
+        budgets: [{ id: 'g', name: 'Groceries', limit: 600 }, { id: 't', name: 'Travel', limit: 500 }],
+        recurring: [{ name: 'Netflix' }],
+        dismissed: [],
+      },
+      now,
+    )
+    expect(s).toEqual([])
+    expect(suggestions({ transactions: history, budgets: [], dismissed: ['budget:Travel', 'budget:Groceries', 'repeat:netflix'] }, now)).toEqual([])
+  })
+})

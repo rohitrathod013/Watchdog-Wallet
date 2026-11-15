@@ -228,7 +228,7 @@ button.friend-row:hover,
 }
 .owe.out {
   background: var(--accent-soft);
-  color: var(--accent-deep);
+  color: var(--accent-text);
 }
 
 /* ---------- chat ---------- */
@@ -1130,7 +1130,7 @@ button.friend-row:hover,
 .check-row input {
   width: 18px;
   height: 18px;
-  accent-color: var(--accent);
+  accent-color: var(--accent-text);
   flex: none;
 }
 .split-sum {

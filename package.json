@@ -23,6 +23,7 @@
     "eval": "node scripts/ml-eval.js"
   },
   "dependencies": {
+    "@sentry/react": "10.78.0",
     "@supabase/supabase-js": "2.118.0",
     "framer-motion": "^12.43.0",
     "fuse.js": "^7.1.0",
@@ -36,6 +37,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "axe-core": "4.14.0",
     "eslint": "^10.13.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",

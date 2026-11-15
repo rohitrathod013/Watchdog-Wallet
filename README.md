@@ -22,6 +22,7 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
   - **Deactivate account**: pauses the account and logs out. The data is kept, and logging in again shows a **Reactivate** button.
   - **Delete account**: removes the login and all its data for good, after typing DELETE and the password. Grace never does this from chat; she opens Account settings instead.
 - **Explore the demo** opens a full sample dashboard without an account. Nothing in the demo is saved.
+- **First-run tour**: a new account gets a five-step tour (adding money, budgets, cards and pots, Grace), each step with a button to the feature. Skippable, shown once, and **Take the tour** in Settings replays it.
 
 ### Your money
 
@@ -36,6 +37,7 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 - All charts and totals are worked out from your own transactions: income, expenses, net profit, savings rate, earnings by month, 12-month cash flow, spending by category, budget usage and a 52-week spending heatmap.
 - Currency switcher (USD, EUR, GBP, JPY) and period switcher (week, month, quarter, year).
 - Export transactions and reports as CSV.
+- CSV exports are spreadsheet-safe: a name like "=HYPERLINK(...)" from an imported statement is never run as a formula.
 
 ### Friends
 
@@ -86,6 +88,7 @@ Investing here is **tracked, not traded**: Watchdog Wallet records what you boug
   - **Subscriptions**: everything you pay for on repeat in one list: the repeating transactions you set up plus repeat charges Grace spotted in your history. Monthly and yearly cost, next charge date and price rises. **Make it repeating** turns a spotted charge into a rule, and **Remind me to cancel** sends a notification 2 days before the next charge.
   - **Net worth**: cash, savings goals and investments (at what you paid), plus a home, car or pension you add, minus loans and cards you owe on, with the change since last month and a snapshot each month for the trend chart. The **Debt payoff planner** takes each debt's interest rate and minimum payment plus any extra you can pay each month, and compares the **avalanche** (highest rate first, the cheapest) with the **snowball** (smallest balance first, the quickest wins): the debt-free month, the interest each costs, and the order debts clear.
   - **Reports**: income by source and downloadable statements.
+  - **Monthly statement (PDF)**: pick a month and it opens a print-ready statement (opening and closing balance, money in and out, spending by category, how each budget did, every transaction); choose "Save as PDF" in the print window.
 - **Analytics**: KPI sparklines, cash flow, earnings, spending and the heatmap.
 - **Transfer**: quick transfer, recent transfers and transfer limits.
 - **Friends**: friend requests, groups, your friends with who owes who, invite link, and a chat with each friend or group.
@@ -119,6 +122,7 @@ Grace wears a guard cap and a gold shield badge, and she guards the account (**G
 - **Forecasts** your end-of-month balance from bills still due and your usual daily spending, and lists your **subscriptions** with monthly and yearly totals.
 - **Knows your locked budgets, rollover and repeats**: "can I spend $80 on dinner?" checks free money against what's locked; "how much is free to spend?", "what's coming out this week?", "what carried over?"; and with a confirm step, "lock my groceries budget" or "turn on rollover for groceries".
 - **Weekly recap**: once a week a notification sums up the week before (spending, the change from the week before, where most of it went); ask "how was my week?" for the full version, with the biggest payment, anything unusual, budgets near their limit and what's due this week.
+- **Suggestions**: Grace spots small changes that would fit how you actually spend: a budget that went over 3 months in a row ("raise it to $450?"), a category with $150+ a month and no budget, or a bill-like charge paid 3 months running that isn't a repeating transaction. One shows when the chat opens; ask "any suggestions?" for all of them. Each has **Apply** and **Not now**, and dismissed ones don't come back.
 - **Net worth and debts**: "what's my net worth?" and "when will I be debt-free with $200 extra a month?".
 - **Reads your files**: the paperclip next to the message box takes a photo or screenshot of a receipt or bill, a PDF (receipt, bill or bank statement) or a CSV statement; you can also drop or paste a file. Receipts and bills become an expense to confirm; statements open in the import window to review.
 - **Answers common money questions herself**: credit scores, Roth IRAs, 401(k)s, paying off debt or saving first, compound interest, index funds, inflation, the 50/30/20 budget and more, so they work even when the AI model is busy.
@@ -153,6 +157,7 @@ English, Español, Français, Deutsch and العربية. Everything is translat
 - Staggered entrances, counting numbers, self-drawing charts and sections that reveal as you scroll.
 - Reduce motion setting, and respect for the system reduced-motion preference.
 - Works on phones (tested down to 360px wide), tablets and desktops.
+- **Accessible**: checked with axe against WCAG 2.1 AA on every page, in light and dark: text contrast meets 4.5:1, every control has a name that matches what it shows, and motion respects the reduced-motion setting.
 - **Installable**: add it to your home screen (Chrome: the install icon in the address bar; iPhone: Share > Add to Home Screen) and it opens like an app, with its own icon. A service worker (`public/sw.js`) keeps the app's files, so it **opens without a connection**. Your account's data is never cached by the service worker; instead the app keeps a copy of it on the device after each load and save, and with no connection it opens that copy with a banner saying when it's from, read only until you're back online. Signing out, deactivating or deleting the account removes the copy.
 - **Push notifications** (Settings > Notifications when closed, per device): new messages, friend requests, money requests and payments received, and a reminder the day before a bill is due, even when the app is closed. Sent by the `push` Edge Function through standard Web Push; each device's push address is saved to the account and removed when push is switched off.
 
@@ -220,6 +225,10 @@ Three small models run **on your device, on your own transactions**: no server, 
 - **Synthetic evaluation only.** The numbers above come from made-up accounts with planted incidents. Real spending is messier, and the real precision and recall are unknown.
 - **Needs history.** 30 payments before it flags anything, and 60 days before the forecast stops calling itself rough.
 - **A triage aid, not a verdict.** Confidence numbers are rules of thumb, not calibrated probabilities. A flag means "worth a look", never "fraud".
+
+### Error tracking
+
+Crashes on the live site are reported to Sentry, when `VITE_SENTRY_DSN` is set (a repository variable). Only the error and its stack trace are sent: no email, no IP address, no request bodies, no session replay, digits in messages are masked, and breadcrumbs keep only page changes and clicks.
 
 ## Browser support
 

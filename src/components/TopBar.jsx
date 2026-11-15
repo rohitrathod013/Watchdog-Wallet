@@ -4,6 +4,7 @@ import Icon from './Icon'
 import { Avatar, Logo, Persona } from './Brand'
 import { MenuItem, Popover, Segmented, Toggle } from './ui'
 import { useApp } from '../lib/store'
+import { initials } from '../lib/format'
 import { LANGUAGES } from '../data/seed'
 import { PAGES } from '../lib/routes'
 import { BRAND } from '../config'
@@ -296,6 +297,17 @@ export default function TopBar() {
             >
               {t('Replay intro animation')}
             </MenuItem>
+            {app.setTourDone && !app.demo ? (
+              <MenuItem
+                icon="sparkle"
+                onClick={() => {
+                  close()
+                  app.setTourDone(false)
+                }}
+              >
+                {t('Take the tour')}
+              </MenuItem>
+            ) : null}
           </Popover>
         </div>
 
@@ -306,7 +318,7 @@ export default function TopBar() {
             className={`tool lang ${open === 'lang' ? 'on' : ''}`}
             style={{ '--i': 2 }}
             onClick={() => toggle('lang')}
-            aria-label={t('Language')}
+            aria-label={`${t('Language')}: ${app.lang}`}
           >
             {app.lang}
           </button>
@@ -334,7 +346,7 @@ export default function TopBar() {
 
         {/* account */}
         <div className="anchor">
-          <button type="button" className={`avatar-btn ${open === 'user' ? 'on' : ''}`} onClick={() => toggle('user')} aria-label={t('Account menu')}>
+          <button type="button" className={`avatar-btn ${open === 'user' ? 'on' : ''}`} onClick={() => toggle('user')} aria-label={`${initials(user?.name ?? '')} ${t('Account menu')}`}>
             <Avatar user={user} />
           </button>
           <Popover open={open === 'user'} onClose={close} className="user-pop">

@@ -77,7 +77,7 @@ export function BalanceCard({ attached = false, d = 0 }) {
         </span>
         <h2 className="card-h">{t('Total Balance')}</h2>
         <div className="anchor">
-          <button type="button" className={`cur-btn ${curOpen ? 'on' : ''}`} onClick={() => setCurOpen((o) => !o)} aria-label={t('Change currency')}>
+          <button type="button" className={`cur-btn ${curOpen ? 'on' : ''}`} onClick={() => setCurOpen((o) => !o)} aria-label={`${t('Change currency')}: ${cur.code}`}>
             <Flag code={cur.flag} size={22} />
             {cur.code}
             <Icon name="chevDown" size={14} stroke={2} className="chev" />
@@ -230,9 +230,9 @@ function Split({ p }) {
           onMouseEnter={() => setHover(i)}
           onFocus={() => setHover(i)}
           onBlur={() => setHover(null)}
-          aria-label={`${t(s.name)}: ${s.pct}%, ${whole(s.value)}`}
+          aria-label={on === i ? `${whole(s.value)} ${t(s.name)}, ${s.pct}%` : `${s.pct}% ${t(s.name)}, ${whole(s.value)}`}
         >
-          <span className="sp-label">{on === i ? <em className={s.dark ? 'dark' : ''}>{whole(s.value)}</em> : `${s.pct}%`}</span>
+          <span className="sp-label">{on === i ? <em className={s.dark ? 'dark' : ''}>{whole(s.value)}</em> : `${s.pct}%`}</span>{' '}
           <i className="sp-bar" />
           <span className="sp-legend">
             <i />
@@ -270,7 +270,7 @@ export function ReportCard({ d = 0 }) {
       style={slot(d)}
       role="button"
       tabIndex={0}
-      aria-label={t('Open financial reports')}
+      title={t('Open financial reports')}
       onClick={open}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open())}
     >

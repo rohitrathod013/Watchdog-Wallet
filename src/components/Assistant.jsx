@@ -14,6 +14,7 @@ import { isDuplicate, looksLikeStatement, readStatement, readStatementText } fro
 import { askModel, explainRequest, explainScan, lastModelProblem, modelReply } from '../lib/llm'
 import { levelText, saveVerdict } from '../lib/shield'
 import { proactiveFlags } from '../lib/ml/grace.js'
+import { suggestions as suggestionsFor } from '../lib/suggestions'
 import { dayLabel, slimTraces, traceAddsUp, traceCsv } from '../lib/trace'
 import { money } from '../lib/format'
 
@@ -250,8 +251,58 @@ function FlagsCard({ card }) {
   )
 }
 
+/* ---------------- Grace's suggestions: Apply or Not now ---------------- */
+const suggestionVars = (v) => ({ ...v, amount: v.amount != null ? money(v.amount) : undefined, limit: v.limit != null ? money(v.limit, '$', 0) : undefined, avg: v.avg != null ? money(v.avg, '$', 0) : undefined, to: v.to != null ? money(v.to, '$', 0) : undefined, name: v.name })
+
+function SuggestionsCard({ card }) {
+  const app = useApp()
+  const [done, setDone] = useState({})
+  const apply = (s) => {
+    const ch = s.change
+    if (ch.type === 'repeat') app.addRecurring?.(ch.rule)
+    else if (ch.type === 'raise') app.setBudgetLimit?.(ch.id, ch.limit)
+    else if (ch.type === 'budget') app.addBudget?.({ name: ch.name, limit: ch.limit })
+    app.dismissSuggestion?.(s.key)
+    setDone((d) => ({ ...d, [s.key]: 'applied' }))
+  }
+  const later = (s) => {
+    app.dismissSuggestion?.(s.key)
+    setDone((d) => ({ ...d, [s.key]: 'later' }))
+  }
+  return (
+    <div className="ai-card flags-card">
+      {card.items.map((s) => {
+        const vars = suggestionVars(s.vars)
+        return (
+          <div key={s.key} className="flag low">
+            <p className="sug-text">
+              <Rich text={t(s.text, vars)} />
+            </p>
+            {done[s.key] ? (
+              <p className="flag-done">
+                <Icon name="check" size={13} />
+                {done[s.key] === 'applied' ? t('Done.') : t('Okay, I won’t suggest that again.')}
+              </p>
+            ) : (
+              <div className="flag-btns">
+                <button type="button" className="btn sm solid" onClick={() => apply(s)}>
+                  {t(s.apply, vars)}
+                </button>
+                <button type="button" className="btn sm" onClick={() => later(s)}>
+                  {t('Not now')}
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function Card({ card }) {
   if (card.type === 'shield') return <ShieldCard card={card} />
+  if (card.type === 'suggestions') return <SuggestionsCard card={card} />
   if (card.type === 'flags') return <FlagsCard card={card} />
   if (card.type === 'stats') {
     return (
@@ -567,6 +618,9 @@ export default function Assistant({ open, onClose, prompt }) {
       hello = window.setTimeout(() => {
         const flags = proactiveFlags(appRef.current)
         if (flags.length) memory.current = { ...memory.current, lastFlags: flags, lastMl: { kind: 'flag', flag: flags[0] }, lastTx: flags[0].tx }
+        // no unusual charges to show: one suggestion instead (never both, never a flood)
+        const app = appRef.current
+        const tips = flags.length || app.demo ? [] : suggestionsFor({ transactions: app.transactions, budgets: app.budgets, recurring: app.recurring, dismissed: app.suggestionsDismissed })
         pushBot({
           text:
             t(
@@ -574,7 +628,7 @@ export default function Assistant({ open, onClose, prompt }) {
               { name: appRef.current.user.first, assistant: ASSISTANT.name, brand: BRAND.name },
             ) + (greetingAlerts(appRef.current) ? `\n${greetingAlerts(appRef.current)}` : ''),
           mood: 'happy',
-          card: flags.length ? { type: 'flags', flags } : undefined,
+          card: flags.length ? { type: 'flags', flags } : tips.length ? { type: 'suggestions', items: tips.slice(0, 1) } : undefined,
           chips: starters().filter((c) => ['Give me a summary', 'What’s my balance?', 'Any bills due?'].includes(c.q)),
         })
       }, 520)

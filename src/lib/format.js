@@ -64,3 +64,13 @@ export const saveFile = (name, text, type = 'text/plain') => {
   a.click()
   window.setTimeout(() => URL.revokeObjectURL(url), 500)
 }
+
+/**
+ * One CSV cell, safe to open in a spreadsheet: quotes doubled, and text that starts with = + - @ (or a tab)
+ * gets a leading apostrophe so Excel or Sheets never runs it as a formula. Plain numbers pass through.
+ */
+export function csvCell(value) {
+  let s = String(value ?? '')
+  if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = `'${s}`
+  return /[",\n\r]/.test(s) || s !== s.trim() ? `"${s.replace(/"/g, '""')}"` : s
+}
