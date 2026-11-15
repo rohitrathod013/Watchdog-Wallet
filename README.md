@@ -76,9 +76,10 @@ Investing here is **tracked, not traded**: Watchdog Wallet records what you boug
 
 ### Pages
 
-- **Dashboard**, with three tabs:
+- **Dashboard**, with four tabs:
   - **Overview**: balance, earnings, KPIs, savings goals, cash flow, spending, quick transfer, recent transactions, bills, budget health and the spending heatmap.
   - **Transactions**: search, filters, sorting and CSV export.
+  - **Subscriptions**: everything you pay for on repeat in one list: the repeating transactions you set up plus repeat charges Grace spotted in your history. Monthly and yearly cost, next charge date and price rises. **Make it repeating** turns a spotted charge into a rule, and **Remind me to cancel** sends a notification 2 days before the next charge.
   - **Reports**: income by source and downloadable statements.
 - **Analytics**: KPI sparklines, cash flow, earnings, spending and the heatmap.
 - **Transfer**: quick transfer, recent transfers and transfer limits.
@@ -109,6 +110,7 @@ Grace wears a guard cap and a gold shield badge, and she guards the account (**G
 - **Explains changes**: "why is my spending up?" compares with last month and names the categories and purchases behind it.
 - **Warns before you ask**: bills you can't cover, budgets near the limit, duplicate charges and subscription price rises show up when the chat opens.
 - **Forecasts** your end-of-month balance from bills still due and your usual daily spending, and lists your **subscriptions** with monthly and yearly totals.
+- **Knows your locked budgets, rollover and repeats**: "can I spend $80 on dinner?" checks free money against what's locked; "how much is free to spend?", "what's coming out this week?", "what carried over?"; and with a confirm step, "lock my groceries budget" or "turn on rollover for groceries".
 - **Plans**: "can I afford a $1,200 trip in March?" answers with the trade-off; "save $5k by June" gives a weekly amount, which budget to trim, and can create the goal.
 - **Takes actions with a confirm step**: record spending or income from a sentence ("I spent $300 on dinner"), send or request money, pay bills, move money between pots, top up goals and change budgets. Several in a row work too ("move $200 to savings, then pay the electric bill, then tell me what's left"), and "make it $80" changes the last amount.
 - **Helps with the site** ("where do I export a CSV?") and explains terms like fees, overdrafts, APR, pending or chargebacks.
@@ -228,7 +230,7 @@ Three small models run **on your device, on your own transactions**: no server, 
 
 **Unusual spending, in two stages.** (1) An **Isolation Forest** (100 trees, 64-point samples) looks at eight features per payment: amount, log amount, how common its category and merchant are, hour, weekday, days since the last visit to that merchant, and the amount compared with the category's median. It proposes anything easy to isolate from the rest. (2) A proposal is kept only if a **robust z-score** (median and MAD, at least 3) confirms it against your own history for that merchant, else that category, else everything when there are fewer than 5 samples. Why two stages: the forest alone flags anything rare and its score means nothing to a person; the z-score turns it into a reason you can check ("Amount $240 vs typical $35 for Dining") and stops it fitting on noise. Simple rules sit alongside: the same charge twice within 48 hours, a subscription price rise, and a big first payment somewhere new. It needs 30 payments before it starts, and says so. Investments and moves between pots are never looked at. Each flag has **Dismiss** and **Confirm**; dismissed patterns stop alerting. When the chat opens, Grace shows at most 2 flags. Accounts over 400 transactions run this in a Web Worker.
 
-**The month-end forecast is a range.** Known items (unpaid bills, plus repeat payments and pay spotted in your history that haven't landed yet) go on their days. Everyday spending is **bootstrapped**: each remaining day draws a real past day of yours, weekdays from weekdays and weekends from weekends, and each of 1,000 runs first resamples those days so the uncertainty in your typical level is included too. Grace says it plainly: "Most likely about $820 left. 80% chance it lands between $540 and $1,050. 7% chance you go below zero, most likely around Oct 26." The Cash Flow chart shows this month's likely spending as a shaded band. Under 60 days of history the band is widened and labelled a rough estimate.
+**The month-end forecast is a range.** Known items (unpaid bills, your repeating transactions on their real dates, plus repeat payments and pay spotted in your history that haven't landed yet) go on their days. Everyday spending is **bootstrapped**: each remaining day draws a real past day of yours, weekdays from weekdays and weekends from weekends, and each of 1,000 runs first resamples those days so the uncertainty in your typical level is included too. Grace says it plainly: "Most likely about $820 left. 80% chance it lands between $540 and $1,050. 7% chance you go below zero, most likely around Oct 26." The Cash Flow chart shows this month's likely spending as a shaded band. Under 60 days of history the band is widened and labelled a rough estimate.
 
 **Categories that learn.** Multinomial naive Bayes (Laplace smoothing) over the words in a transaction's name, trained only on your own transactions, your corrections and a seed list of about 260 common merchants (`src/data/merchants.js`). An exact name you've corrected, or one you always file the same way, is used directly. Under 60% sure it asks instead of guessing. It's used when you add a transaction, scan a receipt, or tell Grace "I spent $30 at Trader Joe's". Say "that's wrong, it's groceries" (or overrule the guess in the Add transaction window) and it learns at once, then offers to fix similar past transactions, showing how many first. Only the corrections are saved with your account; the model is rebuilt from them on load.
 
@@ -351,6 +353,8 @@ src/
     chatPreview.js     the one-line preview of a chat's latest message, for chat lists
     recurring.js       repeating transactions: the rules, their next dates and what's due
     importCsv.js       reading a bank statement saved as CSV: columns, dates, amounts, duplicates
+    upcoming.js        what's due in a date range, and the list of everything paid on repeat
+    planIntents.js     Grace's answers about locked budgets, rollover and what's coming up
     envelopes.js       locked budgets: what's set aside per category, and whether a card payment can go through
     live.js            exchange rates, crypto and stock prices, search and holidays, with caching
     i18n.js            translation helper

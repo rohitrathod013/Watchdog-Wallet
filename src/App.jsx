@@ -322,6 +322,8 @@ export default function App() {
   const [categoryCorrections, setCategoryCorrections] = useState([])
   // repeating transactions (rent, salary, subscriptions): the rules; the app adds each one on its date
   const [recurring, setRecurring] = useState([])
+  // "remind me to cancel": a nudge on a day, for one subscription
+  const [reminders, setReminders] = useState([])
   const ranRule = useRef(new Set())
 
   /* ---------- accounts (Supabase) ----------
@@ -379,6 +381,7 @@ export default function App() {
     setMlVerdicts(data.mlVerdicts ?? {})
     setCategoryCorrections(data.categoryCorrections ?? [])
     setRecurring(data.recurring ?? [])
+    setReminders(data.reminders ?? [])
     ranRule.current = new Set()
     setDrift(0)
     setSentToday(0)
@@ -449,6 +452,7 @@ export default function App() {
       mlVerdicts,
       categoryCorrections,
       recurring,
+      reminders,
     }),
     [
       balance,
@@ -467,6 +471,7 @@ export default function App() {
       mlVerdicts,
       categoryCorrections,
       recurring,
+      reminders,
     ],
   )
   const [saveFailed, setSaveFailed] = useState(false)
@@ -748,6 +753,14 @@ export default function App() {
     [],
   )
   const removeRecurring = useCallback((id) => setRecurring((list) => list.filter((r) => r.id !== id)), [])
+  const addReminder = useCallback(
+    ({ key, name, day, charge, amount }) => {
+      setReminders((list) => [...list.filter((r) => r.key !== key || r.done), { id: uid(), key, name, day, charge, amount, done: false }])
+      toast(t('Reminder set'), t('I’ll remind you on {date}, before {name} charges you again.', { date: day, name }), { icon: 'bell' })
+    },
+    [toast],
+  )
+  const removeReminder = useCallback((id) => setReminders((list) => list.filter((r) => r.id !== id)), [])
 
   /** Add rows read from a bank statement. changeBalance: also move the balance by their total. Returns how many were added. */
   const importTransactions = useCallback(
@@ -944,6 +957,37 @@ export default function App() {
       window.removeEventListener('focus', run)
     }
   }, [rulesReady, recurring, notify])
+
+  /* ---------- cancel reminders: nudge on the day ---------- */
+  useEffect(() => {
+    if (!rulesReady) return undefined
+    const check = () => {
+      const today = isoDay(new Date())
+      const due = reminders.filter((r) => !r.done && r.day <= today)
+      if (!due.length) return
+      setReminders((list) => list.map((r) => (due.some((d) => d.id === r.id) ? { ...r, done: true } : r)))
+      for (const r of due) {
+        notify({
+          icon: 'bell',
+          tone: 'accent',
+          title: 'Cancel {name}?',
+          body: 'It charges {amount} on {date}. Cancel with them before then if you don’t need it.',
+          vars: { name: r.name, amount: money(r.amount), date: r.charge },
+        })
+        toast(t('Cancel {name}?', { name: r.name }), t('It charges {amount} on {date}. Cancel with them before then if you don’t need it.', { name: r.name, amount: money(r.amount), date: r.charge }), {
+          icon: 'bell',
+          ms: 8000,
+        })
+      }
+    }
+    check()
+    const timer = window.setInterval(check, 60 * 60 * 1000)
+    window.addEventListener('focus', check)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', check)
+    }
+  }, [rulesReady, reminders, notify, toast])
 
   /* ---------- card top-ups: coming back from Stripe Checkout ----------
      Stripe sends the user back with ?paid=<session id>. The payments
@@ -1396,6 +1440,9 @@ export default function App() {
       toggleRecurring,
       removeRecurring,
       importTransactions,
+      reminders,
+      addReminder,
+      removeReminder,
       toast,
       openModal,
       social,
@@ -1480,6 +1527,9 @@ export default function App() {
       toggleRecurring,
       removeRecurring,
       importTransactions,
+      reminders,
+      addReminder,
+      removeReminder,
       toast,
       openModal,
       social,

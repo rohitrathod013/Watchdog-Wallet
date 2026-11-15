@@ -46,7 +46,7 @@ export function forecastFor(app) {
   const now = nowOf(app)
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const bills = (app.bills ?? []).map((b) => ({ ...b, dueDate: b.dueDate ?? isoDay(new Date(today.getTime() + (billDue(b, now).days ?? 0) * DAY)) }))
-  return forecastMonth({ transactions: app.transactions ?? [], balance: app.balance ?? 0, bills, now })
+  return forecastMonth({ transactions: app.transactions ?? [], balance: app.balance ?? 0, bills, rules: app.recurring ?? [], now })
 }
 
 /** "Most likely about $820 left. 80% chance it lands between $540 and $1,050. 7% chance you go below zero around Oct 26." */

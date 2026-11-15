@@ -5,6 +5,8 @@
    and income spotted in the history (same name in 2 of the last 3
    months, steady amount, within 6 days of the same day of the month)
    that haven't happened yet this month, on the day they usually land.
+   Repeating transactions the user set up count from day one, on their
+   real dates (they replace any matching repeat spotted in the history).
    Unknown: everyday spending. Modelled by bootstrap: each remaining
    day draws one real past day's spending from this account, weekdays
    from weekdays and weekends from weekends. Two-stage: each run first
@@ -23,6 +25,7 @@ import { merchantKey } from './anomaly.js'
 import { makeTrace } from '../trace.js'
 import { money } from '../format.js'
 import { t } from '../i18n.js'
+import { runsBetween } from '../upcoming.js'
 
 const DAY = 86400000
 const SIMS = 1000
@@ -93,9 +96,10 @@ export function recurring(transactions, now) {
 const pct = (p) => `${Math.round(p * 100)}%`
 
 /**
- * opts: { transactions, balance, bills = [], now = new Date(), sims = 1000, seed = 42 }
+ * opts: { transactions, balance, bills = [], rules = [], now = new Date(), sims = 1000, seed = 42 }
+ * rules: repeating transactions (see recurring.js)
  */
-export function forecastMonth({ transactions = [], balance = 0, bills = [], now = new Date(), sims = SIMS, seed = 42 }) {
+export function forecastMonth({ transactions = [], balance = 0, bills = [], rules = [], now = new Date(), sims = SIMS, seed = 42 }) {
   const today = startOfDay(now)
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
   const days = []
@@ -107,15 +111,23 @@ export function forecastMonth({ transactions = [], balance = 0, bills = [], now 
 
   // ---- known: bills and repeat items still to come this month
   const repeats = recurring(past, now)
-  const repeatKeys = new Set(repeats.map((r) => merchantKey(r.name)))
+  const ruleKeys = new Set(rules.filter((r) => r.active).map((r) => merchantKey(r.name)))
+  const repeatKeys = new Set([...repeats.map((r) => merchantKey(r.name)), ...ruleKeys])
   const scheduled = []
+  // the user's own repeating transactions: their real run dates, after today and up to month end
+  for (const r of rules)
+    for (const day of runsBetween(r, dayIso(today), dayIso(end))) {
+      const [y, m, d] = day.split('-').map(Number)
+      scheduled.push({ name: r.name, amount: r.amount, date: new Date(y, m - 1, d), source: 'rule' })
+    }
   for (const b of bills) {
     if (b.paid || !b.dueDate) continue
     const due = startOfDay(parse(b.dueDate))
-    if (due > today && due <= end) scheduled.push({ name: b.name, amount: -b.amount, date: due, source: 'bill' })
+    if (due > today && due <= end && !scheduled.some((s) => s.source === 'rule' && merchantKey(s.name) === merchantKey(b.name) && dayIso(s.date) === dayIso(due)))
+      scheduled.push({ name: b.name, amount: -b.amount, date: due, source: 'bill' })
   }
   for (const r of repeats) {
-    if (r.seenThisMonth || r.day <= today.getDate() || r.day > end.getDate()) continue
+    if (r.seenThisMonth || r.day <= today.getDate() || r.day > end.getDate() || ruleKeys.has(merchantKey(r.name))) continue
     if (scheduled.some((s) => merchantKey(s.name) === merchantKey(r.name))) continue
     scheduled.push({ name: r.name, amount: r.amount, date: new Date(now.getFullYear(), now.getMonth(), r.day), source: 'repeat' })
   }
@@ -126,7 +138,7 @@ export function forecastMonth({ transactions = [], balance = 0, bills = [], now 
   const window = new Date(Math.max(first.getTime(), today.getTime() - 180 * DAY))
   const daily = new Map()
   for (const x of past) {
-    if (x.amount >= 0 || FIXED.has(x.category) || repeatKeys.has(merchantKey(x.name))) continue
+    if (x.amount >= 0 || x.repeat || FIXED.has(x.category) || repeatKeys.has(merchantKey(x.name))) continue
     const d = startOfDay(parse(x.date))
     if (d < window || d >= today) continue
     daily.set(dayIso(d), (daily.get(dayIso(d)) ?? 0) - x.amount)

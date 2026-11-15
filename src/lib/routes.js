@@ -14,6 +14,7 @@ export const PAGES = [
 export const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'transactions', label: 'Transactions' },
+  { id: 'subscriptions', label: 'Subscriptions' },
   { id: 'reports', label: 'Reports' },
 ]
 

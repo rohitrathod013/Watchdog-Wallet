@@ -422,10 +422,10 @@ export function CashFlowCard({ d = 0, className = '' }) {
   const { stats } = app
   const CASHFLOW = stats.cashflow
   // this month's spending so far is only part of the story: show where it's likely to end up (80% range)
-  const { transactions, balance, bills, now } = app
+  const { transactions, balance, bills, now, recurring } = app
   const outlook = useMemo(
-    () => (stats.demo ? null : forecastFor({ transactions, balance, bills, now })),
-    [stats.demo, transactions, balance, bills, now],
+    () => (stats.demo ? null : forecastFor({ transactions, balance, bills, now, recurring })),
+    [stats.demo, transactions, balance, bills, now, recurring],
   )
   const [range, setRange] = useState('12')
   const [show, setShow] = useState({ income: true, expenses: true })

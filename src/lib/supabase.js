@@ -35,6 +35,7 @@ export const SAVED_KEYS = [
   'mlVerdicts',
   'categoryCorrections',
   'recurring',
+  'reminders',
 ]
 
 /** Load this user's saved dashboard, or null if they have none yet. */

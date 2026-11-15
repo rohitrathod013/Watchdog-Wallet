@@ -42,6 +42,7 @@ import { accountWords, fixTypos } from './typos'
 import { forecastFor, guessCategory, mlIntent, rangeText, unusualPart } from './ml/grace.js'
 import { billJump, findLinks, fingerprint, levelText, payeeChecks, scan as shieldScan } from './shield'
 import { DEFAULT_GUARD, guardState } from './guard'
+import { planIntent } from './planIntents'
 import { ASSISTANT, BRAND } from '../config'
 import { CAT_COLORS, CURRENCIES } from '../data/seed'
 
@@ -2428,6 +2429,10 @@ function answer(typed, app, memory) {
 
   const learned = mlIntent(s, app, memory)
   if (learned) return keep(learned)
+
+  // locked budgets, rollover and repeating transactions
+  const planned = planIntent(s, app)
+  if (planned) return keep(planned)
 
   const parts = raw.split(STEP_SPLIT).filter((x) => x.trim())
   if (parts.length > 1) {
