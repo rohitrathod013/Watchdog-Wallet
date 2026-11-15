@@ -233,7 +233,9 @@ export function receiptChecks(p, app, text = '') {
   return found
 }
 
-export function receiptReply(p, app, text = '') {
+/* source: 'photo' or 'pdf' (says where it was read from) */
+export function receiptReply(p, app, text = '', source = 'photo') {
+  const pdf = source === 'pdf'
   if (!p)
     return {
       text: t(
@@ -271,7 +273,7 @@ export function receiptReply(p, app, text = '') {
   }
   const flags = receiptChecks(p, app, text)
   const careful =
-    t('I read this from the photo, so check the amount before you confirm.') +
+    (pdf ? t('I read this from the PDF, so check the amount before you confirm.') : t('I read this from the photo, so check the amount before you confirm.')) +
     (guessed
       ? ` ${t('I guessed the category ({category}, {pct}% sure).', { category: t(guessed.category), pct: Math.round(guessed.confidence * 100) })}`
       : '') +
@@ -285,7 +287,7 @@ export function receiptReply(p, app, text = '') {
       ],
     }
   return {
-    text: `${t('Got it from the photo 🧾 **{name}**, **{amount}**{local} on {date}.', { name, amount: money(usd), local, date: when })}\n${t('Add it as spending under {category}?', { category: t(p.category) })}\n${careful}`,
+    text: `${t(pdf ? 'Got it from the PDF 🧾 **{name}**, **{amount}**{local} on {date}.' : 'Got it from the photo 🧾 **{name}**, **{amount}**{local} on {date}.', { name, amount: money(usd), local, date: when })}\n${t('Add it as spending under {category}?', { category: t(p.category) })}\n${careful}`,
     confirm: asExpense,
     links: [{ label: t('Add as a bill instead'), run: () => (asBill.run(), app.toast?.(t('Bill added'), asBill.done, { icon: 'receipt' })) }],
   }

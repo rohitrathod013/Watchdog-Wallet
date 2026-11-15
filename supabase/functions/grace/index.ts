@@ -100,17 +100,21 @@ function turnsOf(history: unknown, question: string): Turn[] {
 
 async function gemini(system: string, turns: Turn[]) {
   let last: any
+  let busy = false
   for (const model of GEMINI_MODELS) {
     try {
       return await geminiWith(model, system, turns)
     } catch (err: any) {
       last = err
+      busy ||= err?.status === 429
       console.error(`Gemini ${model}: ${err?.status} ${err?.message}`)
       // missing (404), out of free quota (429) or overloaded (500/503): another model may be fine.
       // A bad key or a bad request (400/401/403) won't change, so stop there.
       if (![404, 429, 500, 503].includes(err?.status)) throw err
     }
   }
+  // every model failed; if any was over its free limit, say so (the site tells the user to try again later)
+  if (busy) throw Object.assign(new Error(`free limit reached (${last?.message ?? ''})`), { status: 429 })
   throw last
 }
 

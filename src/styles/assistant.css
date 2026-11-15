@@ -1478,3 +1478,80 @@ html:not([lang='en']) .bal-actions .btn.xl {
   font-size: 12px;
   color: var(--green);
 }
+
+/* the paperclip menu: a photo, a PDF or a CSV statement */
+.ai-input {
+  position: relative;
+}
+.ai-attach {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
+  z-index: 5;
+  min-width: 250px;
+  padding: 6px;
+  border-radius: 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-pop);
+  display: flex;
+  flex-direction: column;
+  animation: attachIn 0.18s var(--ease) both;
+}
+.ai-attach button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  text-align: left;
+  color: var(--ink);
+}
+.ai-attach button:hover,
+.ai-attach button:focus-visible {
+  background: var(--soft);
+}
+.ai-attach b {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.ai-attach small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+@keyframes attachIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+/* dropping a file on Grace's panel */
+.ai-drop {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: inherit;
+  border: 2px dashed var(--accent);
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  color: var(--accent);
+  pointer-events: none;
+}
+.ai-drop b {
+  font-size: 16px;
+  color: var(--ink);
+}
+.ai-drop small {
+  color: var(--muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-attach {
+    animation: none;
+  }
+}

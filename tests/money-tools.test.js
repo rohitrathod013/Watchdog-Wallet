@@ -1,7 +1,7 @@
 /* Repeating transactions, reading a bank statement (CSV), and budget rollover. */
 import { describe, expect, it } from 'vitest'
 import { makeRule, MAX_CATCH_UP, monthlyTotal, nextRun, runAll, runsDue, validDay } from '../src/lib/recurring'
-import { dateOrder, findColumns, isDuplicate, parseAmount, parseCsv, parseDate, readStatement } from '../src/lib/importCsv'
+import { dateOrder, findColumns, isDuplicate, looksLikeStatement, parseAmount, parseCsv, parseDate, readStatement, readStatementText } from '../src/lib/importCsv'
 import { carryOver, computeStats } from '../src/lib/stats'
 
 describe('repeating transactions', () => {
@@ -162,5 +162,39 @@ describe('budget rollover', () => {
     expect(s.budgets[0]).toMatchObject({ limit: 650, baseLimit: 400, carry: 250, spent: 120 })
     expect(s.budgets[1]).toMatchObject({ limit: 300, baseLimit: 300, carry: 0 })
     expect(s.budgetTotal).toBe(950)
+  })
+})
+
+describe('statements from a PDF’s text', () => {
+  const today = new Date(2026, 10, 15)
+  it('uses the running balance to tell money in from money out', () => {
+    const text = [
+      'First Bank   Statement for November 2026',
+      'Date  Description  Amount  Balance',
+      'Opening balance  1,000.00',
+      '02/11/2026  TESCO STORES  45.20  954.80',
+      '03/11/2026  ACME PAYROLL  2,500.00  3,454.80',
+      '05/11/2026  NETFLIX  15.99  3,438.81',
+      'Closing balance  3,438.81',
+    ].join('\n')
+    const r = readStatementText(text, today)
+    expect(r.rows).toEqual([
+      { date: '2026-11-02', name: 'TESCO STORES', amount: -45.2 },
+      { date: '2026-11-03', name: 'ACME PAYROLL', amount: 2500 },
+      { date: '2026-11-05', name: 'NETFLIX', amount: -15.99 },
+    ])
+    expect(looksLikeStatement(text)).toBe(true)
+  })
+  it('reads signs written on the amount, and dates with no year', () => {
+    const text = ['12 Nov  Coffee Corner  -4.50', '13 Nov  Refund from shop  12.00 CR', '14 Nov  Bus pass  (30.00)'].join('\n')
+    expect(readStatementText(text, today).rows).toEqual([
+      { date: '2026-11-12', name: 'Coffee Corner', amount: -4.5 },
+      { date: '2026-11-13', name: 'Refund from shop', amount: 12 },
+      { date: '2026-11-14', name: 'Bus pass', amount: -30 },
+    ])
+  })
+  it('a receipt is not a statement', () => {
+    expect(looksLikeStatement('CORNER CAFE\n14/11/2026 12:30\nLatte 4.50\nTOTAL 4.50')).toBe(false)
+    expect(readStatementText('hello', today).problem).toBe('columns')
   })
 })

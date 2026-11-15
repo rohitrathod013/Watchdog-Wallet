@@ -10,6 +10,7 @@ import { signed, uid } from '../lib/format'
 import { ASSISTANT, BRAND } from '../config'
 import { getLocale, LOCALES, t, tName } from '../lib/i18n'
 import { parseReceipt, readReceipt, receiptReply } from '../lib/receipt'
+import { isDuplicate, looksLikeStatement, readStatement, readStatementText } from '../lib/importCsv'
 import { askModel, explainRequest, explainScan, lastModelProblem, modelReply } from '../lib/llm'
 import { levelText, saveVerdict } from '../lib/shield'
 import { proactiveFlags } from '../lib/ml/grace.js'
@@ -500,6 +501,19 @@ export default function Assistant({ open, onClose, prompt }) {
   // reading a receipt photo: 0..1 while Tesseract works, null otherwise
   const [scanning, setScanning] = useState(null)
   const photo = useRef(null)
+  // the paperclip menu: what kind of file to pick (sets the file input's accept, and the camera on phones)
+  const [attachOpen, setAttachOpen] = useState(false)
+  const [dropping, setDropping] = useState(false)
+  const touch = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
+  const pick = (accept, capture = false) => {
+    setAttachOpen(false)
+    const el = photo.current
+    if (!el) return
+    el.accept = accept
+    if (capture) el.setAttribute('capture', 'environment')
+    else el.removeAttribute('capture')
+    el.click()
+  }
   const recognizer = useRef(null)
   // read every reply aloud (remembered per browser)
   const [spoken, setSpoken] = useState(() => {
@@ -625,6 +639,8 @@ export default function Assistant({ open, onClose, prompt }) {
 ${t('My AI helper has reached its free limit for the moment, so I can only answer my usual questions. Try again in a minute.')}` }
           else if (lastModelProblem === 'offline') r = { ...r, text: `${r.text}
 ${t('You’re offline, so my AI helper can’t answer right now.')}` }
+          else if (lastModelProblem === 'error') r = { ...r, text: `${r.text}
+${t('My AI helper couldn’t answer just now. Try again in a moment.')}` }
         }
         setThinking(false)
         if (voice || spoken) say(r.text)
@@ -700,12 +716,92 @@ ${t('You’re offline, so my AI helper can’t answer right now.')}` }
   }
 
   /* a photo of a receipt or bill: read it here in the browser, then offer to add it */
-  const scan = async (file) => {
+  /* a bank statement Grace was sent (CSV, or a PDF's text): count the rows, then offer the import window to review them */
+  const statementReply = (file, r) => {
+    const app = appRef.current
+    const dups = r.rows.filter((row) => isDuplicate(row, app.transactions ?? [])).length
+    const days = r.rows.map((x) => x.date).sort()
+    const out = r.rows.filter((x) => x.amount < 0).reduce((s, x) => s - x.amount, 0)
+    const inn = r.rows.filter((x) => x.amount > 0).reduce((s, x) => s + x.amount, 0)
+    pushBot({
+      text:
+        t('I read **{n} transactions** in {file}, from {from} to {to}: {out} out and {in} in.', {
+          n: r.rows.length,
+          file: file.name,
+          from: dayLabel(days[0]),
+          to: dayLabel(days[days.length - 1]),
+          out: money(out),
+          in: money(inn),
+        }) +
+        (dups ? ` ${t('{n} of them are already in your account.', { n: dups })}` : '') +
+        `\n${t('Nothing is added yet: check the rows and the categories I picked, then add them.')}`,
+      links: [{ label: t('Review and import'), run: () => appRef.current.openModal?.('import', { file }) }],
+      request: file.name,
+    })
+  }
+
+  /** Any file sent to Grace: a photo, a PDF (receipt, bill or statement) or a CSV statement. */
+  const sendFile = async (file) => {
     if (!file || thinking) return
-    if (!file.type.startsWith('image/')) {
-      pushBot({ text: t('Send me a photo of a receipt or bill (a picture, not a PDF) and I’ll read it.') })
+    const name = file.name || ''
+    const pdf = file.type === 'application/pdf' || /\.pdf$/i.test(name)
+    const csv = /\.(csv|tsv|txt)$/i.test(name) || ['text/csv', 'text/plain', 'application/vnd.ms-excel', 'text/tab-separated-values'].includes(file.type)
+    if (file.type.startsWith('image/')) return scan(file)
+    if (!pdf && !csv) {
+      setMsgs((list) => [...list, { id: uid(), from: 'me', text: `📎 ${name || t('File')}` }])
+      pushBot({
+        text: t('I can read photos and screenshots of receipts and bills, PDFs (receipts, bills and bank statements) and CSV bank statements. {file} is none of those.', {
+          file: name || t('That file'),
+        }),
+      })
       return
     }
+    setMsgs((list) => [...list, { id: uid(), from: 'me', text: `${pdf ? '📄' : '📊'} ${name}` }])
+    setThinking(true)
+    setMood('think')
+    try {
+      if (csv) {
+        const r = readStatement(await file.text())
+        setThinking(false)
+        if (r.rows.length) return statementReply(file, r)
+        return pushBot({ text: t('I couldn’t find a date and an amount column in {file}. Download the statement from your bank as CSV and send it again.', { file: name }) })
+      }
+      const { readPdf } = await import('../lib/pdfText')
+      const doc = await readPdf(file)
+      // a scanned PDF has no text: read its first page like a photo
+      if (doc.scanned) {
+        setThinking(false)
+        const blob = await new Promise((res) => doc.images[0].toBlob(res, 'image/png'))
+        return scan(new File([blob], name.replace(/\.pdf$/i, '.png'), { type: 'image/png' }))
+      }
+      setThinking(false)
+      if (looksLikeStatement(doc.text)) return statementReply(file, readStatementText(doc.text, appRef.current.now ?? new Date()))
+      const r = receiptReply(parseReceipt(doc.text, appRef.current.now ?? new Date()), appRef.current, doc.text, 'pdf')
+      const id = uid()
+      const links = r.links?.map((l) => ({
+        ...l,
+        once: true,
+        run: () => {
+          l.run()
+          setMsgs((list) => list.map((x) => (x.id === id ? { ...x, status: 'done' } : x)))
+        },
+      }))
+      if (spoken) say(r.text)
+      pushBot({ ...r, id, links, request: name })
+    } catch (err) {
+      setThinking(false)
+      pushBot({
+        text:
+          err?.code === 'size'
+            ? t('That PDF is over 10 MB. Send a smaller one, or just the pages you need.')
+            : t('I couldn’t open {file}. If it has a password, remove it and send it again.', { file: name }),
+      })
+    }
+  }
+
+  const scan = async (file) => {
+    if (!file || thinking) return
+    if (!file.type.startsWith('image/')) return sendFile(file)
     const url = URL.createObjectURL(file)
     setMsgs((list) => [...list, { id: uid(), from: 'me', text: t('Here’s a receipt'), image: url }])
     setThinking(true)
@@ -770,11 +866,30 @@ ${t('You’re offline, so my AI helper can’t answer right now.')}` }
 
   return (
     <aside
-      className={`ai-panel ${open ? 'open' : ''}`}
+      className={`ai-panel ${open ? 'open' : ''} ${dropping ? 'dropping' : ''}`}
       aria-label={t('{name} assistant', { name: ASSISTANT.name })}
       aria-hidden={!open}
       inert={!open ? true : undefined}
+      onDragOver={(e) => {
+        if ([...(e.dataTransfer?.types ?? [])].includes('Files')) {
+          e.preventDefault()
+          setDropping(true)
+        }
+      }}
+      onDragLeave={(e) => e.currentTarget.contains(e.relatedTarget) || setDropping(false)}
+      onDrop={(e) => {
+        e.preventDefault()
+        setDropping(false)
+        sendFile(e.dataTransfer?.files?.[0])
+      }}
     >
+      {dropping ? (
+        <div className="ai-drop" aria-hidden="true">
+          <Icon name="upload" size={26} />
+          <b>{t('Drop it here')}</b>
+          <small>{t('A photo, a PDF or a CSV statement')}</small>
+        </div>
+      ) : null}
       <header className="ai-head">
         <div className="ai-avatar" ref={avatar}>
           <BuddyArt key={hop} size={70} mood={thinking ? 'think' : mood} className={hop && mood === 'happy' ? 'hop' : ''} />
@@ -862,28 +977,64 @@ ${t('You’re offline, so my AI helper can’t answer right now.')}` }
             accept="image/*"
             hidden
             onChange={(e) => {
-              scan(e.target.files?.[0])
+              sendFile(e.target.files?.[0])
               e.target.value = ''
             }}
           />
           <button
             type="button"
             className="ai-mic ai-photo-btn"
-            onClick={() => photo.current?.click()}
+            onClick={() => setAttachOpen((v) => !v)}
             disabled={thinking}
-            aria-label={t('Send {name} a photo of a receipt or bill', { name: ASSISTANT.name })}
-            title={t('Send {name} a photo of a receipt or bill', { name: ASSISTANT.name })}
+            aria-haspopup="menu"
+            aria-expanded={attachOpen}
+            aria-label={t('Send {name} a file', { name: ASSISTANT.name })}
+            title={t('Send {name} a photo, a PDF or a statement', { name: ASSISTANT.name })}
           >
-            <Icon name="receipt" size={18} />
+            <Icon name="paperclip" size={18} />
           </button>
+          {attachOpen ? (
+            <div className="ai-attach" role="menu" onKeyDown={(e) => e.key === 'Escape' && setAttachOpen(false)}>
+              {touch ? (
+                <button type="button" role="menuitem" onClick={() => pick('image/*', true)} autoFocus>
+                  <Icon name="image" size={17} />
+                  <span>
+                    <b>{t('Take a photo')}</b>
+                    <small>{t('Of a receipt or bill')}</small>
+                  </span>
+                </button>
+              ) : null}
+              <button type="button" role="menuitem" onClick={() => pick('image/*')} autoFocus={!touch}>
+                <Icon name="image" size={17} />
+                <span>
+                  <b>{t('Photo or screenshot')}</b>
+                  <small>{t('A receipt or bill: JPG, PNG, HEIC')}</small>
+                </span>
+              </button>
+              <button type="button" role="menuitem" onClick={() => pick('application/pdf,.pdf')}>
+                <Icon name="file" size={17} />
+                <span>
+                  <b>{t('PDF')}</b>
+                  <small>{t('A receipt, bill or bank statement')}</small>
+                </span>
+              </button>
+              <button type="button" role="menuitem" onClick={() => pick('.csv,text/csv,.tsv,.txt')}>
+                <Icon name="upload" size={17} />
+                <span>
+                  <b>{t('Bank statement (CSV)')}</b>
+                  <small>{t('Downloaded from your bank')}</small>
+                </span>
+              </button>
+            </div>
+          ) : null}
           <input
             ref={input}
             value={text}
             onPaste={(e) => {
               const file = e.clipboardData?.files?.[0]
-              if (file?.type.startsWith('image/')) {
+              if (file) {
                 e.preventDefault()
-                scan(file)
+                sendFile(file)
               }
             }}
             onChange={(e) => setText(e.target.value)}

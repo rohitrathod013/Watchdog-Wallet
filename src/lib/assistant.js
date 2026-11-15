@@ -1159,6 +1159,75 @@ export const HELP = [
   ],
 ]
 
+/* ---------------- money basics: general questions Grace answers herself (no AI model needed) ----------------
+   General information, not personal advice; the AI model handles anything else. */
+export const BASICS = [
+  [
+    /\bcredit scores?\b/,
+    'A **credit score** is a number (in the US, usually 300 to 850) that tells lenders how reliably you repay. Roughly: **paying on time** counts most (about 35%), then **how much of your credit limit you use** (30%; under 30% is good), the **age of your accounts** (15%), **new applications** (10%) and your **mix of credit** (10%). Pay every bill on time, keep balances low, and don’t open lots of new cards at once. I don’t track credit scores in the app.',
+  ],
+  [
+    /\bcredit reports?\b/,
+    'A **credit report** lists your loans, cards, balances and payment history. Lenders use it to work out your credit score. In the US you can get yours free from each of the three bureaus at annualcreditreport.com; check it for accounts you don’t recognise.',
+  ],
+  [
+    /\broth\b/,
+    'A **Roth IRA** is a US retirement account you pay into with money you’ve already paid tax on. It grows tax-free, and withdrawals in retirement (after age 59½, with the account open 5+ years) are tax-free too. There are yearly contribution limits and income limits, so check the current numbers or ask an adviser.',
+  ],
+  [
+    /\b401 ?\(?k\)?\b/,
+    'A **401(k)** is a US retirement plan through your employer: money goes in from your pay before tax (or after tax, for a Roth 401(k)) and grows until retirement. If your employer **matches** part of what you put in, try to put in at least enough to get the full match; it’s free money.',
+  ],
+  [
+    /\b(pay (off|down)|clear)\b.*\bdebts?\b.*\b(save|saving|invest)|\b(save|saving|invest\w*)\b.*\b(pay (off|down)|clear)\b.*\bdebts?\b|\bdebts? (or|vs|versus) (sav|invest)|\b(sav\w*|invest\w*) (or|vs|versus) (pay(ing)? (off )?)?debts?\b/,
+    'A common order: **1.** keep a small emergency fund (say one month of costs) so a surprise doesn’t become new debt; **2.** if your employer matches retirement savings, take the match; **3.** pay off **high-interest debt** (credit cards, payday loans) as fast as you can, since it costs more than savings usually earn; **4.** then build savings to 3 to 6 months and invest. Low-interest debt (like many mortgages) can be paid normally while you save.',
+  ],
+  [
+    /\b(debt )?(snowball|avalanche)\b/,
+    'Two ways to pay off several debts: the **avalanche** pays extra on the highest interest rate first (saves the most money); the **snowball** pays off the smallest balance first (quick wins keep you going). Either way, pay the minimum on everything else.',
+  ],
+  [
+    /\bcompound(ing)?( interest)?\b/,
+    '**Compound interest** is interest on your interest. $1,000 growing 7% a year becomes about $1,967 in 10 years and $7,612 in 30, without adding a cent. It works against you on debt too, which is why card balances grow fast.',
+  ],
+  [
+    /\b(index funds?|etfs?|exchange[- ]traded funds?|mutual funds?)\b/,
+    'An **index fund** (often an **ETF**) buys every company in an index, like the S&P 500, so one purchase spreads your money across hundreds of companies. They usually have low fees, which is why many people use them for long-term investing. Their value goes down as well as up.',
+  ],
+  [
+    /\b(stocks?|shares?) (and|vs|versus|or) bonds?\b|\bbonds? (and|vs|versus|or) (stocks?|shares?)\b|\bwhat (is|are) (a )?bonds?\b/,
+    '**Stocks** are small pieces of companies: higher growth over long periods, with bigger ups and downs. **Bonds** are loans to governments or companies that pay interest: steadier, lower growth. Many people hold more stocks when retirement is far away and more bonds as it gets close.',
+  ],
+  [
+    /\binflation\b/,
+    '**Inflation** is prices going up over time, so the same money buys less. At 3% a year, $100 buys what about $74 would today in 10 years. It’s why cash left for years in an account with little or no interest loses value.',
+  ],
+  [
+    /\b50 ?\/ ?30 ?\/ ?20\b|\bhow (should|do|can) i (make a |start a )?budget\b|\bbudgeting (rule|method|tips?)\b/,
+    'A simple start is the **50/30/20** rule: about **50%** of your take-home pay on needs (rent, bills, food), **30%** on wants, **20%** on savings and paying down debt. Set a limit per category on the **Budget** page and lock the ones that matter, like groceries.',
+  ],
+  [
+    /\b(credit|debit) cards?\b.*\b(vs|versus|or|difference)\b|\bdifference between (a )?(credit|debit)\b/,
+    'A **debit card** spends money already in your account. A **credit card** borrows from the bank, and you pay it back later: pay the full balance each month and it costs nothing (and builds your credit score); carry a balance and the interest is usually high.',
+  ],
+  [
+    /\bmortgages?\b/,
+    'A **mortgage** is a loan to buy a home, repaid monthly over years (often 15 to 30), with the home as security. Lenders look at your income, debts, credit score and deposit; a bigger deposit usually means a lower rate. Compare the APR, not just the monthly payment.',
+  ],
+  [
+    /\bdiversif(y|ication|ied)\b/,
+    '**Diversification** means not putting all your money in one place: spreading it across many companies, industries and types of investment, so one going wrong doesn’t sink everything. An index fund does a lot of this for you.',
+  ],
+  [
+    /\bnet worth\b/,
+    'Your **net worth** is everything you own (cash, savings, investments, property) minus everything you owe (loans, card balances). Watching it grow over the years is a better measure of progress than income alone.',
+  ],
+  [
+    /\b(high[- ]yield|hysa)\b|\bsavings accounts?\b.*\b(interest|best|which)\b/,
+    'A **high-yield savings account** pays more interest than a standard one, while your money stays easy to reach. It’s a good home for an emergency fund. Compare the rate (APY) and check the bank is insured (FDIC in the US).',
+  ],
+]
+
 export const TERMS = [
   [/\b(fees?)\b/, 'A **fee** is a charge for a service, like a monthly account fee or an ATM fee. Fees show up as expenses.'],
   [
@@ -1213,6 +1282,13 @@ function siteHelp(s, app) {
   for (const [re, text, to, label] of HELP) {
     if (re.test(s))
       return { text: t(text), links: to ? [{ label: t(label), run: () => (to.modal ? app.openModal?.(to.modal) : app.go(...to)) }] : undefined }
+  }
+  // general money questions ("how does a credit score work?", "should I pay off debt or save first?")
+  // a question, or just the topic on its own ("credit card vs debit card", "inflation")
+  const asks = QUESTION.test(s) || /^(explain|tell me (about|how)|teach me|help me understand)\b/.test(s) || s.split(' ').length <= 6
+  if (asks) {
+    const basic = BASICS.find(([re]) => re.test(s))
+    if (basic) return { text: `${t(basic[1])}\n${t('This is general information, not personal financial advice.')}` }
   }
   if (/^(what('?s| is| are| does)|meaning of|define|explain|what do you mean by)\b/.test(s) && !/\b(my|i|me)\b/.test(s)) {
     const hit = TERMS.find(([re]) => re.test(s))

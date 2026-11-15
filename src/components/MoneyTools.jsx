@@ -3,7 +3,7 @@
    subscriptions add themselves on their date), and importing a bank
    statement saved as CSV (read in the browser, reviewed before adding).
    ------------------------------------------------------------------ */
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Icon from './Icon'
 import { Modal } from './ui'
 import { useApp } from '../lib/store'
@@ -12,7 +12,7 @@ import { ASSISTANT } from '../config'
 import { t } from '../lib/i18n'
 import { expenseCategories, INCOME_CATEGORIES } from '../lib/stats'
 import { EVERY, EVERY_LABEL, monthlyTotal } from '../lib/recurring'
-import { isDuplicate, MAX_ROWS, readStatement } from '../lib/importCsv'
+import { isDuplicate, MAX_ROWS, readStatement, readStatementText } from '../lib/importCsv'
 import { modelFor, predict } from '../lib/ml/categorize.js'
 
 /* ---------------- repeating transactions ---------------- */
@@ -161,7 +161,8 @@ export function RecurringModal({ open, onClose }) {
 const SHOWN = 300
 const incomeCategory = (name) => (/salary|payroll|wages?\b|paycheck/i.test(name) ? 'Salary' : 'Other income')
 
-function ImportBody({ onClose }) {
+/* payload.file: a statement handed over from Grace's chat (CSV or PDF), read straight away */
+function ImportBody({ payload, onClose }) {
   const { transactions, categoryCorrections, budgets, importTransactions, correctCategory } = useApp()
   const input = useRef(null)
   const [file, setFile] = useState(null) // { name, rows, skipped }
@@ -190,26 +191,46 @@ function ImportBody({ onClose }) {
     })
   }, [file, flip, transactions, categoryCorrections]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [busy, setBusy] = useState(false)
   const read = async (f) => {
     if (!f) return
     setProblem('')
     setFile(null)
-    if (f.size > 5 * 1024 * 1024) return setProblem(t('That file is over 5 MB. Export a shorter date range and try again.'))
-    let text
+    const pdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name)
+    if (f.size > (pdf ? 10 : 5) * 1024 * 1024) return setProblem(t('That file is over 5 MB. Export a shorter date range and try again.'))
+    let r
     try {
-      text = await f.text()
+      if (pdf) {
+        // a PDF statement: its text is read on this device, then each dated line with an amount becomes a row
+        setBusy(true)
+        const { readPdf } = await import('../lib/pdfText')
+        const doc = await readPdf(f)
+        setBusy(false)
+        if (doc.scanned) return setProblem(t('That PDF is a scan with no text in it. Download the statement as CSV from your bank instead.'))
+        r = readStatementText(doc.text, new Date())
+      } else r = readStatement(await f.text())
     } catch {
+      setBusy(false)
       return setProblem(t('I couldn’t open that file.'))
     }
-    const r = readStatement(text)
     if (r.problem === 'empty') return setProblem(t('That file is empty.'))
-    if (r.problem) return setProblem(t('I couldn’t find a date and an amount column in that file. It needs to be a CSV export from your bank.'))
+    if (r.problem)
+      return setProblem(
+        pdf
+          ? t('I couldn’t find dated rows with amounts in that PDF. Download the statement as CSV from your bank instead.')
+          : t('I couldn’t find a date and an amount column in that file. It needs to be a CSV export from your bank.'),
+      )
     // rows already in the account start unticked
     setOff(new Set(r.rows.map((row, i) => (isDuplicate(row, transactions ?? []) ? i : -1)).filter((i) => i >= 0)))
     setPicked({})
     setFlip(false)
-    setFile({ name: f.name, rows: r.rows, skipped: r.skipped })
+    setFile({ name: f.name, rows: r.rows, skipped: r.skipped, pdf })
   }
+  // a file Grace was sent: open it straight away
+  useEffect(() => {
+    if (payload?.file) Promise.resolve().then(() => read(payload.file))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payload?.file])
 
   const chosen = rows.filter((r) => !off.has(r.i))
   const total = chosen.reduce((s, r) => s + Math.round(r.amount * 100), 0) / 100
@@ -238,10 +259,11 @@ function ImportBody({ onClose }) {
           }}
         >
           <Icon name="upload" size={26} />
-          <b>{t('Choose a CSV file, or drop it here')}</b>
-          <small>{t('In your bank’s website, look for Export or Download transactions and pick CSV.')}</small>
+          <b>{t('Choose a CSV or PDF statement, or drop it here')}</b>
+          <small>{t('In your bank’s website, look for Export or Download transactions. CSV works best; PDF statements work too, so check the rows.')}</small>
         </button>
-        <input ref={input} type="file" accept=".csv,text/csv,text/plain" hidden onChange={(e) => read(e.target.files?.[0])} />
+        <input ref={input} type="file" accept=".csv,text/csv,text/plain,.pdf,application/pdf" hidden onChange={(e) => read(e.target.files?.[0])} />
+        {busy ? <p className="tool-sum">{t('Reading the PDF…')}</p> : null}
         {problem ? (
           <p className="auth-error" role="alert">
             {problem}
@@ -259,6 +281,7 @@ function ImportBody({ onClose }) {
     <div className="form">
       <p className="tool-sum">
         <b>{file.name}</b>: {t('Rows read: {n}.', { n: rows.length })}{' '}
+        {file.pdf ? t('Read from a PDF, so check the amounts and whether each one is in or out.') : ''}{' '}
         {file.skipped ? t('Left out, no date or amount: {n}.', { n: file.skipped }) : ''}{' '}
         {dups ? t('Already in your account, so unticked: {n}.', { n: dups }) : ''}{' '}
         {rows.length >= MAX_ROWS ? t('Only the first {n} rows are read at once.', { n: MAX_ROWS }) : ''}
@@ -338,10 +361,10 @@ function ImportBody({ onClose }) {
   )
 }
 
-export function ImportModal({ open, onClose }) {
+export function ImportModal({ open, payload, onClose }) {
   return (
     <Modal open={open} onClose={onClose} title={t('Import a bank statement')} sub={t('Add many transactions at once from a CSV file')} width={640}>
-      {open ? <ImportBody onClose={onClose} /> : null}
+      {open ? <ImportBody payload={payload} onClose={onClose} /> : null}
     </Modal>
   )
 }

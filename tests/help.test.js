@@ -112,4 +112,19 @@ describe('Grace knows where things are', () => {
     expect(ask('how do I add recurring payments').r.text).toMatch(/Press \*\*Repeating\*\*/)
     expect(ask('my recurring payments').r.text).toMatch(/You have 1 repeating/)
   })
+
+  it.each([
+    ['How does a credit score work?', /credit score/],
+    ['what is a roth ira', /Roth IRA/],
+    ['should I pay off debt or save first?', /high-interest debt/],
+    ['explain compound interest', /interest on your interest/],
+    ['what is an index fund', /index fund/],
+    ['how should I budget my salary', /50\/30\/20/],
+    ['what is inflation', /Inflation/],
+    ['credit card vs debit card', /debit card/],
+  ])('money basics without the AI model: %s', (q, re) => {
+    const r = ask(q).r
+    expect(r.text).toMatch(re)
+    expect(r.fallback).toBeUndefined()
+  })
 })

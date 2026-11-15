@@ -1736,7 +1736,7 @@ export default function App() {
       <SettleModal open={modal?.type === 'settle'} payload={modal?.payload} onClose={closeModal} />
       <TermsModal open={modal?.type === 'terms'} onClose={closeModal} />
       <RecurringModal open={modal?.type === 'recurring'} onClose={closeModal} />
-      <ImportModal open={modal?.type === 'import'} onClose={closeModal} />
+      <ImportModal open={modal?.type === 'import'} payload={modal?.payload} onClose={closeModal} />
       <GuardModal open={modal?.type === 'guard'} onClose={closeModal} />
       <AccountModal open={modal?.type === 'account'} onClose={closeModal} />
       <ProfileModal open={modal?.type === 'profile'} onClose={closeModal} />

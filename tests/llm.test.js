@@ -41,7 +41,7 @@ describe('financeBrief', () => {
 
 describe('the fallback flag', () => {
   it('is set only when no rule matched', () => {
-    expect(respond('what is the meaning of a roth ira in simple words for my cousin', app, {}).fallback).toBe(true)
+    expect(respond('what is the difference between a bear market and a correction in simple words', app, {}).fallback).toBe(true)
     expect(respond('what’s my balance?', app, {}).fallback).toBeUndefined()
     expect(respond('switch to dark mode', app, {}).fallback).toBeUndefined()
   })

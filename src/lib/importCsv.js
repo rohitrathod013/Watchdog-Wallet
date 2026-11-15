@@ -95,7 +95,7 @@ export function parseDate(raw, order = 'mdy') {
 }
 
 /** 03/04/2026: day first or month first? Decided by the dates that can only be read one way. */
-export function dateOrder(values) {
+export function dateOrder(values, today = null) {
   let dmy = 0
   let mdy = 0
   for (const v of values) {
@@ -104,8 +104,21 @@ export function dateOrder(values) {
     if (+m[1] > 12) dmy++
     else if (+m[2] > 12) mdy++
   }
-  return dmy > mdy ? 'dmy' : 'mdy'
+  if (dmy !== mdy || !today) return dmy > mdy ? 'dmy' : 'mdy'
+  // nothing settles it (every day is 12 or under): a statement's dates sit close together and not in the
+  // future, so take the reading that keeps them that way (02/11, 03/11, 05/11 is early November, not Feb to May)
+  const score = (order) => {
+    const days = values.map((v) => parseDate(v, order)).filter(Boolean)
+    if (!days.length) return Infinity
+    const end = isoOf(today)
+    const future = days.filter((d) => d > end).length
+    const sorted = [...days].sort()
+    const span = (Date.parse(sorted[sorted.length - 1]) - Date.parse(sorted[0])) / 86400000
+    return future * 1e6 + span
+  }
+  return score('dmy') < score('mdy') ? 'dmy' : 'mdy'
 }
+const isoOf = (d) => `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`
 
 const HEAD = {
   date: /^(transaction |posting |posted |value |booking |trans\.? )?date$|^date\b|^posted$/i,
@@ -150,13 +163,13 @@ export function findColumns(rows) {
  * A whole statement → { rows: [{ date, name, amount }], skipped, total, problem }.
  * amount is negative for money out. problem: 'empty' | 'columns' when nothing could be read.
  */
-export function readStatement(text) {
+export function readStatement(text, today = new Date()) {
   const table = parseCsv(text)
   if (!table.length) return { rows: [], skipped: 0, total: 0, problem: 'empty' }
   const col = findColumns(table)
   if (col.date < 0 || (col.amount < 0 && col.debit < 0 && col.credit < 0)) return { rows: [], skipped: 0, total: table.length, problem: 'columns' }
   const body = table.slice(col.header + 1)
-  const order = dateOrder(body.map((r) => r[col.date]))
+  const order = dateOrder(body.map((r) => r[col.date]), today)
   const rows = []
   let skipped = 0
   for (const r of body) {
@@ -198,3 +211,77 @@ export function isDuplicate(row, transactions = []) {
     return !a || !b || a === b || a.includes(b) || b.includes(a)
   })
 }
+
+/* ---------------- statements as plain text (from a PDF) ----------------
+   Each row is a line that starts with a date and has one or more amounts.
+   With two or more amounts, the last is taken as the running balance and the
+   one before it as the payment; the change in balance from the row before
+   then says whether money went in or out. */
+const LEAD_DATE =
+  /^\s*(\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{1,2}[\s-][A-Za-z]{3,9}\.?,?[\s-]\d{2,4}|[A-Za-z]{3,9}\.?\s+\d{1,2},?\s+\d{2,4}|\d{1,2}\s+[A-Za-z]{3,9}\b)/
+const MONEY = /\(?-?[$£€₹]?\s?\d{1,3}(?:[,\s]\d{3})*[.,]\d{2}\)?(?:\s?(?:CR|DR)\b|-)?/g
+const SKIP_LINE = /\b(opening|closing|brought forward|carried forward|previous) balance\b|\bbalance (b\/f|c\/f|forward)\b|^\s*total\b/i
+const MONEY_IN = /\b(credit|deposit|salary|payroll|refund|interest (paid|earned)|transfer (in|from)|received|cashback)\b/i
+
+/** A date with no year ("02 Nov"): this year, or last year if that would be in the future. */
+function withYear(raw, today) {
+  const m = raw.trim().match(/^(\d{1,2})\s+([A-Za-z]{3})/)
+  if (!m) return null
+  const mi = MONTH_NAMES.indexOf(m[2].toLowerCase())
+  if (mi < 0) return null
+  let y = today.getFullYear()
+  if (new Date(y, mi, +m[1]) > today) y -= 1
+  return day(y, mi + 1, +m[1])
+}
+
+export function readStatementText(text, today = new Date()) {
+  const lines = String(text ?? '').split(/\r?\n/)
+  const leads = lines.map((l) => l.match(LEAD_DATE)?.[1] ?? null)
+  const order = dateOrder(leads.filter(Boolean), today)
+  const rows = []
+  let skipped = 0
+  let prevBalance = null
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (SKIP_LINE.test(line)) {
+      const bal = [...line.matchAll(MONEY)].pop()
+      if (bal) prevBalance = parseAmount(bal[0])
+      continue
+    }
+    const lead = leads[i]
+    if (!lead) continue
+    const date = parseDate(lead, order) ?? withYear(lead, today)
+    const rest = line.slice(line.indexOf(lead) + lead.length)
+    const money = [...rest.matchAll(MONEY)]
+    if (!date || !money.length) {
+      skipped++
+      continue
+    }
+    const amountTok = money.length >= 2 ? money[money.length - 2] : money[0]
+    const balance = money.length >= 2 ? parseAmount(money[money.length - 1][0]) : null
+    let amount = parseAmount(amountTok[0])
+    if (amount === null || amount === 0) {
+      skipped++
+      continue
+    }
+    const explicit = /^\(|-|\b(CR|DR)\b/.test(amountTok[0].trim()) || /-\s*$/.test(amountTok[0])
+    if (!explicit) {
+      const size = Math.abs(amount)
+      if (balance !== null && prevBalance !== null && Math.abs(Math.abs(balance - prevBalance) - size) < 0.015)
+        amount = balance >= prevBalance ? size : -size
+      else amount = MONEY_IN.test(rest) ? size : -size
+    }
+    if (balance !== null) prevBalance = balance
+    const name = rest
+      .slice(0, amountTok.index)
+      .replace(/\s+/g, ' ')
+      .replace(/^[\s\-|:]+|[\s\-|:]+$/g, '')
+      .slice(0, 80)
+    rows.push({ date, name: name || 'Transaction', amount })
+    if (rows.length >= MAX_ROWS) break
+  }
+  return { rows, skipped, total: rows.length + skipped, problem: rows.length ? null : 'columns' }
+}
+
+/** Does this text look like a bank statement (several dated rows with amounts) rather than one receipt? */
+export const looksLikeStatement = (text) => readStatementText(text).rows.length >= 3
