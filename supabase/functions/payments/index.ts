@@ -55,12 +55,19 @@ async function stripe(path: string, form?: Record<string, string>) {
 async function userOf(req: Request) {
   const auth = req.headers.get('authorization') ?? ''
   if (!auth.startsWith('Bearer ')) return null
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: { Authorization: auth, apikey: ANON_KEY ?? req.headers.get('apikey') ?? '' },
-  })
-  if (!res.ok) return null
-  const user = await res.json()
-  return user?.id ? user : null
+  // try the key the site sent first (the project's publishable key), then the legacy anon key:
+  // projects with legacy keys turned off reject the old one, which made every request a 401
+  const keys = [req.headers.get('apikey'), ANON_KEY].filter((k, i, all): k is string => Boolean(k) && all.indexOf(k) === i)
+  for (const key of keys) {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { Authorization: auth, apikey: key } })
+    if (res.ok) {
+      const user = await res.json().catch(() => null)
+      if (user?.id) return user
+    } else {
+      console.error(`sign-in check: ${res.status} ${(await res.text().catch(() => '')).slice(0, 200)}`)
+    }
+  }
+  return null
 }
 
 Deno.serve(async (req) => {

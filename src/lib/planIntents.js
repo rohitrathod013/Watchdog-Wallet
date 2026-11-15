@@ -259,17 +259,19 @@ function repeatsList(app) {
 
 export function planIntent(s, app) {
   if (app.stats?.demo) return null
+  // "how do I lock a budget?", "what is rollover?": explained by the help answers, not acted on
+  const howTo = /^(how|where|what is|what are|what does|why)\b/.test(s) && !/\bhow much\b/.test(s)
   if (SPEND_Q.test(s)) return spendCheck(s, app)
   if (/\b(how much (is |money is |do i have )?(free|unlocked)( to spend)?|free (money|to spend)|what'?s locked|how much is locked|locked (money|budgets?))\b/.test(s)) return freeMoney(app)
-  const act = budgetAction(s, app)
+  const act = howTo ? null : budgetAction(s, app)
   if (act) return act
-  if (/\b(roll ?over|carried over|carry ?over)\b/.test(s)) return carried(app)
+  if (!howTo && /\b(roll ?over|carried over|carry ?over)\b/.test(s)) return carried(app)
   if (
     /\b(what'?s|what is|what will be|anything) (coming (up|out)|going out|due( soon)?)\b|\bupcoming (payments|bills|charges|transactions)\b|\b(payments|charges|bills) (coming up|due) (this|next) (week|month)\b|\bwhat (comes|goes) out\b/.test(
       s,
     )
   )
     return coming(s, app)
-  if ((app.recurring ?? []).length && /\b(my )?(repeating|recurring|scheduled) (transactions|payments|rules)\b|\bstanding orders?\b|\bwhat repeats\b/.test(s)) return repeatsList(app)
+  if (!howTo && (app.recurring ?? []).length && /\b(my )?(repeating|recurring|scheduled) (transactions|payments|rules)\b|\bstanding orders?\b|\bwhat repeats\b/.test(s)) return repeatsList(app)
   return null
 }

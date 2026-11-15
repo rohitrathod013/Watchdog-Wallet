@@ -10,7 +10,7 @@ import { signed, uid } from '../lib/format'
 import { ASSISTANT, BRAND } from '../config'
 import { getLocale, LOCALES, t, tName } from '../lib/i18n'
 import { parseReceipt, readReceipt, receiptReply } from '../lib/receipt'
-import { askModel, explainRequest, explainScan, modelReply } from '../lib/llm'
+import { askModel, explainRequest, explainScan, lastModelProblem, modelReply } from '../lib/llm'
 import { levelText, saveVerdict } from '../lib/shield'
 import { proactiveFlags } from '../lib/ml/grace.js'
 import { dayLabel, slimTraces, traceAddsUp, traceCsv } from '../lib/trace'
@@ -619,6 +619,12 @@ export default function Assistant({ open, onClose, prompt }) {
         if (r.fallback) {
           const said = await askModel(question, msgs, brain())
           if (said) r = { ...modelReply(said), memory: r.memory, chips: [{ q: 'What can you do?', label: t('What can you do?') }] }
+          // no answer from the model: say why, instead of only "I'm not sure"
+          else if (lastModelProblem === 'busy')
+            r = { ...r, text: `${r.text}
+${t('My AI helper has reached its free limit for the moment, so I can only answer my usual questions. Try again in a minute.')}` }
+          else if (lastModelProblem === 'offline') r = { ...r, text: `${r.text}
+${t('You’re offline, so my AI helper can’t answer right now.')}` }
         }
         setThinking(false)
         if (voice || spoken) say(r.text)

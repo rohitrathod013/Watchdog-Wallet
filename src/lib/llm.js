@@ -54,7 +54,11 @@ export function financeBrief(app) {
  * Ask the model. Resolves to its answer, or null when it isn't available
  * (not signed in, the demo, the function isn't set up, offline or busy).
  */
+/** Why the last askModel call got no answer: null, 'busy' (the free tier's limit), 'offline' or 'error'. */
+export let lastModelProblem = null
+
 export async function askModel(question, history, app) {
+  lastModelProblem = null
   if (!SUPABASE.url || app?.demo) return null
   try {
     const supabase = await getSupabase()
@@ -79,10 +83,12 @@ export async function askModel(question, history, app) {
     if (!res.ok) {
       // shows why in the browser console (F12), e.g. a bad key or the free tier's limit
       console.warn(`Grace's LLM: ${res.status} ${out.error ?? ''}`)
+      lastModelProblem = res.status === 429 || out.busy ? 'busy' : 'error'
       return null
     }
     return typeof out.text === 'string' && out.text.trim() ? out.text.trim() : null
   } catch {
+    lastModelProblem = typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'error'
     return null
   }
 }

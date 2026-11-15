@@ -990,6 +990,96 @@ function safety(raw, s) {
 /* ---------------- help with the site, and what words mean ---------------- */
 export const HELP = [
   [
+    /(upload|import|add|bring in|load|put in)\b.*\b(bank )?statements?\b|\bstatements?\b.*\b(upload|import)|\bimport\b.*\b(csv|transactions|bank|file)|\bupload\b.*\b(csv|transactions|file)/,
+    'Go to **Dashboard › Transactions** and press **Import**. Choose the CSV file your bank lets you download (look for Export or Download transactions on your bank’s website). It’s read on your device and never uploaded; you check every row, I suggest the categories, and rows you already have start unticked.',
+    { modal: 'import' },
+    'Import a statement',
+  ],
+  [
+    /^(how|where|can i|i want to|help me)\b.*\b(repeat(ing)?|recurring|every (month|week)|automatic(ally)?|standing order|regular)\b.*\b(transactions?|payments?|rent|salary|bills?|income|expenses?)|^(how|where)\b.*\bset up\b.*\b(rent|salary|subscription)|^(how|where|can i)\b.*\b(rent|salary|bills?|payments?|subscriptions?|income)\b.*\b(repeat|recur|every (month|week)|automatically)/,
+    'Press **Repeating** on **Dashboard › Transactions** and add it once: rent, salary or a subscription, weekly, every 2 weeks, monthly or yearly. It’s added by itself on its date. You can also pick **Repeat** when you add a transaction.',
+    { modal: 'recurring' },
+    'Repeating transactions',
+  ],
+  [
+    /^(where|how)\b.*\b(see|find|view|check|manage|track|cancel)\b.*\bsubscriptions?\b|\bsubscriptions? (tab|page|list)\b/,
+    'Open **Dashboard › Subscriptions**: everything you pay on repeat, with the monthly and yearly cost, the next charge and price rises. **Remind me to cancel** nudges you 2 days before the next charge.',
+    ['dashboard', { tab: 'subscriptions' }],
+    'Open Subscriptions',
+  ],
+  [
+    /^(how|where|can i|i want to|help me)\b.*\b(add|save|remove|delete|link|connect)\b.*\b(debit |credit )?cards?\b|^add (a |my )?(debit |credit )?card\b/,
+    'On the **Wallet** page, press **Add card** under My Cards. Give it a name, pick debit or credit and the network, and type **only the last 4 digits**. Never type the full number, PIN or CVV. To remove a card, tap it to flip it and press **Remove card** twice.',
+    ['wallet'],
+    'Open Wallet',
+  ],
+  [
+    /\b(terms( and| &)? conditions|terms of (use|service)|t ?& ?c|card terms|bank terms)\b|^(where|show|what)\b.*\bterms\b/,
+    'The **Bank and card terms** are linked under **My Cards** on the Wallet page and on the card top-up. They explain what the app is (a money tracker, not a bank), what’s saved about a card, and how card top-ups and money between friends work.',
+    { modal: 'terms' },
+    'Read the terms',
+  ],
+  [
+    /^(how|what)\b.*\block(ed)?\b.*\bbudgets?\b|\blocked budgets?\b.*\b(work|mean|do)\b/,
+    'A **locked budget** keeps what’s left of it for that category only. Card payments for anything else, and transfers, can only use your free money. Tap the lock on a budget on the **Budget** page, or tell me “lock my groceries budget”.',
+    ['budget'],
+    'Open Budget',
+  ],
+  [
+    /^(how|what)\b.*\b(roll ?over|carry ?over)\b|\b(roll ?over|carry ?over)\b.*\b(work|mean)\b/,
+    'With **rollover** on, whatever a budget doesn’t use this month is added to next month’s limit. Tap the circular arrow on a budget on the **Budget** page, or tell me “turn on rollover for groceries”.',
+    ['budget'],
+    'Open Budget',
+  ],
+  [
+    /\bsettle (up|debts?)\b|\bsimplif(y|ied) (the |our |group )?debts?\b|^(how|where)\b.*\bwho owes\b/,
+    '**Settle up** turns a group’s debts into the fewest payments. Open the group chat on the **Friends** page and press **Settle up** at the top. Nobody ends up owing or being owed a different amount; only who pays whom changes.',
+    ['friends'],
+    'Open Friends',
+  ],
+  [
+    /^(how|where|can i)\b.*\b(make|create|start|add|new)\b.*\bgroups?\b/,
+    'On the **Friends** page press **New group**, give it a name and pick friends (up to 25 people). In the group you can chat, split bills and settle up.',
+    ['friends'],
+    'Open Friends',
+  ],
+  [
+    /^(how|where|can i)\b.*\bsplit\b/,
+    'On the **Friends** page press **Split a bill**, or open a friend’s or group’s chat and press **Split**. Each person gets a request for their share.',
+    ['friends'],
+    'Open Friends',
+  ],
+  [
+    /^(how|where|can i)\b.*\b(add|find|invite|connect with)\b.*\bfriends?\b/,
+    'On the **Friends** page, add a friend by the email they signed up with, share your **invite link**, or pick people from your phone’s contacts. They accept, and you can chat and pay each other back.',
+    ['friends'],
+    'Open Friends',
+  ],
+  [
+    /^(how|where|can i)\b.*\b(chat|message|text)\b|\bfriend requests?\b/,
+    'Chat with friends on the **Friends** page, or from any page with the round chat button in the bottom-left corner. New friend requests show in the bell at the top right, with Accept and Decline.',
+    ['friends'],
+    'Open Friends',
+  ],
+  [
+    /\b(install|download|get)\b.*\b(the )?(app|application)\b|\badd (it )?to (my )?home ?screen\b|\b(work|use it|open it) offline\b|\bwithout (a |an )?(internet|connection)\b/,
+    'You can install Watchdog Wallet like an app. In Chrome, press the install icon in the address bar; on iPhone, press **Share › Add to Home Screen**. It then opens without a connection too, showing your data from the last time you were online.',
+    null,
+    null,
+  ],
+  [
+    /\b(scan|upload|read|photo of|picture of)\b.*\b(receipts?|invoice)\b/,
+    'Press the receipt button next to the message box in this chat and pick a photo of a receipt or bill. I read it on your device and offer to add it.',
+    null,
+    null,
+  ],
+  [
+    /^(how|where|can i)\b.*\b(top ?up|pay by card|add money (by|with) (a )?card|use stripe)\b/,
+    'Press **Add money** on the balance card or the Wallet page and choose **Pay by card**. You pay on Stripe’s secure page and the money is added to your balance.',
+    ['wallet'],
+    'Open Wallet',
+  ],
+  [
     /(export|download).*(csv|transactions|spreadsheet|excel|statement)|where.*\bcsv\b/,
     'Go to **Dashboard › Transactions** and press **Export CSV** at the top right. Reports have their own **CSV** button on each card.',
     ['dashboard', { tab: 'transactions' }],
@@ -1026,7 +1116,7 @@ export const HELP = [
     'Open Wallet',
   ],
   [
-    /how (do|can|to) (i )?add (a )?(contact|person|friend|someone)/,
+    /how (do|can|to) (i )?add (a )?(contact|person|someone)/,
     'Press **Add contact** on the Quick Transfer card, or **New** on the Transfer page.',
     ['transfer'],
     'Open Transfer',
@@ -1121,7 +1211,8 @@ export const TERMS = [
 
 function siteHelp(s, app) {
   for (const [re, text, to, label] of HELP) {
-    if (re.test(s)) return { text: t(text), links: to ? [{ label: t(label), run: () => app.go(...to) }] : undefined }
+    if (re.test(s))
+      return { text: t(text), links: to ? [{ label: t(label), run: () => (to.modal ? app.openModal?.(to.modal) : app.go(...to)) }] : undefined }
   }
   if (/^(what('?s| is| are| does)|meaning of|define|explain|what do you mean by)\b/.test(s) && !/\b(my|i|me)\b/.test(s)) {
     const hit = TERMS.find(([re]) => re.test(s))
