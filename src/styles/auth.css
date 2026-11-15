@@ -620,3 +620,10 @@
 .btn.solid.danger:disabled {
   opacity: 0.45;
 }
+
+/* under "Check your email": a nudge to look in spam */
+.auth-spam {
+  margin-top: -4px;
+  font-size: 13px;
+  color: var(--muted);
+}

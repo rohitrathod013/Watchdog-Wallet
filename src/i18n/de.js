@@ -2070,4 +2070,5 @@ export default {
   "I agree to the": "Ich stimme den",
   "Bank and card terms": "Bank- und Kartenbedingungen zu",
   "Cards, card top-ups, money between friends and locked budgets": "Karten, Aufladen per Karte, Geld unter Freunden und gesperrte Budgets",
+  "Can’t find it? Check your spam folder.": "Nicht gefunden? Schau in deinen Spam-Ordner.",
 }

@@ -12,7 +12,7 @@ const friendly = (error) => {
   const m = (error?.message ?? '').toLowerCase()
   if (m.includes('invalid login')) return t('Wrong email or password.')
   if (m.includes('already registered') || m.includes('already exists')) return t('An account with this email already exists. Try logging in.')
-  if (m.includes('not confirmed')) return t('Please confirm your email first. Check your inbox for the link.')
+  if (m.includes('not confirmed')) return `${t('Please confirm your email first. Check your inbox for the link.')} ${t('Can’t find it? Check your spam folder.')}`
   if (m.includes('password') && (m.includes('6') || m.includes('short') || m.includes('weak'))) return t('Use a password with at least 8 characters.')
   if (m.includes('rate') || m.includes('too many')) return t('Too many attempts. Please wait a minute and try again.')
   if (m.includes('fetch') || m.includes('network')) return t('Can’t reach the server. Check your connection and try again.')
@@ -150,6 +150,7 @@ export default function Auth({ initialMode = 'login', lang, setLang, onPasswordU
                 ? t('We sent a confirmation link to {email}. Open it to activate your account, then log in.', { email: email.trim() })
                 : t('If an account exists for {email}, a reset link is on its way.', { email: email.trim() })}
             </p>
+            <p className="auth-spam">{t('Can’t find it? Check your spam folder.')}</p>
             <button type="button" className="btn solid lg block" onClick={() => go('login')}>
               {t('Back to log in')}
             </button>

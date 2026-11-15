@@ -2012,4 +2012,5 @@ export default {
   "I agree to the": "أوافق على",
   "Bank and card terms": "شروط البنك والبطاقات",
   "Cards, card top-ups, money between friends and locked budgets": "البطاقات والشحن بالبطاقة والمال بين الأصدقاء والميزانيات المقفلة",
+  "Can’t find it? Check your spam folder.": "لم تجده؟ تحقق من مجلد الرسائل غير المرغوب فيها.",
 }

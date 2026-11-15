@@ -2074,4 +2074,5 @@ export default {
   "I agree to the": "J’accepte les",
   "Bank and card terms": "Conditions bancaires et cartes",
   "Cards, card top-ups, money between friends and locked budgets": "Cartes, recharges par carte, argent entre amis et budgets bloqués",
+  "Can’t find it? Check your spam folder.": "Vous ne le trouvez pas ? Vérifiez vos spams.",
 }
