@@ -115,12 +115,16 @@ self.addEventListener('push', (event) => {
     note = { title: 'Watchdog Wallet', body: event.data?.text() ?? '' }
   }
   event.waitUntil(
-    self.registration.showNotification(note.title || 'Watchdog Wallet', {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      // the app is open and on screen: it shows its own alerts, so stay quiet
+      if (list.some((c) => c.visibilityState === 'visible' && c.url.startsWith(scope.href))) return undefined
+      return self.registration.showNotification(note.title || 'Watchdog Wallet', {
       body: note.body || '',
       icon: new URL('icon-192.png', scope).href,
       badge: new URL('icon-192.png', scope).href,
       tag: note.tag,
       data: { url: note.url || scope.href },
+      })
     }),
   )
 })

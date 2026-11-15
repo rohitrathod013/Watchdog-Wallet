@@ -907,3 +907,7 @@ alter table public.push_subscriptions enable row level security;
 drop policy if exists "own push subscriptions" on public.push_subscriptions;
 create policy "own push subscriptions" on public.push_subscriptions
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- while the app is open and on screen, each device says so every 30 seconds (seen_at);
+-- the push function skips anyone seen in the last minute, since the app shows its own alerts
+alter table public.push_subscriptions add column if not exists seen_at timestamptz;

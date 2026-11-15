@@ -41,9 +41,13 @@ const nameOf = async (id: string) => {
 async function notify(userIds: string[], note: { title: string; body: string; tag?: string; url?: string }) {
   const ids = [...new Set(userIds.filter(Boolean))]
   if (!ids.length) return 0
-  const subs = await rest(`push_subscriptions?user_id=in.(${ids.join(',')})&select=endpoint,p256dh,auth`)
+  const all = await rest(`push_subscriptions?user_id=in.(${ids.join(',')})&select=endpoint,p256dh,auth,user_id,seen_at`)
+  // someone with the app open and on screen (on any device) in the last minute already sees it in the app
+  const recent = Date.now() - 60 * 1000
+  const busy = new Set((all ?? []).filter((s: any) => s.seen_at && Date.parse(s.seen_at) > recent).map((s: any) => s.user_id))
+  const subs = (all ?? []).filter((s: any) => !busy.has(s.user_id))
   let sent = 0
-  for (const s of subs ?? []) {
+  for (const s of subs) {
     try {
       await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify({ ...note, url: note.url ?? SITE }), { TTL: 60 * 60 * 12 })
       sent++

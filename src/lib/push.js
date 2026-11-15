@@ -54,6 +54,22 @@ export async function enablePush(userId) {
   }
 }
 
+/**
+ * While the app is open and on screen, mark this device as active (so the push function skips you:
+ * the app shows its own alerts). active=false clears it the moment the app goes to the background.
+ */
+export async function markActive(active) {
+  if (!pushSupported() || Notification.permission !== 'granted') return
+  try {
+    const sub = await (await registration()).pushManager.getSubscription()
+    if (!sub) return
+    const supabase = await getSupabase()
+    await supabase.from('push_subscriptions').update({ seen_at: active ? new Date().toISOString() : null }).eq('endpoint', sub.endpoint)
+  } catch {
+    /* offline or push off: nothing to mark */
+  }
+}
+
 /** Turn push off for this device (and forget its address). */
 export async function disablePush() {
   try {

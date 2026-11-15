@@ -42,6 +42,7 @@ import { removeAllMyMedia } from './lib/media'
 import { useSocial } from './lib/useSocial'
 import { useMlFlags } from './lib/ml/useMl.js'
 import { dropCopies, keepCopy, looksOffline, readCopy } from './lib/offline'
+import { markActive } from './lib/push'
 import { makeItem, netWorthNow, withSnapshot } from './lib/wealth'
 import { DEFAULT_SPLIT, planSplit } from './lib/incomeSplit'
 import { weekKey, weeklyRecap, weekStart } from './lib/recap'
@@ -1110,6 +1111,23 @@ export default function App() {
       window.removeEventListener('focus', run)
     }
   }, [rulesReady, recurring, notify, splitIncome])
+
+  /* ---------- push: while the app is open and on screen, tell the server not to push to you ---------- */
+  useEffect(() => {
+    if (!accountsEnabled || isDemo || !userId || loadedFor !== userId) return undefined
+    const beat = () => markActive(document.visibilityState === 'visible')
+    beat()
+    const timer = window.setInterval(() => document.visibilityState === 'visible' && markActive(true), 30 * 1000)
+    document.addEventListener('visibilitychange', beat)
+    const bye = () => markActive(false)
+    window.addEventListener('pagehide', bye)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', beat)
+      window.removeEventListener('pagehide', bye)
+      markActive(false)
+    }
+  }, [isDemo, userId, loadedFor])
 
   /* ---------- cancel reminders: nudge on the day ---------- */
   useEffect(() => {
