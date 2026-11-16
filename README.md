@@ -2,9 +2,19 @@
 
 **Live site:** https://rohitrathod013.github.io/Watchdog-Wallet/
 
-Watchdog Wallet is a personal finance dashboard with accounts, friends you can chat with and pay back, card top-ups, five languages and **Grace**, a German Shepherd puppy assistant who can answer questions about your money and act on it.
+Watchdog Wallet is a personal finance dashboard with accounts, friends you can chat with and pay back, card top-ups, seven languages and **Grace**, a German Shepherd puppy assistant who can answer questions about your money and act on it.
 
 Sign up to track your own balance, transactions, budgets, goals and bills, or click **Explore the demo** on the login screen to look around with sample data and no account.
+
+## Screenshots
+
+| Dashboard | Grace, the assistant |
+| --- | --- |
+| ![The dashboard overview: balance, income, expenses, net profit and savings goals](docs/screenshots/overview.png) | ![Grace answering "How am I doing this month?" with a summary of the month](docs/screenshots/grace.png) |
+| **Accounts** | **Planning** |
+| ![Accounts: main, savings, a credit card and cash, with the credit card's utilisation and due date](docs/screenshots/accounts.png) | ![Planning tools: emergency fund meter, pause budgets, sinking funds and savings challenges](docs/screenshots/planning.png) |
+
+<p align="center"><img src="docs/screenshots/phone.png" alt="The dashboard on a phone, in dark mode" width="280"></p>
 
 ---
 
