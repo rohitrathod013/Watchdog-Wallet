@@ -19,6 +19,7 @@ import {
 import { Reveal } from '../components/ui'
 import { useApp } from '../lib/store'
 import { t } from '../lib/i18n'
+import InvestingCard from './Investing'
 
 export default function OverviewView() {
   const { period, stats } = useApp()
@@ -73,6 +74,7 @@ export default function OverviewView() {
         <div className="grid-4">
           <PortfolioCard className="span-2" d={0} />
           <MarketsCard className="span-2" d={90} />
+          <InvestingCard className="span-4" d={140} />
         </div>
       </Reveal>
       <Reveal className="grid-4" after={300}>

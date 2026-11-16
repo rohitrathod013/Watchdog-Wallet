@@ -400,6 +400,11 @@ export function Toasts({ items, onDismiss }) {
             <strong>{item.title}</strong>
             {item.body ? <p>{item.body}</p> : null}
           </div>
+          {item.action ? (
+            <button type="button" className="toast-act" onClick={item.action.run}>
+              {item.action.label}
+            </button>
+          ) : null}
           <button type="button" onClick={() => onDismiss(item.id)} aria-label={t('Dismiss')}>
             <Icon name="close" size={14} />
           </button>

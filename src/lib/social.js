@@ -209,6 +209,18 @@ export function systemText(m, me, nameOf) {
     const [amount, title] = arg.split(/\|(.*)/s)
     return t('{name} added {amount} to “{title}”', { name: who, amount: `$${Number(amount).toFixed(2)}`, title })
   }
+  if (what === 'tripnew') return t('{name} started a trip budget: “{title}”', { name: who, title: arg })
+  if (what === 'familyinvite')
+    return m.sender === me ? t('You asked to link their account as your child’s') : t('{name} asked to link your account as their child’s. Accept it under Family.', { name: who })
+  if (what === 'spendask' || what === 'spendok' || what === 'spendno') {
+    const cut = arg.indexOf('|')
+    const amt = `$${Number(arg.slice(0, cut)).toFixed(2)}`
+    const title = arg.slice(cut + 1)
+    if (what === 'spendask')
+      return m.sender === me ? t('You asked to spend {amount} on {title}', { amount: amt, title }) : t('{name} asks to spend {amount} on {title}', { name: who, amount: amt, title })
+    if (what === 'spendok') return m.sender === me ? t('You approved {amount} for {title}', { amount: amt, title }) : t('{name} approved {amount} for {title}', { name: who, amount: amt, title })
+    return m.sender === me ? t('You declined {amount} for {title}', { amount: amt, title }) : t('{name} declined {amount} for {title}', { name: who, amount: amt, title })
+  }
   if (what === 'simplified') {
     const [before, after] = arg.split(':').map(Number)
     return after === 1
@@ -387,4 +399,48 @@ export function splitEqually(total, friendIds, includeMe) {
   const left = cents - each * people
   const shares = friendIds.map((id, i) => ({ friend: id, amount: (each + (!includeMe && i === 0 ? left : 0)) / 100 }))
   return { shares, mine: includeMe ? (each + left) / 100 : 0 }
+}
+
+/**
+ * Shares the user typed: mode 'amount' ($ per person) or 'percent' (% per person).
+ * entries: { [friendId]: value }; my share is whatever of the total is left.
+ * Percent shares are rounded down to the cent and any leftover cents are mine.
+ * → { shares, mine, over } (over: the shares add up to more than the total)
+ */
+export function splitCustom(total, friendIds, entries = {}, mode = 'amount') {
+  const cents = Math.round((Number(total) || 0) * 100)
+  if (cents <= 0 || !friendIds.length) return { shares: [], mine: 0, over: false }
+  const each = friendIds.map((id) => {
+    const v = Math.max(0, Number(entries[id]) || 0)
+    return { friend: id, c: mode === 'percent' ? Math.floor((cents * Math.min(100, v)) / 100) : Math.round(v * 100) }
+  })
+  const used = each.reduce((s, x) => s + x.c, 0)
+  return {
+    shares: each.map((x) => ({ friend: x.friend, amount: x.c / 100 })),
+    mine: Math.max(0, cents - used) / 100,
+    over: used > cents,
+  }
+}
+
+/** Monthly splits (rent, utilities): the ones whose day has come, with each rule moved on to its next month. */
+export function dueSplits(rules = [], today) {
+  const due = []
+  const next = rules.map((r) => {
+    if (!r.active || !r.next || r.next > today) return r
+    due.push(r)
+    const [y, m] = r.next.split('-').map(Number)
+    const ny = m === 12 ? y + 1 : y
+    const nm = m === 12 ? 1 : m + 1
+    const last = new Date(ny, nm, 0).getDate()
+    let n = `${ny}-${String(nm).padStart(2, '0')}-${String(Math.min(r.day, last)).padStart(2, '0')}`
+    // after a long time away, skip to the next one from today rather than sending months at once
+    while (n <= today) {
+      const [yy, mm] = n.split('-').map(Number)
+      const y2 = mm === 12 ? yy + 1 : yy
+      const m2 = mm === 12 ? 1 : mm + 1
+      n = `${y2}-${String(m2).padStart(2, '0')}-${String(Math.min(r.day, new Date(y2, m2, 0).getDate())).padStart(2, '0')}`
+    }
+    return { ...r, next: n, last: today }
+  })
+  return { due, rules: next }
 }

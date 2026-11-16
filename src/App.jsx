@@ -41,6 +41,17 @@ import { removeAllMyMedia } from './lib/media'
 import { useSocial } from './lib/useSocial'
 import { useMlFlags } from './lib/ml/useMl.js'
 import { useNetWorthSnapshot, usePushPresence, useReminderNudges, useRepeatingRunner, useWeeklyRecap } from './app/useBackgroundJobs'
+import { useMoreMoney } from './app/useMoreMoney'
+import { useServerJobs } from './app/useServerJobs'
+import { addLot, sellFifo } from './lib/lots'
+import { takeQuickLog } from './lib/quickLog'
+import { queueOffline, takeOutbox } from './lib/offline'
+import { TxDetailModal, AccountsModal, DeleteRangeModal } from './components/MoreModals'
+import { CodeScreen, SecurityModal } from './components/Security'
+import { TripsModal } from './components/Trips'
+import { InboxModal } from './components/Inbox'
+import { CalendarModal } from './components/Calendar'
+import { needsCode } from './lib/server'
 import { DEFAULT_WATCHLIST, DEMO_GUARD, DEMO_NOW, demoState, freshState } from './app/state'
 import { fromHash, store, stored } from './app/routing'
 import { dropCopies, keepCopy, looksOffline, readCopy } from './lib/offline'
@@ -270,6 +281,9 @@ export default function App() {
   // the friends' chat window (bottom left) is open: Grace steps aside
   const [chatOpen, setChatOpen] = useState(false)
   const ranRule = useRef(new Set())
+  // accounts, planning tools and the rest (src/app/useMoreMoney.js); addTx, toast and notify reach it through the bridge
+  const bridge = useRef({})
+  const more = useMoreMoney({ balance, setBalance, transactions, setTransactions, goals, setGoals, bridge })
 
   /* ---------- accounts (Supabase) ----------
      session: undefined while checking, null when logged out.
@@ -311,6 +325,19 @@ export default function App() {
   }, [])
   const isDemo = !accountsEnabled || demo
   const userId = demo ? null : (session?.user?.id ?? null)
+  // two-step login: { for: user id, need: true while this session still has to enter a code }
+  const [mfa, setMfa] = useState(null)
+  const mfaNeed = userId ? (mfa?.for === userId ? mfa.need : null) : false
+  useEffect(() => {
+    if (!accountsEnabled || !userId) return undefined
+    let alive = true
+    needsCode()
+      .then((need) => alive && setMfa({ for: userId, need }))
+      .catch(() => alive && setMfa({ for: userId, need: false }))
+    return () => {
+      alive = false
+    }
+  }, [userId, session?.access_token])
 
   const applyState = useCallback((data) => {
     setBalance(data.balance ?? 0)
@@ -337,10 +364,11 @@ export default function App() {
     setRecapWeek(data.recapWeek ?? null)
     setSuggestionsDismissed(data.suggestionsDismissed ?? [])
     setTourDone(Boolean(data.tourDone))
+    more.apply(data)
     ranRule.current = new Set()
     setDrift(0)
     setSentToday(0)
-  }, [])
+  }, [more.apply]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!accountsEnabled) return undefined
@@ -368,7 +396,8 @@ export default function App() {
 
   // load (or create) the signed-in user's dashboard
   useEffect(() => {
-    if (!accountsEnabled || !userId || loadedFor === userId) return undefined
+    // with two-step login on, the data only opens once the code is in
+    if (!accountsEnabled || !userId || loadedFor === userId || mfaNeed !== false) return undefined
     let alive = true
     loadUserState(userId)
       .then(async (saved) => {
@@ -379,10 +408,24 @@ export default function App() {
         if (!saved) await saveUserState(userId, data)
         if (!alive) return
         stopSaving.current = false
-        applyState(data)
+        // transactions added while offline: put them in now (once each), with what they did to the balance
+        const waiting = takeOutbox(userId).filter((x) => !(data.transactions ?? []).some((y) => y.id === x.id))
+        const ready = waiting.length
+          ? {
+              ...data,
+              transactions: [...waiting, ...(data.transactions ?? [])].sort((a, b) => String(b.date).localeCompare(String(a.date))),
+              balance: Math.round(((data.balance ?? 0) + waiting.reduce((s2, x) => s2 + x.amount, 0)) * 100) / 100,
+            }
+          : data
+        applyState(ready)
         setOfflineSince(null)
         setLoadedFor(userId)
-        keepCopy(userId, data)
+        keepCopy(userId, ready)
+        if (waiting.length)
+          window.setTimeout(
+            () => bridge.current.toast?.(t('Back online'), t('{n} transactions you added offline are saved.', { n: waiting.length }), { icon: 'check' }),
+            600,
+          )
       })
       .catch((err) => {
         if (!alive) return
@@ -400,7 +443,7 @@ export default function App() {
     return () => {
       alive = false
     }
-  }, [userId, loadedFor, applyState])
+  }, [userId, loadedFor, applyState, mfaNeed])
 
   // save the dashboard back to the account a moment after anything changes
   const saved = useMemo(
@@ -429,8 +472,10 @@ export default function App() {
       recapWeek,
       suggestionsDismissed,
       tourDone,
+      ...more.saved,
     }),
     [
+      more.saved,
       balance,
       transactions,
       goals,
@@ -471,6 +516,7 @@ export default function App() {
   useEffect(() => {
     if (!accountsEnabled || !userId || loadedFor !== userId) return undefined
     const h = window.setTimeout(() => {
+      if (offlineSince) return keepCopy(userId, Object.fromEntries(SAVED_KEYS.map((k) => [k, saved[k]])))
       if (stopSaving.current) return
       const data = Object.fromEntries(SAVED_KEYS.map((k) => [k, saved[k]]))
       saveUserState(userId, data)
@@ -481,7 +527,7 @@ export default function App() {
         .catch(() => setSaveFailed(true))
     }, 800)
     return () => window.clearTimeout(h)
-  }, [saved, userId, loadedFor])
+  }, [saved, userId, loadedFor, offlineSince])
 
   /* ---------- toasts ---------- */
   const [toasts, setToasts] = useState([])
@@ -491,15 +537,73 @@ export default function App() {
       const id = uid()
       setToasts((t) => [...t.slice(-3), { id, title, body, ...opts }])
       window.setTimeout(() => dismiss(id), opts.ms ?? 3400)
+      return id
     },
     [dismiss],
   )
+  /** Send in a few seconds, with Undo on the toast until then (nothing moves if it's pressed). */
+  const sendLater = useCallback(
+    (run, { title, body, ms = 5000 }) => {
+      let undone = false
+      const id = toast(title, body, {
+        icon: 'send',
+        ms,
+        action: {
+          label: t('Undo'),
+          run: () => {
+            undone = true
+            dismiss(id)
+            toast(t('Cancelled'), t('Nothing was sent.'), { icon: 'info' })
+          },
+        },
+      })
+      window.setTimeout(() => {
+        if (!undone) run()
+      }, ms)
+    },
+    [toast, dismiss],
+  )
+
 
   /* ---------- modals ---------- */
   const [modal, setModal] = useState(null)
   const openModal = useCallback((type, payload = {}) => setModal({ type, payload }), [])
   const closeModal = useCallback(() => setModal(null), [])
   const [signedOut, setSignedOut] = useState(false)
+
+  // a home screen shortcut or a phone assistant opened the app with ?log=12 coffee: show it for one tap to confirm
+  const [quickLog] = useState(() => takeQuickLog())
+  const quickShown = useRef(false)
+  useEffect(() => {
+    const ready = !accountsEnabled || isDemo || (Boolean(userId) && loadedFor === userId)
+    if (!quickLog || quickShown.current || lock || !ready) return undefined
+    quickShown.current = true
+    const h = window.setTimeout(() => openModal('transaction', { type: quickLog.type, name: quickLog.name, amount: quickLog.amount || '' }), 400)
+    return () => window.clearTimeout(h)
+  }, [quickLog, lock, isDemo, userId, loadedFor, openModal])
+
+  // back from Google's sign-in for Gmail (?gmail=connected | cancelled | failed)
+  const [gmailBack] = useState(() => {
+    const q = new URLSearchParams(window.location.search)
+    const v = q.get('gmail')
+    if (!v) return null
+    q.delete('gmail')
+    const rest = q.toString()
+    window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}${window.location.hash}`)
+    return v
+  })
+  const gmailShown = useRef(false)
+  useEffect(() => {
+    if (!gmailBack || gmailShown.current || !userId || loadedFor !== userId) return undefined
+    gmailShown.current = true
+    const h = window.setTimeout(() => {
+      if (gmailBack === 'connected') {
+        toast(t('Gmail connected'), t('Press “Check Gmail now” to find receipts.'), { icon: 'mail' })
+        openModal('inbox')
+      } else if (gmailBack === 'failed') toast(t('Couldn’t connect Gmail'), t('Try again in a minute.'), { icon: 'info' })
+    }, 500)
+    return () => window.clearTimeout(h)
+  }, [gmailBack, userId, loadedFor, toast, openModal])
 
   /* warm the lazy chunks once the intro has played */
   useEffect(() => {
@@ -645,11 +749,14 @@ export default function App() {
   )
 
   const addGoal = useCallback(
-    ({ name, target, saved, icon, monthly: planned, due: plannedDue }) => {
+    ({ name, target, saved, icon, monthly: planned, due: plannedDue, sinking, dueDate, category }) => {
       const monthly = planned ? Math.round(planned) : Math.max(50, Math.round(target / 24 / 10) * 10)
       const at = new Date()
       at.setMonth(at.getMonth() + Math.max(1, Math.ceil((target - saved) / monthly)))
-      setGoals((g) => [...g, { id: uid(), name, target, saved, icon, monthly, due: plannedDue ?? `${MONTHS[at.getMonth()]} ${at.getFullYear()}` }])
+      setGoals((g) => [
+        ...g,
+        { id: uid(), name, target, saved, icon, monthly, due: plannedDue ?? `${MONTHS[at.getMonth()]} ${at.getFullYear()}`, ...(sinking ? { sinking: true, dueDate, category } : {}) },
+      ])
       toast(t('Goal created'), t('{name}: {amount} target. You’ve got this!', { name, amount: money(target, '$', 0) }), { icon: 'target' })
     },
     [toast],
@@ -927,7 +1034,7 @@ export default function App() {
   /** Record money in (amount > 0) or out (amount < 0) by hand. A card payment that would use
       money locked for another budget is declined: returns false and nothing changes. */
   const addTransaction = useCallback(
-    ({ name, amount, category, date, method, note, potId }) => {
+    ({ name, amount, category, date, method, note, potId, account, tags, claim, receipt }) => {
       if (amount < 0 && isCardMethod(method)) {
         const check = checkPayment({ ...spendRef.current, amount: -amount, category, card: true })
         if (!check.ok) {
@@ -939,12 +1046,33 @@ export default function App() {
       // spending from a pot empties that pot first; the rest comes out of unassigned
       if (potId && amount < 0)
         setPots((list) => list.map((p) => (p.id === potId ? { ...p, amount: Math.max(0, Math.round((p.amount + amount) * 100) / 100) } : p)))
-      addTx({ name, amount, category, kind: KIND_FOR[category] ?? 'transfer', method: method || 'Cash', date: date || localIso(), note })
-      toast(amount > 0 ? t('Income added') : t('Expense added'), `${t(name)} · ${money(Math.abs(amount))}`, { icon: amount > 0 ? 'receive' : 'send' })
-      if (amount > 0) splitIncome(amount, category)
+      const row = {
+        id: uid(),
+        status: 'Completed',
+        name,
+        amount,
+        category,
+        kind: KIND_FOR[category] ?? 'transfer',
+        method: method || 'Cash',
+        date: date || localIso(),
+        note,
+        ...(account ? { account } : {}),
+        ...(tags?.length ? { tags } : {}),
+        ...(claim ? { claim } : {}),
+        ...(receipt ? { receipt } : {}),
+      }
+      addTx(row)
+      // offline: it waits on this device and is saved when the connection is back
+      if (offlineSince && userId) queueOffline(userId, row)
+      toast(
+        amount > 0 ? t('Income added') : t('Expense added'),
+        `${t(name)} · ${money(Math.abs(amount))}${offlineSince ? ` · ${t('saved when you’re back online')}` : ''}`,
+        { icon: amount > 0 ? 'receive' : 'send' },
+      )
+      if (amount > 0 && !offlineSince) splitIncome(amount, category)
       return true
     },
-    [addTx, toast, declined, splitIncome],
+    [addTx, toast, declined, splitIncome, offlineSince, userId],
   )
 
   const addContact = useCallback(
@@ -965,6 +1093,10 @@ export default function App() {
     [toast],
   )
 
+  useLayoutEffect(() => {
+    bridge.current = { addTx, toast, notify }
+  }, [addTx, toast, notify])
+
   /* ---------- friends: chat, send, request and split with real accounts ---------- */
   const social = useSocial({
     enabled: accountsEnabled && !demo && Boolean(userId) && loadedFor === userId,
@@ -977,6 +1109,36 @@ export default function App() {
     notify,
     toast,
   })
+
+  // payment links, family allowance and approvals, emailed receipts (src/app/useServerJobs.js)
+  const server = useServerJobs({
+    ready: accountsEnabled && !demo && Boolean(userId) && loadedFor === userId && !offlineSince,
+    userId,
+    transactions,
+    setBalance,
+    addTx,
+    notify,
+    toast,
+    social,
+  })
+
+  // monthly splits with friends (rent, utilities): sent on their day, while the app is open
+  useEffect(() => {
+    if (!social.enabled || !social.setup) return undefined
+    const run = () => {
+      for (const r of more.takeDueSplits())
+        social
+          .split({ title: r.title, total: r.total, shares: r.shares, group: r.group ?? null })
+          .then(() => {
+            if (r.record) addTransaction({ name: r.title, amount: -r.total, category: r.category || 'Housing', method: 'Split with friends' })
+            notify({ icon: 'receipt', tone: 'accent', title: 'Monthly split sent: {name}', body: '{amount} split with your friends', vars: { name: r.title, amount: money(r.total) } })
+          })
+          .catch(() => toast(t('Couldn’t send a monthly split'), r.title, { icon: 'info' }))
+    }
+    run()
+    const h = window.setInterval(run, 60 * 60 * 1000)
+    return () => window.clearInterval(h)
+  }, [social.enabled, social.setup]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- pots ---------- */
   const inPots = useMemo(() => Math.round(pots.reduce((s, p) => s + p.amount, 0) * 100) / 100, [pots])
@@ -1136,11 +1298,20 @@ export default function App() {
       if (!(qty > 0)) return
       setBalance((b) => Math.round((b - cost) * 100) / 100)
       if (potId) setPots((list) => list.map((p) => (p.id === potId ? { ...p, amount: Math.max(0, Math.round((p.amount - cost) * 100) / 100) } : p)))
+      const lot = { id: uid(), qty, cost, at: localIso() }
       setHoldings((list) => {
         const have = list.find((h) => h.kind === kind && h.asset === asset)
-        if (have) return list.map((h) => (h === have ? { ...h, qty: h.qty + qty, cost: Math.round((h.cost + cost) * 100) / 100 } : h))
-        return [...list, { id: uid(), kind, asset, name, symbol, qty, cost, at: localIso() }]
+        if (have) return list.map((h) => (h === have ? addLot(h, lot) : h))
+        return [...list, { id: uid(), kind, asset, name, symbol, qty, cost, at: lot.at, lots: [lot] }]
       })
+      // what an S&P 500 fund (SPY) cost that day, so the portfolio can be compared with it later
+      import('./lib/live')
+        .then((L) => L.loadStocks(['SPY']))
+        .then((q) => {
+          const spy = q?.[0]?.price
+          if (spy > 0) setHoldings((list) => list.map((h) => (h.lots?.some((l) => l.id === lot.id) ? { ...h, lots: h.lots.map((l) => (l.id === lot.id ? { ...l, spy } : l)) } : h)))
+        })
+        .catch(() => null)
       addTx({
         name: `Bought ${symbol}`,
         category: 'Investment',
@@ -1161,14 +1332,16 @@ export default function App() {
       const h = holdings.find((x) => x.id === id)
       if (!h || !(price > 0)) return
       const n = Math.min(h.qty, qty ?? h.qty)
-      const value = Math.round(n * price * 100) / 100
-      const costPart = Math.round(h.cost * (n / h.qty) * 100) / 100
+      // oldest lots first; what it made or lost is kept as a realised gain
+      const { holding: left, realised } = sellFifo(h, n, price, localIso())
+      const value = realised.proceeds
+      const costPart = realised.cost
       setBalance((b) => Math.round((b + value) * 100) / 100)
-      setHoldings((list) =>
-        n >= h.qty * 0.9999
-          ? list.filter((x) => x.id !== id)
-          : list.map((x) => (x.id === id ? { ...x, qty: x.qty - n, cost: Math.round((x.cost - costPart) * 100) / 100 } : x)),
-      )
+      setHoldings((list) => (left ? list.map((x) => (x.id === id ? left : x)) : list.filter((x) => x.id !== id)))
+      more.setInvestLog((log) => ({
+        ...log,
+        realised: [...log.realised, { id: uid(), symbol: h.symbol, asset: `${h.kind}:${h.asset}`, ...realised, at: localIso() }].slice(-500),
+      }))
       addTx({
         name: `Sold ${h.symbol}`,
         category: 'Investment',
@@ -1190,7 +1363,7 @@ export default function App() {
       )
       return { value, gain }
     },
-    [holdings, addTx, toast],
+    [holdings, addTx, toast, more],
   )
 
   const logActivity = useCallback(
@@ -1288,7 +1461,11 @@ export default function App() {
   }, [session, isDemo])
 
   /* every chart and summary, from the sample figures or this account's own transactions */
-  const stats = useMemo(() => (isDemo ? demoStats(budgets) : computeStats(transactions, budgets)), [isDemo, transactions, budgets])
+  const pause = more.saved.budgetPause
+  const stats = useMemo(
+    () => (isDemo ? demoStats(budgets) : computeStats(transactions, budgets, new Date(), { pause })),
+    [isDemo, transactions, budgets, pause],
+  )
   useLayoutEffect(() => {
     spendRef.current = { budgets: stats.budgets, balance }
   }, [stats, balance])
@@ -1355,6 +1532,7 @@ export default function App() {
       try {
         // photos and voice notes in chats go first: the account's files can't be removed once it's gone
         await removeAllMyMedia(userId).catch(() => null)
+        await import('./lib/receipts').then((m) => m.removeAllReceipts(userId)).catch(() => null)
         await deleteMyAccount()
       } catch (err) {
         stopSaving.current = false
@@ -1486,10 +1664,18 @@ export default function App() {
       incomeSplit,
       setIncomeSplit,
       toast,
+      sendLater,
       openModal,
       social,
+      offline: Boolean(offlineSince),
+      server,
+      ...more.ctx,
     }),
     [
+      server,
+      more.ctx,
+      sendLater,
+      offlineSince,
       route,
       go,
       setTab,
@@ -1611,6 +1797,9 @@ export default function App() {
         </div>
       )
     if (session === undefined) return <Splash />
+    if (session && !recovery && mfaNeed === true)
+      return <CodeScreen email={session.user?.email ?? ''} onDone={() => setMfa({ for: userId, need: false })} onSignOut={signOut} />
+    if (session && !recovery && mfaNeed == null) return <Splash />
     if (!session || recovery) {
       return (
         <Suspense fallback={<Splash />}>
@@ -1724,6 +1913,13 @@ export default function App() {
       <GuardModal open={modal?.type === 'guard'} onClose={closeModal} />
       <AccountModal open={modal?.type === 'account'} onClose={closeModal} />
       <ProfileModal open={modal?.type === 'profile'} onClose={closeModal} />
+      <TxDetailModal open={modal?.type === 'txDetail'} payload={modal?.payload} onClose={closeModal} />
+      <AccountsModal open={modal?.type === 'accounts'} payload={modal?.payload} onClose={closeModal} />
+      <DeleteRangeModal open={modal?.type === 'deleteRange'} onClose={closeModal} />
+      <SecurityModal open={modal?.type === 'security'} onClose={closeModal} />
+      <TripsModal open={modal?.type === 'trips'} payload={modal?.payload} onClose={closeModal} />
+      <InboxModal open={modal?.type === 'inbox'} onClose={closeModal} />
+      <CalendarModal open={modal?.type === 'calendar'} onClose={closeModal} />
       {hidden && !lock ? (
         <div className="guard-veil" aria-hidden="true">
           <span>
@@ -1761,7 +1957,7 @@ export default function App() {
       ) : null}
       {offlineSince ? (
         <div className="save-warn offline-bar" role="status">
-          {t('You’re offline. Showing your data from {when}. Changes won’t be saved until you’re back online.', {
+          {t('You’re offline. Showing your data from {when}. Transactions you add are kept on this device and saved when you’re back online.', {
             when: new Date(offlineSince).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }),
           })}
         </div>

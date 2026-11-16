@@ -9,6 +9,9 @@ import { CardEmpty } from '../components/Cards'
 import { useState } from 'react'
 import { money, MONTHS } from '../lib/format'
 import { statementFor, statementHtml, statementMonths } from '../lib/statement'
+import { ClaimsCard, TaxCard } from './TaxClaims'
+import { useEffect } from 'react'
+import { sendStatementNow, setStatementPref, statementPref } from '../lib/server'
 
 /* the month's statement as a page to save as PDF (the browser's print window does the PDF) */
 function StatementCard({ d }) {
@@ -56,7 +59,52 @@ function StatementCard({ d }) {
       <p className="tool-sum rv" style={{ '--i': 2 }}>
         {t('It opens ready to print: choose “Save as PDF” as the printer.')}
       </p>
+      <EmailMe />
     </section>
+  )
+}
+
+/* last month's statement by email on the 1st (the statement-email function sends it) */
+function EmailMe() {
+  const { accounts, demo, user, toast } = useApp()
+  const [on, setOn] = useState(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    if (!accounts || demo) return undefined
+    let alive = true
+    statementPref()
+      .then((x) => alive && setOn(x))
+      .catch(() => alive && setOn(undefined))
+    return () => {
+      alive = false
+    }
+  }, [accounts, demo])
+  if (!accounts || demo || on === undefined || on === null) return null
+  const toggle = async (next) => {
+    setOn(next)
+    await setStatementPref(user.id, next).catch(() => setOn(!next))
+    toast(next ? t('Monthly statement on') : t('Monthly statement off'), next ? t('Last month’s statement will arrive at {email} on the 1st.', { email: user.email }) : t('No more statement emails.'), { icon: 'mail' })
+  }
+  const sendNow = async () => {
+    setBusy(true)
+    try {
+      await sendStatementNow()
+      toast(t('Statement sent'), t('Check {email} (and the spam folder).', { email: user.email }), { icon: 'mail' })
+    } catch (err) {
+      toast(t('Couldn’t send it'), err?.setup ? t('Email isn’t set up yet (see the setup notes).') : t('Try again in a minute.'), { icon: 'info' })
+    }
+    setBusy(false)
+  }
+  return (
+    <div className="stmt-email rv" style={{ '--i': 3 }}>
+      <label className="check-row">
+        <input type="checkbox" checked={on} onChange={(e) => toggle(e.target.checked)} />
+        {t('Email me last month’s statement on the 1st')}
+      </label>
+      <button type="button" className="link" onClick={sendNow} disabled={busy}>
+        <Icon name="mail" size={14} /> {busy ? t('Sending…') : t('Send me one now')}
+      </button>
+    </div>
   )
 }
 
@@ -83,6 +131,8 @@ export default function ReportsView({ attached = true }) {
   return (
     <>
       <StatementCard d={0} />
+      <TaxCard d={40} />
+      <ClaimsCard d={60} />
       <section className={`card income-src ${attached ? 'attached' : ''}`} style={{ '--d': '0ms' }}>
         <div className="c-head rv" style={{ '--i': 0 }}>
           <div>

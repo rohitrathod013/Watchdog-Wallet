@@ -1,3 +1,4 @@
+import { PayLinksCard } from '../components/PayLinks'
 import Icon from '../components/Icon'
 import { QuickTransferCard, TxCard } from '../components/Cards'
 import { CountUp, PageHead, Stage } from '../components/ui'
@@ -62,6 +63,7 @@ export default function Transfer() {
         <div className="stack">
           <TxCard d={90} title="Recent Transfers" sub="People you paid or asked to pay" filter={(t) => t.category === 'Transfer'} limit={5} />
           <LimitsCard d={180} />
+          <PayLinksCard d={240} />
         </div>
       </div>
     </Stage>

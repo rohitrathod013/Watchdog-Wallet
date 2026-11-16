@@ -9,8 +9,9 @@ const TransactionsView = lazy(() => import('../views/Transactions'))
 const ReportsView = lazy(() => import('../views/Reports'))
 const SubscriptionsView = lazy(() => import('../views/Subscriptions'))
 const NetWorthView = lazy(() => import('../views/NetWorth'))
+const AccountsView = lazy(() => import('../views/Accounts'))
 
-const VIEWS = { overview: OverviewView, transactions: TransactionsView, subscriptions: SubscriptionsView, networth: NetWorthView, reports: ReportsView }
+const VIEWS = { overview: OverviewView, transactions: TransactionsView, accounts: AccountsView, subscriptions: SubscriptionsView, networth: NetWorthView, reports: ReportsView }
 
 function LiveIcon() {
   return (

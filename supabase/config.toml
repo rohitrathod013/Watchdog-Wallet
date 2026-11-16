@@ -14,3 +14,19 @@ verify_jwt = false
 # Push notifications: checks PUSH_WEBHOOK_SECRET itself.
 [functions.push]
 verify_jwt = false
+
+# Calendar apps fetch the feed without signing in; the private token is the check.
+[functions.calendar]
+verify_jwt = false
+
+# Postmark posts forwarded receipts; the secret in the URL is the check.
+[functions.inbound-email]
+verify_jwt = false
+
+# Google's sign-in sends people back without a login token; the signed state is the check.
+[functions.gmail]
+verify_jwt = false
+
+# pg_cron calls it with STATEMENT_CRON_SECRET; "send me one now" checks the signed-in user itself.
+[functions.statement-email]
+verify_jwt = false

@@ -8,7 +8,7 @@ import { initials } from '../lib/format'
 import { LANGUAGES } from '../data/seed'
 import { PAGES } from '../lib/routes'
 import { BRAND } from '../config'
-import { setLocale, t } from '../lib/i18n'
+import { loadLocale, setLocale, t } from '../lib/i18n'
 import { disablePush, enablePush, pushIsOn, pushSupported } from '../lib/push'
 
 const ACCENTS = [
@@ -328,9 +328,11 @@ export default function TopBar() {
                 key={l.code}
                 i={i}
                 on={app.lang === l.code}
-                onClick={() => {
+                onClick={async () => {
                   close()
                   if (l.code === app.lang) return
+                  // its words are downloaded the first time a language is picked
+                  await loadLocale(l.code)
                   setLocale(l.code)
                   app.setLang(l.code)
                   app.toast(t('Language set to {name}', { name: l.name }), t('{brand} now shows in {name}.', { brand: BRAND.name, name: l.name }), {
@@ -371,6 +373,9 @@ export default function TopBar() {
             </MenuItem>
             <MenuItem icon="gear" i={2.6} onClick={() => (close(), app.openModal('account'))}>
               {t('Account settings')}
+            </MenuItem>
+            <MenuItem icon="key" i={2.8} onClick={() => (close(), app.openModal('security'))}>
+              {t('Security')}
             </MenuItem>
             <MenuItem icon="shield" i={3} onClick={() => (close(), app.openModal('guard'))}>
               {t('Grace’s guard')}

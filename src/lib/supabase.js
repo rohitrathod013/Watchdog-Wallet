@@ -43,6 +43,15 @@ export const SAVED_KEYS = [
   'recapWeek',
   'suggestionsDismissed',
   'tourDone',
+  'accounts',
+  'savedSearches',
+  'budgetPause',
+  'paycheck',
+  'challenges',
+  'investLog',
+  'splitRules',
+  'nudged',
+  'reconciled',
 ]
 
 /** Load this user's saved dashboard, or null if they have none yet. */

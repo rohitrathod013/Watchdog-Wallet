@@ -19,6 +19,8 @@ export const LANGUAGES = [
   { code: 'FR', name: 'Français' },
   { code: 'DE', name: 'Deutsch' },
   { code: 'AR', name: 'العربية' },
+  { code: 'PT', name: 'Português' },
+  { code: 'HI', name: 'हिन्दी' },
 ]
 
 /* the "This Month" picker drives the three KPI cards and the profit split */

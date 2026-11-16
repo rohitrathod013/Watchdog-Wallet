@@ -124,9 +124,13 @@ function BudgetCard({ b, i, d }) {
           <Icon name={b.icon} size={20} stroke={1.9} />
         </span>
         <b>{t(b.name)}</b>
-        <span className={`pill-tag ${p > 1 ? 'red' : p > 0.9 ? 'amber' : 'green'}`}>
-          {p > 1 ? t('Over budget') : p > 0.9 ? t('Near limit') : t('On track')}
-        </span>
+        {b.paused ? (
+          <span className="pill-tag">{t('Paused')}</span>
+        ) : (
+          <span className={`pill-tag ${p > 1 ? 'red' : p > 0.9 ? 'amber' : 'green'}`}>
+            {p > 1 ? t('Over budget') : p > 0.9 ? t('Near limit') : t('On track')}
+          </span>
+        )}
         {toggleBudgetRollover ? (
           <button
             type="button"
@@ -170,6 +174,12 @@ function BudgetCard({ b, i, d }) {
         </strong>
         <span>{t('of {amount}', { amount: whole(b.limit) })}</span>
       </div>
+      {b.pausedSpent > 0 ? (
+        <p className="budget-carry rv" style={{ '--i': 1 }}>
+          <Icon name="plane" size={13} />
+          {t('{amount} spent while paused isn’t counted', { amount: whole(b.pausedSpent) })}
+        </p>
+      ) : null}
       {b.carry > 0 ? (
         <p className="budget-carry rv" style={{ '--i': 1 }}>
           <Icon name="replay" size={13} />

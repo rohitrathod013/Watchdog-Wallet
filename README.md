@@ -22,6 +22,10 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
   - **Deactivate account**: pauses the account and logs out. The data is kept, and logging in again shows a **Reactivate** button.
   - **Delete account**: removes the login and all its data for good, after typing DELETE and the password. Grace never does this from chat; she opens Account settings instead.
 - **Explore the demo** opens a full sample dashboard without an account. Nothing in the demo is saved.
+- **Security** (account menu):
+  - **Two-step login**: add a code from an authenticator app (Google Authenticator, 1Password, Authy). Once it's on, your data only opens after the code, on every device: the database itself refuses a session that hasn't entered one.
+  - **Unlock with a passkey**: when Grace locks the app, open it with your fingerprint, face or PIN on that device instead of typing the password.
+  - **Where you're signed in**: every device with its browser, last use and IP address. Sign out one of them, every other device, or everywhere.
 - **First-run tour**: a new account gets a five-step tour (adding money, budgets, cards and pots, Grace), each step with a button to the feature. Skippable, shown once, and **Take the tour** in Settings replays it.
 
 ### Your money
@@ -34,10 +38,32 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 - **Pay by card**: top up your balance with a card through Stripe Checkout (see [Card payments](#card-payments-stripe)).
 - **Add contact**, **Add bill** and **Add Goal**.
 - **Send money** and **request money** from your contacts. **Pay bills** and **top up goals** in one tap.
+- **Accounts** (Dashboard > Accounts): split your balance by where the money actually is: checking, savings, a cash wallet and credit cards, each with its own balance, adding up to your total. **Move money** between them (it never counts as income or spending), and **ATM withdrawal** moves money into your cash account. Card payments go to the card's account and cash payments to the cash account by themselves.
+- **Reconcile**: tick off each transaction that's on your bank statement, type the statement's ending balance, and see straight away whether they agree.
+- **Notes, tags and saved searches**: tap any transaction to add a note, tags (#work, #trip) or change its account or category. Search with words, #tags or over:50, filter by tag, and save a search to come back to it.
+- **Receipt photos**: attach a photo or PDF of the receipt to any transaction. They're kept in a private storage folder only you can open.
+- **To claim back**: mark an expense as one work or a friend owes you, and press **Paid back** when the money arrives (the Reports tab lists what's still owed).
+- **Undo a send**: money to a contact or a friend goes after 5 seconds, with **Undo** on screen until then.
+- **Delete by date**: clear out old transactions between two dates without touching your balance, budgets or goals.
+- **Add while offline**: with no connection, transactions you add are kept on the device and saved as soon as you're back online.
+- **Log from your home screen**: long-press the installed app's icon for **Log an expense**, or have a phone assistant or an iOS Shortcut open the app's link with `?log=12 coffee`: it's read into an expense, filled in for one tap. Sharing text to the installed app does the same.
+- **Receipts inbox**: forward receipt emails to your own private address (or connect Gmail, read only) and each one waits as an expense to check, with the shop, amount and date read from it. Add it (Grace suggests the category) or dismiss it.
+- **Add to calendar** (Subscriptions tab): download your bills and repeating payments as an .ics file, or subscribe to a private link so Google Calendar, Apple Calendar or Outlook stay up to date, each with a reminder the day before.
 - All charts and totals are worked out from your own transactions: income, expenses, net profit, savings rate, earnings by month, 12-month cash flow, spending by category, budget usage and a 52-week spending heatmap.
 - Currency switcher (USD, EUR, GBP, JPY) and period switcher (week, month, quarter, year).
 - Export transactions and reports as CSV.
 - CSV exports are spreadsheet-safe: a name like "=HYPERLINK(...)" from an imported statement is never run as a formula.
+
+### Planning
+
+On the Budget page, below the budgets:
+
+- **Emergency fund meter**: how many months of spending your cash and savings would cover (credit cards don't count), with how much more gets you to 3 and to 6 months.
+- **Pause budgets**: going on a trip or a holiday? Pick the dates (and which budgets, or all) and spending on those days doesn't count against them. The trip still shows in your spending; the budget cards say how much was left out.
+- **Sinking funds**: yearly costs like insurance or car registration, with the monthly amount to put aside worked out from the due date. **It's paid** records the cost from the fund and starts saving for next year.
+- **Paycheque breakdown**: gross pay to take-home after federal and state tax, Social Security, Medicare, retirement and other deductions (your own rates), per paycheque, month and year. Record it in one tap, and your income split sends it into pots.
+- **Savings challenges**: a no-spend week (rent, bills and groceries don't break it, eating out and shopping do) and the 52-week plan ($1 in week 1, $2 in week 2, and so on to $1,378), each with a streak.
+- **Credit cards** (Dashboard > Accounts): how much of each limit you use (under 30% is what lenders like), what's available, and the next statement close and payment due dates, with a reminder a few days before it's due.
 
 ### Friends
 
@@ -59,7 +85,10 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
 - The chat is a fixed-height window that fits the screen: only the messages scroll. On phones it takes the whole screen.
 - **Send money** to a friend: it leaves your balance and lands in theirs, and both of you see it in your transactions.
 - **Request money**: your friend gets a card in the chat and pays it in one tap, or declines.
-- **Split a bill** like dinner or rent: pick friends, include your own share or not, and each friend gets a request for an equal share (leftover cents go to you). You can also add the full bill to your own spending.
+- **Split a bill** like dinner or rent: pick friends, include your own share or not, and each friend gets a request for an equal share (leftover cents go to you). Or split **by amount** or **by percent**, and whatever's left is your share. You can also add the full bill to your own spending.
+- **Monthly splits**: tick **Repeat every month** for rent or utilities with a flatmate and the same split is sent again on that day every month. The Friends page lists them, with **Stop**.
+- **Payment links** (Transfer page): ask anyone for money, even someone without an account. Share the link or its QR code; they pay by card on a small page (Stripe Checkout) and the money lands in your balance once.
+- **Family**: link a teen's or kid's account (they need to be your friend first, and accept). An allowance is sent from your balance every week or month, and with approval on, their spending comes to you first: you approve or decline it, and they're notified either way.
 - **Who owes who**: each friend shows "owes you" or "you owe" from the open requests.
 - **Groups** of up to 25 people for a trip, a flat or a team:
   - start one with **New group**, give it a name and pick friends;
@@ -67,6 +96,7 @@ Sign up to track your own balance, transactions, budgets, goals and bills, or cl
   - **Split a bill** with the group: every member gets a request for their share and pays it right in the group, even if they aren't your friend directly. The person who paid sees who has paid and who hasn't;
   - **Group shares are confirmed by whoever paid the bill**: paying your share (in the app, or marking it paid another way, like cash or a bank transfer) shows as "waiting for Ana to confirm" until the person owed taps **Confirm**, or **Not received** to put it back to unpaid. An in-app payment only leaves your balance when it's confirmed, and the person owed gets a push notification to confirm. The server enforces it, so a share can't be settled any other way;
   - **Settle up**: after a few splits, a group's debts turn into the fewest payments that clear them. The window shows what each person is owed or owes, today's payments and the simpler plan (for example, Ana pays Bob, Bob pays Carol, Carol pays Ana becomes one payment, or none). Nobody ends up owing or being owed a different amount; only who pays whom changes. The old requests are cancelled, the new ones appear in the group with a **Pay** button, and the chat says what happened;
+  - **Trips**: a group trip budget with a total and (optionally) one per category, and a running total everyone in the group sees. Bills split in the group can go to a trip and a category;
   - **Shared goals**: **Goals** in a group chat lets the group save towards something together (a trip, a gift). Each person adds money from their own balance (recorded as savings); everyone sees the progress and who put in what, and the chat says when someone adds to it;
   - admins can rename the group and add or remove people; anyone can leave, and if the last admin leaves, the longest member takes over.
 - Grace's payment guard (large-payment check, first-payment warning) works on friend payments too.
@@ -77,19 +107,21 @@ At the bottom of the Overview tab:
 
 - **Watchlist**: Crypto and Stocks tabs with live prices and the 24-hour change. Search **any coin** CoinGecko lists or **any US stock or ETF**, and add or remove it. Coins show a 7-day trend line; stocks show where the price sits in today's range. Each account keeps its own list.
 - **My Investments**: press **Buy** on anything in the watchlist to record a purchase from your unassigned money or a pot. Holdings are valued live, with profit or loss per holding and in total, and **Sell** puts the money back in your balance.
+- **Investing in detail**: allocation (by holding and crypto vs stocks), how your picks compare with putting the same money in the S&P 500 (SPY) on the same days, realised gains (short and long term, oldest lots sold first), **dividends** you record, and each lot's cost basis.
 - **Exchange Rates**: European Central Bank rates against your dashboard currency, with a quick converter.
 
 Investing here is **tracked, not traded**: Watchdog Wallet records what you bought and follows its value, but places no real orders, so buy through your broker or exchange as well. Buys and sells are saved with the status "Invested", so they never count as income or spending in the charts.
 
 ### Pages
 
-- **Dashboard**, with four tabs:
+- **Dashboard**, with six tabs:
   - **Overview**: balance, earnings, KPIs, savings goals, cash flow, spending, quick transfer, recent transactions, bills, budget health and the spending heatmap.
   - **Transactions**: search, filters, sorting and CSV export.
   - **Subscriptions**: everything you pay for on repeat in one list: the repeating transactions you set up plus repeat charges Grace spotted in your history. Monthly and yearly cost, next charge date and price rises. **Make it repeating** turns a spotted charge into a rule, and **Remind me to cancel** sends a notification 2 days before the next charge.
-  - **Net worth**: cash, savings goals and investments (at what you paid), plus a home, car or pension you add, minus loans and cards you owe on, with the change since last month and a snapshot each month for the trend chart. The **Debt payoff planner** takes each debt's interest rate and minimum payment plus any extra you can pay each month, and compares the **avalanche** (highest rate first, the cheapest) with the **snowball** (smallest balance first, the quickest wins): the debt-free month, the interest each costs, and the order debts clear.
-  - **Reports**: income by source and downloadable statements.
-  - **Monthly statement (PDF)**: pick a month and it opens a print-ready statement (opening and closing balance, money in and out, spending by category, how each budget did, every transaction); choose "Save as PDF" in the print window.
+  - **Net worth**: cash, savings goals and investments (at today's market value, with what you paid shown next to it), plus a home, car or pension you add, minus loans and cards you owe on, with the change since last month and a snapshot each month for the trend chart. The **Debt payoff planner** takes each debt's interest rate and minimum payment plus any extra you can pay each month, and compares the **avalanche** (highest rate first, the cheapest) with the **snowball** (smallest balance first, the quickest wins): the debt-free month, the interest each costs, and the order debts clear.
+  - **Accounts**: your accounts and credit cards (see [Your money](#your-money) and [Planning](#planning)).
+  - **Reports**: income by source, downloadable statements, the **year-end tax summary** (income, tax already paid, realised gains, dividends and spending you tagged as tax deductible, by category, exported as CSV) and what's still to be **claimed back**.
+  - **Monthly statement (PDF)**: pick a month and it opens a print-ready statement (opening and closing balance, money in and out, spending by category, how each budget did, every transaction); choose "Save as PDF" in the print window. Or tick **Email me last month's statement** and it arrives on the 1st of each month.
 - **Analytics**: KPI sparklines, cash flow, earnings, spending and the heatmap.
 - **Transfer**: quick transfer, recent transfers and transfer limits.
 - **Friends**: friend requests, groups, your friends with who owes who, invite link, and a chat with each friend or group.
@@ -149,7 +181,7 @@ Grace wears a guard cap and a gold shield badge, and she guards the account (**G
 
 ### Languages
 
-English, Español, Français, Deutsch and العربية. Everything is translated, including Grace's replies. Arabic switches the whole layout to right-to-left. The chosen language is remembered.
+English, Español, Français, Deutsch, العربية, Português and हिन्दी. Everything is translated, including Grace's replies. Each language's words are downloaded only when it's picked. Arabic switches the whole layout to right-to-left. The chosen language is remembered.
 
 ### Look and feel
 
@@ -164,7 +196,7 @@ English, Español, Français, Deutsch and العربية. Everything is translat
 
 ## Tech stack
 
-React 19, Vite 8, Framer Motion 12, Supabase (auth, database, storage, Realtime and Edge Functions), Stripe Checkout (card top-ups), Google Gemini (Grace's free-form answers), Fuse.js (Grace's typo matching), Tesseract.js (Grace reading receipts), and plain CSS with design tokens. No UI kit and no chart library: every chart is hand-built SVG.
+React 19, Vite 8, Framer Motion 12, Supabase (auth with two-step login, database, storage, Realtime, Edge Functions and pg_cron), Stripe Checkout (card top-ups and payment links), WebAuthn passkeys, Postmark (receipts by email), the Gmail API, Brevo (statement emails), qrcode-generator (QR codes), Google Gemini (Grace's free-form answers), Fuse.js (Grace's typo matching), Tesseract.js (Grace reading receipts), and plain CSS with design tokens. No UI kit and no chart library: every chart is hand-built SVG.
 
 ## How it works
 
@@ -183,6 +215,24 @@ Accounts, the database, file storage, live updates and the server functions all 
 - Groups live in `groups` and `group_members`; only members can see a group, its messages and its files. The functions `create_group`, `add_group_members`, `remove_group_member`, `leave_group` and `rename_group` enforce the 25-person limit and the admin rules.
 - Deleting an account removes its profile, friendships, messages, requests, transfers and uploaded files.
 - The demo shows a "create an account" card on the Friends page, because friends need two real accounts.
+
+### Security
+
+- **Two-step login** uses Supabase Auth's TOTP factors. A restrictive row level security policy on `user_state` (`mfa_ok()` in `schema.sql`) only lets a session that entered the code read or change the data once a factor is on, so it can't be skipped from the browser.
+- **Signed-in devices**: `my_sessions()` lists your own sessions from Supabase Auth and `end_session()` ends one; **Sign out everywhere** revokes every refresh token.
+- **Passkey unlock** is WebAuthn with the device's own authenticator (fingerprint, face or PIN, user verification required). It only unlocks a session that's already signed in on that device.
+
+### Payment links, trips and family
+
+- **Payment links** are rows in `pay_links`, only visible to their owner. The public page asks the `payments` function for the amount, starts a Stripe Checkout and, on the way back, checks with Stripe that it was paid in full before the link is marked paid. The owner's app then adds it to the balance once, keyed by the Stripe session.
+- **Trips** (`group_trips`) belong to a group; a split gets a `trip_id` and a category through `tag_split`, which only its creator can do.
+- **Family** (`family_links`, `spend_requests`): only friends can be linked, a child account can't add children, the allowance moves like any friend payment (`pay_allowance` checks the date), and a request can only be decided by the parent and recorded once by the child.
+
+### Receipts by email, statements and the calendar
+
+- **Email receipts** arrive at a [Postmark](https://postmarkapp.com) inbound address with a private token after the "+"; the `inbound-email` function reads the shop, amount and date and saves them in `pending_expenses`. **Gmail** uses Google sign-in with read-only access; its refresh token is kept in a table no policy lets anyone read, and only the `gmail` function uses it. Only the amount, shop, date and subject are kept, never the email.
+- **Monthly statements by email** are sent by the `statement-email` function on the 1st (pg_cron) through [Brevo](https://www.brevo.com), only to people who turned them on.
+- The **calendar feed** is served by the `calendar` function at a private link (a 64-character token); making a new link stops the old one.
 
 ### Profile: email verification and photos
 

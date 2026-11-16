@@ -49,7 +49,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 
 const clip = (v: unknown, n: number) => String(v ?? '').slice(0, n)
 
-const LANGUAGES: Record<string, string> = { EN: 'English', ES: 'Spanish', FR: 'French', DE: 'German', AR: 'Arabic' }
+const LANGUAGES: Record<string, string> = { EN: 'English', ES: 'Spanish', FR: 'French', DE: 'German', AR: 'Arabic', PT: 'Portuguese (Brazil)', HI: 'Hindi' }
 
 const rules = (
   language: string,

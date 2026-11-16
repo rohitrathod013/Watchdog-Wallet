@@ -24,15 +24,18 @@ import {
   MAX_FRIEND_PAYMENT,
   MAX_GROUP,
   splitEqually,
+  splitCustom,
 } from '../lib/social'
 import { netText, paysText, settlePlan } from '../lib/settle'
+import { useTrips } from '../lib/useTrips'
+import { tagSplit } from '../lib/server'
 
 const QUICK = [10, 25, 50, 100]
 const round = (n) => Math.round(n * 100) / 100
 
 /* ---------------- pay a friend (or one of their requests) ---------------- */
 function PayBody({ payload, onClose }) {
-  const { balance, transactions, social } = useApp()
+  const { balance, transactions, social, sendLater, toast } = useApp()
   const friend = payload.friend
   const request = payload.request ?? null
   // a share of a group split: the person who paid the bill confirms it
@@ -61,7 +64,7 @@ function PayBody({ payload, onClose }) {
         }
       />
     ) : (
-      <Success title={t('Money sent')} body={t('{amount} is on its way to {name}.', { amount: money(done), name: friend.name })} />
+      <Success title={t('Sending')} body={t('{amount} goes to {name} in 5 seconds. Changed your mind? Press Undo.', { amount: money(done), name: friend.name })} />
     )
 
   const submit = async (e) => {
@@ -71,9 +74,17 @@ function PayBody({ payload, onClose }) {
     setError('')
     try {
       if (groupShare) await social.claim(request.id, method)
-      else await social.pay(request ? { request: request.id, note } : { to: friend.id, amount: n, note })
+      else {
+        // it goes in 5 seconds, with Undo until then
+        const body = request ? { request: request.id, note } : { to: friend.id, amount: n, note }
+        sendLater(
+          () =>
+            social.pay(body).catch((err) => toast(t('Payment didn’t go through'), friendError(err), { icon: 'info', ms: 6000 })),
+          { title: t('Sending {amount} to {name}', { amount: money(n), name: friend.name.split(' ')[0] }), body: t('You can undo for 5 seconds.') },
+        )
+      }
       setDone(n)
-      window.setTimeout(onClose, 1500)
+      window.setTimeout(onClose, 1200)
     } catch (err) {
       setError(friendError(err))
       setBusy(false)
@@ -249,7 +260,14 @@ export function FriendAskModal({ open, payload, onClose }) {
 
 /* ---------------- split a bill ---------------- */
 function SplitBody({ payload, onClose }) {
-  const { social, addTransaction, toast, budgets } = useApp()
+  const { social, addTransaction, toast, budgets, addSplitRule, demo } = useApp()
+  // 'equal' | 'amount' | 'percent'
+  const [mode, setMode] = useState('equal')
+  const [entries, setEntries] = useState({})
+  const [monthly, setMonthly] = useState(false)
+  // in a group: the trip (and category) this bill belongs to
+  const { trips } = useTrips(payload?.group ?? null)
+  const [trip, setTrip] = useState(payload?.trip ?? '')
   // in a group: everyone else in it (they needn't be my friends), all picked to start with
   const group = payload?.group ? social.groups.find((g) => g.id === payload.group) : null
   const friends = group ? group.members.filter((x) => !x.me) : social.friends.filter((f) => f.status === 'friend')
@@ -262,9 +280,10 @@ function SplitBody({ payload, onClose }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const total = round(Number(amount))
-  const { shares, mine } = splitEqually(total, picked, includeMe)
+  const custom = mode !== 'equal'
+  const { shares, mine, over } = custom ? splitCustom(total, picked, entries, mode) : { ...splitEqually(total, picked, includeMe), over: false }
   const each = shares[0]?.amount ?? 0
-  const ok = title.trim() && total > 0 && shares.length && shares.every((s) => s.amount > 0 && s.amount <= MAX_FRIEND_PAYMENT) && !busy
+  const ok = title.trim() && total > 0 && shares.length && !over && shares.every((s) => s.amount > 0 && s.amount <= MAX_FRIEND_PAYMENT) && !busy
 
   if (!friends.length)
     return (
@@ -285,13 +304,18 @@ function SplitBody({ payload, onClose }) {
     setBusy(true)
     setError('')
     try {
-      await social.split({ title: title.trim(), total, shares, group: group?.id ?? null })
+      const sid = await social.split({ title: title.trim(), total, shares, group: group?.id ?? null })
+      if (trip && sid) await tagSplit(sid, trip, category).catch(() => null)
       if (record) addTransaction({ name: title.trim(), amount: -total, category, method: 'Split with friends' })
+      // the same split again on this day every month (rent, utilities)
+      if (monthly) addSplitRule({ title: title.trim(), total, shares, group: group?.id ?? null, record, category })
       toast(
         t('Bill split'),
         shares.length === 1
           ? t('{name} was asked for {amount}.', { name: social.nameOf(shares[0].friend), amount: money(each) })
-          : t('{count} friends were asked for {amount} each.', { count: shares.length, amount: money(each) }),
+          : custom
+            ? t('{count} friends were asked for their shares.', { count: shares.length })
+            : t('{count} friends were asked for {amount} each.', { count: shares.length, amount: money(each) }),
         { icon: 'receipt' },
       )
       onClose()
@@ -333,27 +357,97 @@ function SplitBody({ payload, onClose }) {
           ))}
         </div>
       </div>
-      <label className="check-row">
-        <input type="checkbox" checked={includeMe} onChange={(e) => setIncludeMe(e.target.checked)} />
-        {t('Include my share')}
-      </label>
-      {shares.length && total > 0 ? (
-        <div className="split-sum" role="status">
-          <span>
-            {t('Each friend pays')} <b>{money(each)}</b>
-          </span>
-          {includeMe ? (
-            <span>
-              {t('Your share')} <b>{money(mine)}</b>
-            </span>
+      <div className="split-mode" role="radiogroup" aria-label={t('How to split')}>
+        {[
+          ['equal', 'Equally'],
+          ['amount', 'By amount'],
+          ['percent', 'By percent'],
+        ].map(([k, label]) => (
+          <button key={k} type="button" role="radio" aria-checked={mode === k} className={mode === k ? 'on' : ''} onClick={() => setMode(k)}>
+            {t(label)}
+          </button>
+        ))}
+      </div>
+      {custom ? (
+        <div className="split-custom">
+          {picked.map((id) => {
+            const f = friends.find((x) => x.id === id)
+            const share = shares.find((s) => s.friend === id)
+            return (
+              <label key={id} className="split-line">
+                <span>{(f?.name ?? social.nameOf(id)).split(' ')[0]}</span>
+                <div className="amount-input sm">
+                  {mode === 'amount' ? <b>$</b> : null}
+                  <input
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={entries[id] ?? ''}
+                    onChange={(e) => setEntries((m) => ({ ...m, [id]: e.target.value.replace(/[^\d.]/g, '') }))}
+                    aria-label={t('Share for {name}', { name: f?.name ?? '' })}
+                  />
+                  {mode === 'percent' ? <em>%</em> : null}
+                </div>
+                {mode === 'percent' && share ? <small>{money(share.amount)}</small> : null}
+              </label>
+            )
+          })}
+          {total > 0 ? (
+            <div className={`split-sum ${over ? 'bad' : ''}`} role="status">
+              {over ? (
+                <span className="err">{t('The shares add up to more than the bill.')}</span>
+              ) : (
+                <span>
+                  {t('Your share')} <b>{money(mine)}</b>
+                </span>
+              )}
+            </div>
           ) : null}
         </div>
+      ) : (
+        <>
+          <label className="check-row">
+            <input type="checkbox" checked={includeMe} onChange={(e) => setIncludeMe(e.target.checked)} />
+            {t('Include my share')}
+          </label>
+          {shares.length && total > 0 ? (
+            <div className="split-sum" role="status">
+              <span>
+                {t('Each friend pays')} <b>{money(each)}</b>
+              </span>
+              {includeMe ? (
+                <span>
+                  {t('Your share')} <b>{money(mine)}</b>
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </>
+      )}
+      {group && trips.length ? (
+        <label className="field">
+          <span>{t('Trip')}</span>
+          <select value={trip} onChange={(e) => setTrip(e.target.value)}>
+            <option value="">{t('Not part of a trip')}</option>
+            {trips.map((tr) => (
+              <option key={tr.id} value={tr.id}>
+                {tr.name}
+              </option>
+            ))}
+          </select>
+          {trip ? <small>{t('It counts towards the trip under the category below.')}</small> : null}
+        </label>
       ) : null}
+      {demo ? null : (
+        <label className="check-row">
+          <input type="checkbox" checked={monthly} onChange={(e) => setMonthly(e.target.checked)} />
+          {t('Repeat every month (rent, utilities)')}
+        </label>
+      )}
       <label className="check-row">
         <input type="checkbox" checked={record} onChange={(e) => setRecord(e.target.checked)} />
         {total > 0 ? t('I paid {amount}: add it to my spending', { amount: money(total) }) : t('I paid the bill: add it to my spending')}
       </label>
-      {record ? (
+      {record || trip ? (
         <label className="field">
           <span>{t('Category')}</span>
           <select value={category} onChange={(e) => setCategory(e.target.value)}>

@@ -68,3 +68,11 @@ export const FEATURES = {
 export const PUSH = {
   publicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY || '',
 }
+
+/**
+ * Receipts by email: the Postmark inbound address (receipts go to it with each
+ * person's private token after a "+"). Empty: the email address part is hidden.
+ */
+export const INBOX = {
+  address: import.meta.env.VITE_INBOUND_ADDRESS || '',
+}

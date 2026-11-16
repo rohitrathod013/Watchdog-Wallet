@@ -74,6 +74,24 @@ async function fromWebhook(table: string, r: any) {
         url: `${SITE}#/friends`,
       })
     }
+    // a child asks to spend: the parent is asked to approve; the answer goes back to the child
+    const sys = String(r.body ?? '')
+    if (r.kind === 'system' && r.recipient && /^(spendask|spendok|spendno|familyinvite):/.test(sys)) {
+      const [what, rest = ''] = [sys.slice(0, sys.indexOf(':')), sys.slice(sys.indexOf(':') + 1)]
+      const cut = rest.indexOf('|')
+      const amount = money(rest.slice(0, cut))
+      const title = rest.slice(cut + 1)
+      const who = await nameOf(r.sender)
+      const msg =
+        what === 'spendask'
+          ? { title: 'Approve spending?', body: `${who} asks to spend ${amount} on ${title}.` }
+          : what === 'spendok'
+            ? { title: 'Approved', body: `${who} approved ${amount} for ${title}.` }
+            : what === 'spendno'
+              ? { title: 'Declined', body: `${who} declined ${amount} for ${title}.` }
+              : { title: 'Family invite', body: `${who} asked to link your account as their child's.` }
+      return notify([r.recipient], { ...msg, tag: `family-${r.sender}`, url: `${SITE}#/friends` })
+    }
     if (r.kind === 'system') return 0
     const who = await nameOf(r.sender)
     if (r.group_id) {

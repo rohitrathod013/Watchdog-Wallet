@@ -7,14 +7,26 @@ import './styles/pages.css'
 import './styles/assistant.css'
 import './styles/auth.css'
 import './styles/friends.css'
+import './styles/more.css'
 import './styles/mobile.css'
-import App from './App.jsx'
+import Root from './Root.jsx'
 import { startMonitoring } from './lib/monitor'
+import { loadLocale } from './lib/i18n'
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+// the saved language's words load before the first render, so nothing flashes in English
+const savedLang = (() => {
+  try {
+    return localStorage.getItem('codexr-lang') || 'EN'
+  } catch {
+    return 'EN'
+  }
+})()
+loadLocale(savedLang).finally(() =>
+  createRoot(document.getElementById('root')).render(
+    <StrictMode>
+      <Root />
+    </StrictMode>,
+  ),
 )
 
 // installable app: the service worker lets it open without a connection (production builds only,

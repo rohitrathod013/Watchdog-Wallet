@@ -697,13 +697,26 @@ export function QuickTransferCard({ d = 0, big = false, className = '' }) {
   )
 }
 
-export function TxRow({ t: tx, r, full = false }) {
+export function TxRow({ t: tx, r, full = false, onOpen }) {
+  const tags = tx.tags?.length ? ` · ${tx.tags.map((x) => `#${x}`).join(' ')}` : ''
+  const open = onOpen ? () => onOpen(tx) : undefined
   return (
-    <div className="tx-row" style={{ '--r': r }}>
+    <div
+      className={`tx-row ${onOpen ? 'tx-click' : ''}`}
+      style={{ '--r': r }}
+      role={onOpen ? 'button' : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      onClick={open}
+      onKeyDown={onOpen ? (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open()) : undefined}
+    >
       <MerchantLogo kind={tx.kind} />
       <div className="tx-main">
-        <b>{tName(tx.name)}</b>
-        <small>{full ? t(tx.category) : `${t(tx.category)} · ${t(tx.method)}`}</small>
+        <b>
+          {tName(tx.name)}
+          {tx.receipt ? <Icon name="receipt" size={13} className="tx-flag" title={t('Has a receipt')} /> : null}
+          {tx.claim && tx.claim.status !== 'paid' ? <em className="tx-claim">{t('To claim')}</em> : null}
+        </b>
+        <small>{full ? `${t(tx.category)}${tags}` : `${t(tx.category)} · ${t(tx.method)}`}</small>
       </div>
       {full ? <span className="tx-date tx-hide">{t(tx.method)}</span> : null}
       <span className="tx-date">{stamp(tx.date)}</span>

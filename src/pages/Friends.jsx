@@ -2,6 +2,7 @@
    Friends: connect with other Watchdog Wallet accounts, chat, send and
    request money, and split bills. Live through Supabase Realtime.
    ------------------------------------------------------------------ */
+import { FamilyCard } from '../components/Family'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Icon from '../components/Icon'
 import { Persona } from '../components/Brand'
@@ -172,6 +173,33 @@ function FromContacts() {
         </div>
       ) : null}
     </div>
+  )
+}
+
+/* monthly splits (rent, utilities): what's set up, when it next goes, and a way to stop it */
+function MonthlySplits() {
+  const { splitRules = [], removeSplitRule, social } = useApp()
+  if (!splitRules.length) return null
+  return (
+    <section className="card monthly-splits rv" style={{ '--i': 2 }}>
+      <h2 className="card-h">{t('Monthly splits')}</h2>
+      <ul>
+        {splitRules.map((r) => (
+          <li key={r.id}>
+            <span>
+              <b>{r.title}</b>
+              <small>
+                {money(r.total)} · {r.group ? (social.groups.find((g) => g.id === r.group)?.name ?? t('Group')) : r.shares.map((s) => social.nameOf(s.friend).split(' ')[0]).join(', ')} ·{' '}
+                {t('next {date}', { date: r.next })}
+              </small>
+            </span>
+            <button type="button" className="btn sm" onClick={() => removeSplitRule(r.id)}>
+              {t('Stop')}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -1397,6 +1425,10 @@ export function Chat({ peer, onBack, docked = false, onClose }) {
                 <Icon name="target" size={16} />
                 <span>{t('Goals')}</span>
               </button>
+              <button type="button" className="ch-act extra" onClick={() => openModal('trips', { group: peer.id })} title={t('Trips')}>
+                <Icon name="plane" size={16} />
+                <span>{t('Trips')}</span>
+              </button>
               <button
                 type="button"
                 className="ch-act more"
@@ -1665,6 +1697,8 @@ export default function Friends() {
         <div className="stack friends-side">
           <Waiting />
           <FriendList selected={picked} onPick={setPicked} />
+          <MonthlySplits />
+          <FamilyCard />
           <AddFriend />
         </div>
         <div className="friends-main">

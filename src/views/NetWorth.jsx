@@ -10,6 +10,7 @@ import { money, whole } from '../lib/format'
 import { compareMethods, debtFreeBy, monthChange, netWorthNow } from '../lib/wealth'
 import { t, tMonths } from '../lib/i18n'
 import { MONTHS } from '../lib/format'
+import { useHoldingPrices } from '../lib/useHoldingPrices'
 
 const monthYear = (d) => (d ? `${tMonths(MONTHS[d.getMonth()])} ${d.getFullYear()}` : '')
 
@@ -140,7 +141,9 @@ export default function NetWorthView({ attached = true }) {
   const { balance, goals, holdings, netWorth = { items: [], history: [] }, removeWorthItem, now, stats } = useApp()
   const lead = useLead()
   const [editing, setEditing] = useState(null) // null | 'new' | item
-  const n = netWorthNow({ balance, goals, holdings, items: netWorth.items })
+  const live = useHoldingPrices(holdings)
+  const n = netWorthNow({ balance, goals, holdings, items: netWorth.items, prices: live.prices })
+  const inv = n.parts.find((x) => x.key === 'investments')
   const ch = monthChange(netWorth.history, now ?? new Date())
   const history = netWorth.history.length ? netWorth.history : [{ month: '', value: n.value }]
   const canEdit = !stats.demo
@@ -164,6 +167,11 @@ export default function NetWorthView({ attached = true }) {
           <strong className={n.value < 0 ? 'neg' : ''}>
             <CountUp value={n.value} format={(v) => money(v)} delay={lead + 150} />
           </strong>
+          {inv?.live && inv.amount !== inv.cost ? (
+            <span className="pill-tag" title={t('Investments at what you paid for them')}>
+              {t('{amount} at cost', { amount: money(n.atCost) })}
+            </span>
+          ) : null}
           {ch ? (
             <span className={`pill-tag ${ch.change >= 0 ? 'green' : 'red'}`}>
               {ch.change >= 0 ? '+' : '−'}
@@ -211,14 +219,17 @@ export default function NetWorthView({ attached = true }) {
           <div className="c-head rv" style={{ '--i': 0 }}>
             <div>
               <h2 className="card-h">{t('What it’s made of')}</h2>
-              <p className="card-sub">{t('Investments count at what you paid for them')}</p>
+              <p className="card-sub">{inv?.live ? t('Investments at today’s market value') : t('Investments count at what you paid for them')}</p>
             </div>
           </div>
           {editing ? <ItemForm item={editing === 'new' ? null : editing} onDone={() => setEditing(null)} /> : null}
           <ul className="nw-list rv" style={{ '--i': 1 }}>
             {n.parts.map((x) => (
               <li key={x.key}>
-                <span>{t(x.name)}</span>
+                <span>
+                  {t(x.name)}
+                  {x.key === 'investments' && x.live ? <small>{t('{amount} paid', { amount: money(x.cost) })}</small> : null}
+                </span>
                 <b>{money(x.amount)}</b>
               </li>
             ))}

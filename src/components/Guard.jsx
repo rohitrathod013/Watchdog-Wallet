@@ -2,7 +2,8 @@
    Grace on guard duty.
 
    - LockScreen: covers the app after a stretch of inactivity (or "lock
-     now"); unlocking a real account needs its password again.
+     now"); unlocking a real account needs its password again (and the
+     two-step code when that's on), or a passkey on this device.
    - GuardModal: the guard settings and a protection score.
    - useGuardCheck: the extra step a payment window shows for large
      amounts and first payments to someone.
@@ -16,6 +17,8 @@ import { useApp } from '../lib/store'
 import { t } from '../lib/i18n'
 import { ASSISTANT } from '../config'
 import { DEFAULT_GUARD, guardState, LOCK_CHOICES } from '../lib/guard'
+import { checkPasskey, hasPasskey } from '../lib/passkey'
+import { CodeForm } from './Security'
 
 /** What's switched on, for the score. */
 const guardChecks = (guard) => guardState(guard)
@@ -26,6 +29,18 @@ export function LockScreen({ user, demo, reason, onUnlock, onSignOut }) {
   const [show, setShow] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  // the password was right but two-step login is on: the code comes next
+  const [needCode, setNeedCode] = useState(false)
+  const passkey = !demo && hasPasskey(user.id)
+  const withPasskey = async () => {
+    setError('')
+    try {
+      await checkPasskey(user.id)
+      onUnlock()
+    } catch (err) {
+      if (err?.name !== 'NotAllowedError') setError(t('That didn’t work. Use your password instead.'))
+    }
+  }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -39,13 +54,31 @@ export function LockScreen({ user, demo, reason, onUnlock, onSignOut }) {
       const { error: err } = await supabase.auth.signInWithPassword({ email: user.email, password })
       if (err) throw err
       setPassword('')
-      onUnlock()
+      // signing in again starts a session without the code: ask for it before opening up
+      const { needsCode } = await import('../lib/server')
+      if (await needsCode()) setNeedCode(true)
+      else onUnlock()
     } catch {
       setError(t('That password didn’t work. Try again, or log out and use Forgot password.'))
     } finally {
       setBusy(false)
     }
   }
+
+  if (needCode)
+    return (
+      <div className="lock-screen" role="dialog" aria-modal="true" aria-label={t('Locked by {name}', { name: ASSISTANT.name })}>
+        <div className="lock-card">
+          <BuddyArt size={110} mood="idle" />
+          <h2>{t('Two-step login')}</h2>
+          <p>{t('Enter the code from your authenticator app.')}</p>
+          <CodeForm onDone={onUnlock} />
+          <button type="button" className="link" onClick={onSignOut}>
+            {t('Log out instead')}
+          </button>
+        </div>
+      </div>
+    )
 
   return (
     <div className="lock-screen" role="dialog" aria-modal="true" aria-label={t('Locked by {name}', { name: ASSISTANT.name })}>
@@ -84,6 +117,12 @@ export function LockScreen({ user, demo, reason, onUnlock, onSignOut }) {
           <Icon name="lock" size={17} />
           {busy ? t('Checking…') : t('Unlock')}
         </button>
+        {passkey ? (
+          <button type="button" className="btn lg block" onClick={withPasskey}>
+            <Icon name="key" size={17} />
+            {t('Unlock with fingerprint, face or PIN')}
+          </button>
+        ) : null}
         <button type="button" className="link" onClick={onSignOut}>
           {demo ? t('Leave demo') : t('Log out instead')}
         </button>

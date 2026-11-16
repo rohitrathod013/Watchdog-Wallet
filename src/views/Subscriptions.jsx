@@ -43,6 +43,10 @@ export default function SubscriptionsView({ attached = true }) {
         </div>
         {canAct ? (
           <div className="c-tools">
+            <button type="button" className="btn" onClick={() => openModal('calendar')}>
+              <Icon name="calendar" size={17} />
+              {t('Add to calendar')}
+            </button>
             <button type="button" className="btn" onClick={() => openModal('recurring')}>
               <Icon name="replay" size={17} />
               {t('Repeating')}

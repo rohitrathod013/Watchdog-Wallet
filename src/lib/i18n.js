@@ -5,14 +5,28 @@
    t('Send {amount} to {name}', { … })     → fills the {placeholders}
 
    The English sentence is the key, so anything without a translation
-   simply shows in English. Dictionaries live in src/i18n/<code>.js.
+   simply shows in English. Dictionaries live in src/i18n/<code>.js and
+   each one is downloaded only when that language is picked (loadLocale).
    ------------------------------------------------------------------ */
-import es from '../i18n/es'
-import fr from '../i18n/fr'
-import de from '../i18n/de'
-import ar from '../i18n/ar'
+const LOADERS = {
+  ES: () => import('../i18n/es'),
+  FR: () => import('../i18n/fr'),
+  DE: () => import('../i18n/de'),
+  AR: () => import('../i18n/ar'),
+  PT: () => import('../i18n/pt'),
+  HI: () => import('../i18n/hi'),
+}
+const DICTS = {}
 
-const DICTS = { ES: es, FR: fr, DE: de, AR: ar }
+/** Download a language's dictionary (once). Resolves when t() can use it; English needs none. */
+export async function loadLocale(code) {
+  if (!LOADERS[code] || DICTS[code]) return
+  try {
+    DICTS[code] = (await LOADERS[code]()).default
+  } catch {
+    /* offline and not cached: that language shows in English for now */
+  }
+}
 
 /** BCP-47 tag and text direction for each language code in the picker. */
 export const LOCALES = {
@@ -21,6 +35,8 @@ export const LOCALES = {
   FR: { tag: 'fr', dir: 'ltr' },
   DE: { tag: 'de', dir: 'ltr' },
   AR: { tag: 'ar', dir: 'rtl' },
+  PT: { tag: 'pt-BR', dir: 'ltr' },
+  HI: { tag: 'hi-IN', dir: 'ltr' },
 }
 
 let current = 'EN'

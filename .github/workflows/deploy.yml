@@ -35,6 +35,8 @@ jobs:
           VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY }}
           # Sentry error tracking (its DSN is meant to be public); leave unset to turn it off
           VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
+          # the Postmark inbound address that forwarded receipts go to; leave unset to hide it
+          VITE_INBOUND_ADDRESS: ${{ vars.VITE_INBOUND_ADDRESS }}
       - name: Publish dist to gh-pages
         run: |
           cd dist

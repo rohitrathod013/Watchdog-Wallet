@@ -1,7 +1,8 @@
 /* ------------------------------------------------------------------
    Net worth and paying off debt.
    Net worth = cash (balance) + money in savings goals + investments (at
-   what was paid for them) + assets you add − debts you add. A snapshot is
+   today's market price when it's known, else what was paid for them)
+   + assets you add − debts you add. A snapshot is
    kept per month so the trend can be drawn.
    The debt planner compares two ways of paying off several debts with the
    same monthly money: avalanche (highest interest rate first) and
@@ -25,17 +26,25 @@ export function makeItem({ id, name, kind = 'asset', amount, apr = 0, minPayment
 }
 
 /** Today's net worth, with what it's made of. */
-export function netWorthNow({ balance = 0, goals = [], holdings = [], items = [] }) {
+export function netWorthNow({ balance = 0, goals = [], holdings = [], items = [], prices = {} }) {
+  const costC = holdings.reduce((s, h) => s + c(h.cost), 0)
+  // at market value where there's a live price, at cost where there isn't
+  let priced = 0
+  const marketC = holdings.reduce((s, h) => {
+    const p = prices[`${h.kind}:${h.asset}`]
+    if (p > 0) priced++
+    return s + (p > 0 ? c(h.qty * p) : c(h.cost))
+  }, 0)
   const parts = [
     { key: 'cash', name: 'Cash', amount: d(c(balance)) },
     { key: 'goals', name: 'Savings goals', amount: d(goals.reduce((s, g) => s + c(g.saved), 0)) },
-    { key: 'investments', name: 'Investments', amount: d(holdings.reduce((s, h) => s + c(h.cost), 0)) },
+    { key: 'investments', name: 'Investments', amount: d(marketC), cost: d(costC), live: priced > 0 },
   ]
   const assets = items.filter((i) => i.kind === 'asset')
   const debts = items.filter((i) => i.kind === 'debt')
   const ownedC = parts.reduce((s, p) => s + c(p.amount), 0) + assets.reduce((s, i) => s + c(i.amount), 0)
   const owedC = debts.reduce((s, i) => s + c(i.amount), 0)
-  return { parts, assets, debts, owned: d(ownedC), owed: d(owedC), value: d(ownedC - owedC) }
+  return { parts, assets, debts, owned: d(ownedC), owed: d(owedC), value: d(ownedC - owedC), atCost: d(ownedC - owedC - marketC + costC) }
 }
 
 /** The history with this month's snapshot set to today's value (one point per month, the last 24 kept). */

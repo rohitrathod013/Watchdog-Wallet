@@ -13,6 +13,7 @@ import { KIND_FOR } from '../lib/stats'
 import { runAll } from '../lib/recurring'
 import { markActive } from '../lib/push'
 import { netWorthNow, withSnapshot } from '../lib/wealth'
+import { useHoldingPrices } from '../lib/useHoldingPrices'
 import { weekKey, weeklyRecap, weekStart } from '../lib/recap'
 import { t } from '../lib/i18n'
 
@@ -128,9 +129,15 @@ export function useReminderNudges({ ready, reminders, setReminders, notify, toas
 
 /** Keep this month's net worth snapshot up to date (one point per month, for the trend). */
 export function useNetWorthSnapshot({ ready, balance, goals, holdings, netWorth, setNetWorth }) {
-  const worthNow = useMemo(() => netWorthNow({ balance, goals, holdings, items: netWorth.items }).value, [balance, goals, holdings, netWorth.items])
+  // investments at market value (the same as the Net worth tab shows), once prices are in
+  const live = useHoldingPrices(ready ? holdings : [])
+  const waiting = holdings.length > 0 && !live.ready
+  const worthNow = useMemo(
+    () => (waiting ? null : netWorthNow({ balance, goals, holdings, items: netWorth.items, prices: live.prices }).value),
+    [balance, goals, holdings, netWorth.items, live.prices, waiting],
+  )
   useEffect(() => {
-    if (!ready) return
+    if (!ready || worthNow == null) return
     const snap = () =>
       setNetWorth((w) => {
         const history = withSnapshot(w.history, worthNow)

@@ -128,3 +128,23 @@ describe('Grace knows where things are', () => {
     expect(r.fallback).toBeUndefined()
   })
 })
+
+describe('the newer features', () => {
+  const cases = [
+    ['how do I add a savings account', ['go', 'dashboard', { tab: 'accounts' }]],
+    ['how do i reconcile my account', ['go', 'dashboard', { tab: 'accounts' }]],
+    ['where is the tax summary', ['go', 'dashboard', { tab: 'reports' }]],
+    ['how do i pause budgets during a trip', ['go', 'budget']],
+    ['how do I make a payment link', ['go', 'transfer']],
+    ['how do i turn on two-step login', ['openModal', 'security']],
+    ['can I get my bills in google calendar', ['openModal', 'calendar']],
+    ['how do i email receipts to the app', ['openModal', 'inbox']],
+    ['how do i delete old transactions between two dates', ['openModal', 'deleteRange']],
+    ['how do i set an allowance for my kid', ['go', 'friends']],
+  ]
+  for (const [q, call] of cases)
+    it(`"${q}"`, () => {
+      const { call: got } = opens(q)
+      expect(got).toEqual(call)
+    })
+})

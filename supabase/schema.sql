@@ -993,3 +993,465 @@ revoke all on function public.confirm_request(uuid, boolean) from public, anon;
 grant execute on function public.is_group_share(uuid) to authenticated;
 grant execute on function public.claim_request(uuid, text) to authenticated;
 grant execute on function public.confirm_request(uuid, boolean) to authenticated;
+
+-- ==================================================================
+-- Security: two-step login and the devices you're signed in on.
+-- Once someone turns on two-step login (an authenticator app), their
+-- saved data can only be read or changed by a session that entered a
+-- code (aal2). my_sessions lists their signed-in sessions; end_session
+-- signs one of them out (its refresh token stops working).
+-- ==================================================================
+create or replace function public.mfa_ok()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select coalesce(auth.jwt() ->> 'aal', 'aal1') = 'aal2'
+      or not exists (select 1 from auth.mfa_factors f where f.user_id = auth.uid() and f.status = 'verified')
+$$;
+
+drop policy if exists "two-step login when on" on public.user_state;
+create policy "two-step login when on" on public.user_state as restrictive
+  for all to authenticated using (public.mfa_ok()) with check (public.mfa_ok());
+
+create or replace function public.my_sessions()
+returns table (id uuid, created_at timestamptz, last_used timestamptz, user_agent text, ip text, aal text, current boolean)
+language sql stable security definer set search_path = '' as $$
+  select s.id, s.created_at,
+         greatest(s.created_at, s.updated_at, s.refreshed_at at time zone 'utc'),
+         s.user_agent, host(s.ip), s.aal::text,
+         s.id::text = (auth.jwt() ->> 'session_id')
+    from auth.sessions s
+   where s.user_id = auth.uid() and (s.not_after is null or s.not_after > now())
+   order by 3 desc nulls last
+$$;
+
+create or replace function public.end_session(p_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if auth.uid() is null then raise exception 'Not signed in'; end if;
+  delete from auth.sessions where id = p_id and user_id = auth.uid();
+  if not found then raise exception 'That session has already ended'; end if;
+end;
+$$;
+
+revoke all on function public.mfa_ok() from public, anon;
+revoke all on function public.my_sessions() from public, anon;
+revoke all on function public.end_session(uuid) from public, anon;
+grant execute on function public.mfa_ok() to authenticated;
+grant execute on function public.my_sessions() to authenticated;
+grant execute on function public.end_session(uuid) to authenticated;
+
+-- ==================================================================
+-- Receipt photos on transactions: a private bucket, one folder per person.
+-- ==================================================================
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('receipts', 'receipts', false, 10485760, array['image/*', 'application/pdf'])
+on conflict (id) do update
+  set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "receipts: add your own" on storage.objects;
+create policy "receipts: add your own" on storage.objects
+  for insert to authenticated with check (bucket_id = 'receipts' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "receipts: open your own" on storage.objects;
+create policy "receipts: open your own" on storage.objects
+  for select to authenticated using (bucket_id = 'receipts' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "receipts: delete your own" on storage.objects;
+create policy "receipts: delete your own" on storage.objects
+  for delete to authenticated using (bucket_id = 'receipts' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ==================================================================
+-- Payment links: ask anyone for money, even without an account. The
+-- link (or its QR code) opens a page where they pay by card with
+-- Stripe; the payments function checks the payment with Stripe and
+-- marks the link paid. Only the owner sees their links.
+-- ==================================================================
+create table if not exists public.pay_links (
+  id           uuid primary key default gen_random_uuid(),
+  owner        uuid not null references auth.users (id) on delete cascade,
+  amount       numeric(12, 2) not null check (amount >= 1 and amount <= 10000),
+  note         text not null default '' check (char_length(note) <= 140),
+  status       text not null default 'open' check (status in ('open', 'paid', 'cancelled')),
+  payer_name   text check (char_length(payer_name) <= 60),
+  paid_session text unique,
+  paid_at      timestamptz,
+  created_at   timestamptz not null default now()
+);
+create index if not exists pay_links_owner on public.pay_links (owner, created_at desc);
+alter table public.pay_links enable row level security;
+drop policy if exists "own pay links" on public.pay_links;
+create policy "own pay links" on public.pay_links for select using (owner = auth.uid());
+
+create or replace function public.create_pay_link(p_amount numeric, p_note text default '')
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare lid uuid;
+begin
+  if auth.uid() is null then raise exception 'Not signed in'; end if;
+  if p_amount is null or p_amount < 1 or p_amount > 10000 then raise exception 'Amount must be between 1 and 10,000'; end if;
+  if (select count(*) from public.pay_links where owner = auth.uid() and status = 'open') >= 50 then
+    raise exception 'You have 50 open links: cancel some first';
+  end if;
+  insert into public.pay_links (owner, amount, note) values (auth.uid(), round(p_amount, 2), left(coalesce(trim(p_note), ''), 140)) returning id into lid;
+  return lid;
+end;
+$$;
+
+create or replace function public.cancel_pay_link(p_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  update public.pay_links set status = 'cancelled' where id = p_id and owner = auth.uid() and status = 'open';
+  if not found then raise exception 'That link is no longer open'; end if;
+end;
+$$;
+
+revoke all on function public.create_pay_link(numeric, text) from public, anon;
+revoke all on function public.cancel_pay_link(uuid) from public, anon;
+grant execute on function public.create_pay_link(numeric, text) to authenticated;
+grant execute on function public.cancel_pay_link(uuid) to authenticated;
+
+-- ==================================================================
+-- Group trips: a budget for a trip, by category, with a running total
+-- every member sees. A split in the group can belong to a trip (and a
+-- category); the trip's total is the sum of its splits.
+-- ==================================================================
+create table if not exists public.group_trips (
+  id         uuid primary key default gen_random_uuid(),
+  group_id   uuid not null references public.groups (id) on delete cascade,
+  name       text not null check (char_length(name) between 1 and 60),
+  budget     numeric(12, 2) not null check (budget > 0 and budget <= 1000000),
+  categories jsonb not null default '{}'::jsonb,
+  starts     date,
+  ends       date,
+  created_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists group_trips_group on public.group_trips (group_id);
+alter table public.group_trips enable row level security;
+drop policy if exists "members see trips" on public.group_trips;
+create policy "members see trips" on public.group_trips for select using (public.is_member(group_id, auth.uid()));
+alter table public.splits add column if not exists trip_id uuid references public.group_trips (id) on delete set null;
+alter table public.splits add column if not exists category text check (char_length(category) <= 40);
+
+create or replace function public.create_trip(p_group uuid, p_name text, p_budget numeric, p_categories jsonb default '{}'::jsonb, p_starts date default null, p_ends date default null)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := auth.uid();
+  tid uuid;
+  title text := left(coalesce(trim(p_name), ''), 60);
+begin
+  if me is null or not public.is_member(p_group, me) then raise exception 'You''re not in this group'; end if;
+  if title = '' then raise exception 'Give the trip a name'; end if;
+  if p_budget is null or p_budget <= 0 or p_budget > 1000000 then raise exception 'The budget must be between 0.01 and 1,000,000'; end if;
+  if jsonb_typeof(coalesce(p_categories, '{}'::jsonb)) <> 'object' then raise exception 'Categories must be an object'; end if;
+  insert into public.group_trips (group_id, name, budget, categories, starts, ends, created_by)
+  values (p_group, title, round(p_budget, 2), coalesce(p_categories, '{}'::jsonb), p_starts, p_ends, me) returning id into tid;
+  insert into public.messages (sender, group_id, kind, body) values (me, p_group, 'system', 'tripnew:' || title);
+  return tid;
+end;
+$$;
+
+create or replace function public.delete_trip(p_trip uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+declare tr public.group_trips;
+begin
+  select * into tr from public.group_trips where id = p_trip;
+  if not found then raise exception 'That trip isn''t available'; end if;
+  if not (tr.created_by = auth.uid() or public.is_admin(tr.group_id, auth.uid())) then raise exception 'Only the person who started it or an admin can remove it'; end if;
+  delete from public.group_trips where id = p_trip;
+end;
+$$;
+
+-- the person who split a bill puts it in a trip (and a category)
+create or replace function public.tag_split(p_split uuid, p_trip uuid, p_category text default null)
+returns void language plpgsql security definer set search_path = '' as $$
+declare sp public.splits;
+begin
+  select * into sp from public.splits where id = p_split;
+  if not found or sp.created_by <> auth.uid() then raise exception 'That split isn''t yours'; end if;
+  if p_trip is not null and not exists (select 1 from public.group_trips tr where tr.id = p_trip and tr.group_id = sp.group_id) then
+    raise exception 'That trip isn''t in this group';
+  end if;
+  update public.splits set trip_id = p_trip, category = left(p_category, 40) where id = p_split;
+end;
+$$;
+
+revoke all on function public.create_trip(uuid, text, numeric, jsonb, date, date) from public, anon;
+revoke all on function public.delete_trip(uuid) from public, anon;
+revoke all on function public.tag_split(uuid, uuid, text) from public, anon;
+grant execute on function public.create_trip(uuid, text, numeric, jsonb, date, date) to authenticated;
+grant execute on function public.delete_trip(uuid) to authenticated;
+grant execute on function public.tag_split(uuid, uuid, text) to authenticated;
+
+-- ==================================================================
+-- Family: a parent links a friend's account as their child (teen or
+-- kid). An allowance is paid in on a schedule (the parent's app sends
+-- it when it's due), and with approval on, the child's spending goes to
+-- the parent first: approved, it's recorded; declined, it isn't.
+-- ==================================================================
+create table if not exists public.family_links (
+  id             uuid primary key default gen_random_uuid(),
+  parent         uuid not null references auth.users (id) on delete cascade,
+  child          uuid not null unique references auth.users (id) on delete cascade,
+  status         text not null default 'pending' check (status in ('pending', 'active')),
+  allowance      numeric(12, 2) not null default 0 check (allowance >= 0 and allowance <= 1000),
+  every          text not null default 'weekly' check (every in ('weekly', 'monthly')),
+  approve        boolean not null default true,
+  next_allowance date,
+  created_at     timestamptz not null default now(),
+  check (parent <> child)
+);
+create table if not exists public.spend_requests (
+  id         uuid primary key default gen_random_uuid(),
+  child      uuid not null references auth.users (id) on delete cascade,
+  parent     uuid not null references auth.users (id) on delete cascade,
+  amount     numeric(12, 2) not null check (amount > 0 and amount <= 10000),
+  name       text not null check (char_length(name) between 1 and 80),
+  category   text not null default 'Other' check (char_length(category) <= 40),
+  status     text not null default 'pending' check (status in ('pending', 'approved', 'declined')),
+  recorded   boolean not null default false,
+  created_at timestamptz not null default now(),
+  decided_at timestamptz
+);
+create index if not exists spend_requests_parent on public.spend_requests (parent, created_at desc);
+create index if not exists spend_requests_child on public.spend_requests (child, created_at desc);
+alter table public.family_links enable row level security;
+alter table public.spend_requests enable row level security;
+drop policy if exists "see own family" on public.family_links;
+create policy "see own family" on public.family_links for select using (auth.uid() in (parent, child));
+drop policy if exists "see own spend requests" on public.spend_requests;
+create policy "see own spend requests" on public.spend_requests for select using (auth.uid() in (parent, child));
+
+create or replace function public.invite_child(p_child uuid, p_allowance numeric default 0, p_every text default 'weekly', p_approve boolean default true)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare me uuid := auth.uid(); fid uuid;
+begin
+  if me is null then raise exception 'Not signed in'; end if;
+  if not public.are_friends(me, p_child) then raise exception 'Add them as a friend first'; end if;
+  if exists (select 1 from public.family_links where child = p_child) then raise exception 'They''re already linked to a family'; end if;
+  if exists (select 1 from public.family_links where child = me) then raise exception 'A child account can''t add children'; end if;
+  if p_allowance is null or p_allowance < 0 or p_allowance > 1000 then raise exception 'The allowance must be between 0 and 1,000'; end if;
+  insert into public.family_links (parent, child, allowance, every, approve)
+  values (me, p_child, round(p_allowance, 2), case when p_every = 'monthly' then 'monthly' else 'weekly' end, coalesce(p_approve, true))
+  returning id into fid;
+  insert into public.messages (sender, recipient, kind, body) values (me, p_child, 'system', 'familyinvite:');
+  return fid;
+end;
+$$;
+
+create or replace function public.accept_family(p_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  update public.family_links set status = 'active', next_allowance = current_date
+   where id = p_id and child = auth.uid() and status = 'pending';
+  if not found then raise exception 'That invite is no longer open'; end if;
+end;
+$$;
+
+-- either side can end the link
+create or replace function public.leave_family(p_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  delete from public.family_links where id = p_id and auth.uid() in (parent, child);
+  if not found then raise exception 'That link is already gone'; end if;
+end;
+$$;
+
+create or replace function public.set_family(p_id uuid, p_allowance numeric, p_every text, p_approve boolean)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if p_allowance is null or p_allowance < 0 or p_allowance > 1000 then raise exception 'The allowance must be between 0 and 1,000'; end if;
+  update public.family_links
+     set allowance = round(p_allowance, 2), every = case when p_every = 'monthly' then 'monthly' else 'weekly' end, approve = coalesce(p_approve, true)
+   where id = p_id and parent = auth.uid();
+  if not found then raise exception 'Only the parent can change this'; end if;
+end;
+$$;
+
+-- the parent's app calls this when the allowance is due: the money moves like any friend payment
+create or replace function public.pay_allowance(p_id uuid)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare f public.family_links; tid uuid;
+begin
+  select * into f from public.family_links where id = p_id and parent = auth.uid() and status = 'active' for update;
+  if not found then raise exception 'That family link isn''t active'; end if;
+  if f.allowance <= 0 or f.next_allowance is null or f.next_allowance > current_date then return null; end if;
+  insert into public.transfers (sender, recipient, amount, note) values (f.parent, f.child, f.allowance, 'Allowance') returning id into tid;
+  insert into public.messages (sender, recipient, kind, body, ref) values (f.parent, f.child, 'payment', 'Allowance', tid);
+  update public.family_links
+     set next_allowance = case when f.every = 'monthly' then (f.next_allowance + interval '1 month')::date else f.next_allowance + 7 end
+   where id = p_id;
+  -- after a long time away the next one is counted from today, not a pile of missed ones
+  update public.family_links set next_allowance = current_date + case when every = 'monthly' then 30 else 7 end
+   where id = p_id and next_allowance <= current_date;
+  return tid;
+end;
+$$;
+
+create or replace function public.ask_to_spend(p_amount numeric, p_name text, p_category text default 'Other')
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare f public.family_links; rid uuid; what text := left(coalesce(nullif(trim(p_name), ''), 'Spending'), 80);
+begin
+  select * into f from public.family_links where child = auth.uid() and status = 'active';
+  if not found then raise exception 'No parent account is linked'; end if;
+  if p_amount is null or p_amount <= 0 or p_amount > 10000 then raise exception 'Amount must be between 0.01 and 10,000'; end if;
+  insert into public.spend_requests (child, parent, amount, name, category)
+  values (f.child, f.parent, round(p_amount, 2), what, left(coalesce(p_category, 'Other'), 40))
+  returning id into rid;
+  insert into public.messages (sender, recipient, kind, body) values (f.child, f.parent, 'system', 'spendask:' || round(p_amount, 2) || '|' || what);
+  return rid;
+end;
+$$;
+
+create or replace function public.decide_spend(p_id uuid, p_ok boolean)
+returns void language plpgsql security definer set search_path = '' as $$
+declare r public.spend_requests;
+begin
+  update public.spend_requests set status = case when p_ok then 'approved' else 'declined' end, decided_at = now()
+   where id = p_id and parent = auth.uid() and status = 'pending'
+  returning * into r;
+  if not found then raise exception 'That request is no longer open'; end if;
+  insert into public.messages (sender, recipient, kind, body)
+  values (r.parent, r.child, 'system', case when p_ok then 'spendok:' else 'spendno:' end || r.amount || '|' || r.name);
+end;
+$$;
+
+-- the child's app recorded an approved one (so it's only added once)
+create or replace function public.spend_recorded(p_id uuid)
+returns void language sql security definer set search_path = '' as $$
+  update public.spend_requests set recorded = true where id = p_id and child = auth.uid() and status = 'approved'
+$$;
+
+revoke all on function public.invite_child(uuid, numeric, text, boolean) from public, anon;
+revoke all on function public.accept_family(uuid) from public, anon;
+revoke all on function public.leave_family(uuid) from public, anon;
+revoke all on function public.set_family(uuid, numeric, text, boolean) from public, anon;
+revoke all on function public.pay_allowance(uuid) from public, anon;
+revoke all on function public.ask_to_spend(numeric, text, text) from public, anon;
+revoke all on function public.decide_spend(uuid, boolean) from public, anon;
+revoke all on function public.spend_recorded(uuid) from public, anon;
+grant execute on function public.invite_child(uuid, numeric, text, boolean) to authenticated;
+grant execute on function public.accept_family(uuid) to authenticated;
+grant execute on function public.leave_family(uuid) to authenticated;
+grant execute on function public.set_family(uuid, numeric, text, boolean) to authenticated;
+grant execute on function public.pay_allowance(uuid) to authenticated;
+grant execute on function public.ask_to_spend(numeric, text, text) to authenticated;
+grant execute on function public.decide_spend(uuid, boolean) to authenticated;
+grant execute on function public.spend_recorded(uuid) to authenticated;
+
+-- ==================================================================
+-- Receipts that arrive by email (forwarded to your own address, or
+-- found in Gmail): they wait here as pending expenses until you
+-- confirm or dismiss them in the app. The inbound-email and gmail
+-- functions add them with the service key; you only see your own.
+-- ==================================================================
+create table if not exists public.inbox_tokens (
+  user_id    uuid primary key references auth.users (id) on delete cascade,
+  token      text not null unique default substr(md5(random()::text || clock_timestamp()::text), 1, 12),
+  created_at timestamptz not null default now()
+);
+alter table public.inbox_tokens enable row level security;
+drop policy if exists "own inbox token" on public.inbox_tokens;
+create policy "own inbox token" on public.inbox_tokens for select using (user_id = auth.uid());
+
+create table if not exists public.pending_expenses (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  source     text not null check (source in ('email', 'gmail')),
+  ref        text not null,
+  merchant   text not null default '' check (char_length(merchant) <= 80),
+  amount     numeric(12, 2) check (amount > 0 and amount <= 100000),
+  currency   text not null default 'USD',
+  spent_on   date,
+  subject    text not null default '' check (char_length(subject) <= 200),
+  created_at timestamptz not null default now(),
+  unique (user_id, ref)
+);
+alter table public.pending_expenses enable row level security;
+drop policy if exists "own pending expenses" on public.pending_expenses;
+create policy "own pending expenses" on public.pending_expenses for select using (user_id = auth.uid());
+drop policy if exists "dismiss own pending expenses" on public.pending_expenses;
+create policy "dismiss own pending expenses" on public.pending_expenses for delete using (user_id = auth.uid());
+
+-- the private part of your receipts address (made the first time; p_reset makes a new one)
+create or replace function public.my_inbox_token(p_reset boolean default false)
+returns text language plpgsql security definer set search_path = '' as $$
+declare tok text;
+begin
+  if auth.uid() is null then raise exception 'Not signed in'; end if;
+  if p_reset then delete from public.inbox_tokens where user_id = auth.uid(); end if;
+  insert into public.inbox_tokens (user_id) values (auth.uid()) on conflict (user_id) do nothing;
+  select token into tok from public.inbox_tokens where user_id = auth.uid();
+  return tok;
+end;
+$$;
+
+-- Gmail: the refresh token is only ever read by the gmail function (no policy lets anyone else see it)
+create table if not exists public.gmail_links (
+  user_id       uuid primary key references auth.users (id) on delete cascade,
+  email         text not null default '',
+  refresh_token text not null,
+  connected_at  timestamptz not null default now(),
+  last_scan     timestamptz
+);
+alter table public.gmail_links enable row level security;
+
+create or replace function public.gmail_status()
+returns table (email text, connected_at timestamptz, last_scan timestamptz)
+language sql stable security definer set search_path = '' as $$
+  select g.email, g.connected_at, g.last_scan from public.gmail_links g where g.user_id = auth.uid()
+$$;
+
+revoke all on function public.my_inbox_token(boolean) from public, anon;
+revoke all on function public.gmail_status() from public, anon;
+grant execute on function public.my_inbox_token(boolean) to authenticated;
+grant execute on function public.gmail_status() to authenticated;
+
+-- ==================================================================
+-- Monthly statement by email (opt in) and the calendar feed.
+-- The statement-email function runs on the 1st of each month (pg_cron)
+-- and emails last month's statement to everyone who turned it on.
+-- The calendar function serves bills and repeating payments as a feed
+-- at a private link.
+-- ==================================================================
+create table if not exists public.statement_prefs (
+  user_id   uuid primary key references auth.users (id) on delete cascade,
+  enabled   boolean not null default true,
+  last_sent text
+);
+alter table public.statement_prefs enable row level security;
+drop policy if exists "own statement prefs" on public.statement_prefs;
+create policy "own statement prefs" on public.statement_prefs
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create table if not exists public.calendar_tokens (
+  user_id    uuid primary key references auth.users (id) on delete cascade,
+  token      text not null unique default replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''),
+  created_at timestamptz not null default now()
+);
+alter table public.calendar_tokens enable row level security;
+drop policy if exists "own calendar token" on public.calendar_tokens;
+create policy "own calendar token" on public.calendar_tokens for select using (user_id = auth.uid());
+
+create or replace function public.my_calendar_token(p_reset boolean default false)
+returns text language plpgsql security definer set search_path = '' as $$
+declare tok text;
+begin
+  if auth.uid() is null then raise exception 'Not signed in'; end if;
+  if p_reset then delete from public.calendar_tokens where user_id = auth.uid(); end if;
+  insert into public.calendar_tokens (user_id) values (auth.uid()) on conflict (user_id) do nothing;
+  select token into tok from public.calendar_tokens where user_id = auth.uid();
+  return tok;
+end;
+$$;
+revoke all on function public.my_calendar_token(boolean) from public, anon;
+grant execute on function public.my_calendar_token(boolean) to authenticated;
+
+-- live updates for the new tables
+do $$
+declare t text;
+begin
+  foreach t in array array['pay_links', 'group_trips', 'family_links', 'spend_requests', 'pending_expenses'] loop
+    if not exists (
+      select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;

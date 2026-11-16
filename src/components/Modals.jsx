@@ -15,6 +15,8 @@ import { modelFor, predict } from '../lib/ml/categorize.js'
 import { EVERY, EVERY_LABEL, nextRun } from '../lib/recurring'
 import { TermsAgree } from './Terms'
 import { useTerms } from '../lib/terms'
+import { accountFor, allTags, DEDUCTIBLE, MAIN } from '../lib/ledger'
+import { TagInput } from './MoreModals'
 
 const QUICK = [50, 100, 250, 500]
 
@@ -66,7 +68,7 @@ export function AmountField({ value, onChange, bad, hint }) {
 
 /* ---------------- Send money ---------------- */
 function SendBody({ payload, onClose }) {
-  const { contacts, balance, sendMoney, transactions } = useApp()
+  const { contacts, balance, sendMoney, transactions, sendLater } = useApp()
   const [to, setTo] = useState(payload?.to ?? contacts[0]?.id)
   const [amount, setAmount] = useState(payload?.amount ? String(payload.amount) : '')
   const [note, setNote] = useState('')
@@ -78,15 +80,21 @@ function SendBody({ payload, onClose }) {
   const [guardNotice, guardOk] = useGuardCheck(n, { payee: person?.name, firstTime })
   const [lockNotice, lockOk] = useLockCheck(n, { card: false })
 
-  if (done) return <Success title={t('Money sent')} body={t('{amount} is on its way to {name}.', { amount: money(done.amount), name: done.name })} />
+  if (done)
+    return <Success title={t('Sending')} body={t('{amount} goes to {name} in 5 seconds. Changed your mind? Press Undo.', { amount: money(done.amount), name: done.name })} />
   if (!person) return <NoContacts then="send" />
 
   const submit = (e) => {
     e.preventDefault()
     if (!n || over || !guardOk || !lockOk) return
-    if (sendMoney({ to: person.name, amount: n, note }) === false) return
-    setDone({ amount: n, name: person.name })
-    window.setTimeout(onClose, 1500)
+    // it goes in 5 seconds, with Undo until then (sendMoney checks the locked budgets again at that moment)
+    const who = person.name
+    sendLater(() => sendMoney({ to: who, amount: n, note }), {
+      title: t('Sending {amount} to {name}', { amount: money(n), name: who.split(' ')[0] }),
+      body: t('You can undo for 5 seconds.'),
+    })
+    setDone({ amount: n, name: who })
+    window.setTimeout(onClose, 1200)
   }
 
   return (
@@ -334,7 +342,16 @@ export function GoalModal({ open, onClose }) {
 
 /* ---------------- Add a transaction by hand ---------------- */
 function TransactionBody({ payload, onClose }) {
-  const { addTransaction, balance, pots, budgets, transactions, categoryCorrections, correctCategory, cards = [], addRecurring, demo } = useApp()
+  const { addTransaction, balance, pots, budgets, transactions, categoryCorrections, correctCategory, cards = [], addRecurring, demo, moneyAccounts = [], server, toast } = useApp()
+  // a child account with approval on: spending goes to the parent first
+  const ask = Boolean(server?.needsApproval)
+  const [asking, setAsking] = useState(false)
+  // the account it goes to: '' lets the card or cash decide (see accountFor)
+  const [acct, setAcct] = useState('')
+  const [tags, setTags] = useState([])
+  const [claim, setClaim] = useState(false)
+  const [deductible, setDeductible] = useState(false)
+  const tagList = useMemo(() => allTags(transactions ?? []), [transactions])
   // '' (just this once) or how often it repeats from here on
   const [repeat, setRepeat] = useState('')
   const [type, setType] = useState(payload?.type ?? 'expense')
@@ -342,15 +359,17 @@ function TransactionBody({ payload, onClose }) {
   const [payWith, setPayWith] = useState(cards[0]?.id ?? 'cash')
   const card = cards.find((c) => c.id === payWith)
   const [potId, setPotId] = useState(payload?.potId ?? '')
-  const [name, setName] = useState('')
-  const [amount, setAmount] = useState('')
+  // a home screen shortcut or a phone assistant can fill these in (?log=12 coffee)
+  const [name, setName] = useState(payload?.name ?? '')
+  const [amount, setAmount] = useState(payload?.amount ? String(payload.amount) : '')
   // the category the user picked themselves; until then, Grace's guess (when she's sure enough)
   const [picked, setPicked] = useState(null)
   const guess = useMemo(
     () => (type === 'expense' && name.trim().length >= 3 ? predict(modelFor(transactions ?? [], categoryCorrections ?? []), name) : null),
     [type, name, transactions, categoryCorrections],
   )
-  const [date, setDate] = useState(isoDay(new Date()))
+  // a receipt from the inbox brings its own date
+  const [date, setDate] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(payload?.date ?? '') && payload.date <= isoDay(new Date()) ? payload.date : isoDay(new Date())))
   const n = Number(amount)
   const [guardNotice, guardOk] = useGuardCheck(type === 'expense' ? n : 0)
   const cats = type === 'income' ? INCOME_CATEGORIES : expenseCategories(budgets)
@@ -364,9 +383,23 @@ function TransactionBody({ payload, onClose }) {
     setPicked(null)
   }
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
     if (!ok) return
+    if (ask && type === 'expense') {
+      setAsking(true)
+      try {
+        const { askToSpend } = await import('../lib/server')
+        await askToSpend({ amount: n, name: name.trim(), category })
+        toast(t('Sent for approval'), t('Your parent will approve or decline {amount} for {name}.', { amount: money(n), name: name.trim() }), { icon: 'send', ms: 6000 })
+        server.refreshFamily()
+        onClose()
+      } catch {
+        toast(t('Couldn’t send it'), t('Try again in a minute.'), { icon: 'info' })
+        setAsking(false)
+      }
+      return
+    }
     const today = isoDay(new Date())
     const went = addTransaction({
       name: name.trim(),
@@ -375,8 +408,17 @@ function TransactionBody({ payload, onClose }) {
       date: date === today ? localIso() : `${date}T12:00`,
       method: type === 'expense' && card ? `Card ending ${lastFour(card)}` : undefined,
       potId: type === 'expense' ? potId || null : null,
+      account: accountFor({ accounts: moneyAccounts, cardId: type === 'expense' && card ? card.id : null, cash: type === 'expense' && !card, picked: acct }),
+      tags: [...tags, ...(type === 'expense' && deductible ? [DEDUCTIBLE] : [])],
+      claim: type === 'expense' && claim ? { from: '', status: 'open', amount: n } : null,
     })
     if (went === false) return
+    // it came from the receipts inbox: it's dealt with now
+    if (payload?.pending)
+      import('../lib/server')
+        .then((m) => m.dismissPending(payload.pending))
+        .then(() => server?.refreshPending())
+        .catch(() => null)
     // repeats: this one is added now, the rule takes over from the next date
     if (repeat) addRecurring?.({ name: name.trim(), amount: type === 'income' ? n : -n, category, every: repeat, start: nextRun(date, repeat) })
     // the user overruled Grace's guess: remember it, so next time she knows
@@ -471,6 +513,36 @@ function TransactionBody({ payload, onClose }) {
           <input type="date" value={date} max={isoDay(new Date())} onChange={(e) => setDate(e.target.value || isoDay(new Date()))} />
         </label>
       </div>
+      {moneyAccounts.length ? (
+        <label className="field">
+          <span>{t('Account')}</span>
+          <select value={acct} onChange={(e) => setAcct(e.target.value)}>
+            <option value="">{type === 'expense' ? t('Automatic (from how you paid)') : t('Main account')}</option>
+            <option value={MAIN}>{t('Main account')}</option>
+            {moneyAccounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      <div className="field">
+        <span>{t('Tags (optional)')}</span>
+        <TagInput value={tags} onChange={setTags} suggestions={tagList} />
+      </div>
+      {type === 'expense' ? (
+        <div className="check-pair">
+          <label className="check-row">
+            <input type="checkbox" checked={claim} onChange={(e) => setClaim(e.target.checked)} />
+            {t('To claim back')}
+          </label>
+          <label className="check-row">
+            <input type="checkbox" checked={deductible} onChange={(e) => setDeductible(e.target.checked)} />
+            {t('Tax deductible')}
+          </label>
+        </div>
+      ) : null}
       {addRecurring && !demo ? (
         <label className="field">
           <span>{t('Repeat')}</span>
@@ -487,9 +559,10 @@ function TransactionBody({ payload, onClose }) {
       ) : null}
       {lockNotice}
       {guardNotice}
-      <button type="submit" className="btn solid lg block" disabled={!ok}>
-        <Icon name="plus" size={18} stroke={2} />
-        {type === 'income' ? t('Add income') : t('Add expense')}
+      {ask && type === 'expense' ? <small className="muted">{t('Your parent approves spending before it’s recorded.')}</small> : null}
+      <button type="submit" className="btn solid lg block" disabled={!ok || asking}>
+        <Icon name={ask && type === 'expense' ? 'send' : 'plus'} size={18} stroke={2} />
+        {type === 'income' ? t('Add income') : ask ? t('Ask my parent') : t('Add expense')}
       </button>
     </form>
   )

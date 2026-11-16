@@ -44,7 +44,7 @@ export const expenseCategories = (budgets = []) => {
 }
 /** A category's icon (custom ones get a generic tag). */
 export const iconOfCategory = (name) => SPENDING_CATEGORIES.find((c) => c.name === name)?.icon ?? 'category'
-export const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Business', 'Other income']
+export const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Business', 'Dividends', 'Other income']
 
 /** Budget categories a fresh account starts with (limits are editable). */
 export const DEFAULT_BUDGETS = [
@@ -76,6 +76,7 @@ export const KIND_FOR = {
   Freelance: 'freelance',
   Business: 'business',
   'Other income': 'request',
+  Dividends: 'business',
   Investment: 'business',
 }
 
@@ -162,7 +163,7 @@ export function carryOver(b, transactions = [], now = new Date()) {
   return carry / 100
 }
 
-export function computeStats(transactions, budgets = [], now = new Date()) {
+export function computeStats(transactions, budgets = [], now = new Date(), { pause = null } = {}) {
   const tx = settled(transactions)
   const win = windows(now)
   const y = now.getFullYear()
@@ -246,9 +247,23 @@ export function computeStats(transactions, budgets = [], now = new Date()) {
 
   /* ---- budgets: spent this month comes from the transactions ---- */
   // a budget with rollover also gets what it didn't use in earlier months (baseLimit is the limit the user set)
+  // a pause (a trip, a holiday): what was spent on those days isn't counted against the budget
+  const today = isoDay(now)
   const budgetsView = budgets.map((b) => {
     const carry = carryOver(b, tx, now)
-    return { ...b, spent: byCat.get(b.name) ?? 0, baseLimit: b.limit, carry, limit: Math.round((b.limit + carry) * 100) / 100 }
+    const hit = (day) => Boolean(pause && day >= pause.from && day <= pause.to && (!pause.ids?.length || pause.ids.includes(b.id)))
+    const pausedSpent = pause
+      ? Math.round(thisMonthOut.filter((x) => x.category === b.name && hit(x.date.slice(0, 10))).reduce((s, x) => s - x.amount, 0) * 100) / 100
+      : 0
+    return {
+      ...b,
+      spent: Math.round(((byCat.get(b.name) ?? 0) - pausedSpent) * 100) / 100,
+      pausedSpent,
+      paused: hit(today),
+      baseLimit: b.limit,
+      carry,
+      limit: Math.round((b.limit + carry) * 100) / 100,
+    }
   })
 
   /* ---- 52 weeks of daily spending ---- */

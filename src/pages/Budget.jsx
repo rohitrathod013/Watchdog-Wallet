@@ -2,6 +2,7 @@ import Icon from '../components/Icon'
 import { PageHead, Stage } from '../components/ui'
 import { useApp } from '../lib/store'
 import BudgetsView from '../views/Budgets'
+import PlanningView from '../views/Planning'
 import { t } from '../lib/i18n'
 
 export default function Budget() {
@@ -23,6 +24,7 @@ export default function Budget() {
         </button>
       </PageHead>
       <BudgetsView />
+      <PlanningView />
     </Stage>
   )
 }

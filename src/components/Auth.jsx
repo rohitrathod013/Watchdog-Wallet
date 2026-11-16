@@ -3,7 +3,7 @@ import Icon from './Icon'
 import BuddyArt from './BuddyArt'
 import { Copyright, Logo } from './Brand'
 import { getSupabase, siteUrl } from '../lib/supabase'
-import { t } from '../lib/i18n'
+import { loadLocale, t } from '../lib/i18n'
 import { LANGUAGES } from '../data/seed'
 import { ASSISTANT, BRAND } from '../config'
 
@@ -121,7 +121,7 @@ export default function Auth({ initialMode = 'login', lang, setLang, onPasswordU
             key={l.code}
             type="button"
             className={lang === l.code ? 'on' : ''}
-            onClick={() => setLang(l.code)}
+            onClick={() => loadLocale(l.code).then(() => setLang(l.code))}
             aria-pressed={lang === l.code}
             title={l.name}
           >
