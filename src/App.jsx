@@ -267,6 +267,8 @@ export default function App() {
   // Grace's suggestions the user said "not now" to, and whether the first-run tour is done
   const [suggestionsDismissed, setSuggestionsDismissed] = useState([])
   const [tourDone, setTourDone] = useState(false)
+  // the friends' chat window (bottom left) is open: Grace steps aside
+  const [chatOpen, setChatOpen] = useState(false)
   const ranRule = useRef(new Set())
 
   /* ---------- accounts (Supabase) ----------
@@ -1747,13 +1749,14 @@ export default function App() {
       {ASSISTANT.enabled ? (
         <Suspense fallback={null}>
           {/* while locked, Grace stays out of reach so nothing can be done through the chat */}
-          <Buddy key={`codi-${bootKey}`} hidden={aiOpen || Boolean(lock)} onOpen={openAssistant} />
+          {/* out of the way of friends' chats: hidden on the Friends page and while the chat window is open */}
+          <Buddy key={`codi-${bootKey}`} hidden={aiOpen || Boolean(lock) || route.page === 'friends' || chatOpen} onOpen={openAssistant} />
           <Assistant open={aiOpen && !lock} onClose={closeAssistant} prompt={lock ? null : aiAsk} />
         </Suspense>
       ) : null}
       {social.enabled && social.setup && route.page !== 'friends' && !lock ? (
         <Suspense fallback={null}>
-          <MessengerDock />
+          <MessengerDock onOpenChange={setChatOpen} />
         </Suspense>
       ) : null}
       {offlineSince ? (

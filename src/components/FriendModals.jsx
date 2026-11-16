@@ -15,7 +15,16 @@ import { useApp } from '../lib/store'
 import { money } from '../lib/format'
 import { t } from '../lib/i18n'
 import { expenseCategories } from '../lib/stats'
-import { addToGroupGoal, createGroupGoal, deleteGroupGoal, friendError, loadGroupGoals, MAX_FRIEND_PAYMENT, MAX_GROUP, splitEqually } from '../lib/social'
+import {
+  addToGroupGoal,
+  createGroupGoal,
+  deleteGroupGoal,
+  friendError,
+  loadGroupGoals,
+  MAX_FRIEND_PAYMENT,
+  MAX_GROUP,
+  splitEqually,
+} from '../lib/social'
 import { netText, paysText, settlePlan } from '../lib/settle'
 
 const QUICK = [10, 25, 50, 100]
@@ -26,6 +35,9 @@ function PayBody({ payload, onClose }) {
   const { balance, transactions, social } = useApp()
   const friend = payload.friend
   const request = payload.request ?? null
+  // a share of a group split: the person who paid the bill confirms it
+  const groupShare = Boolean(request?.split_id && social.splits.get(request.split_id)?.group_id)
+  const [method, setMethod] = useState('app')
   const [amount, setAmount] = useState(request ? String(Number(request.amount)) : '')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
@@ -36,9 +48,21 @@ function PayBody({ payload, onClose }) {
   const tooBig = n > MAX_FRIEND_PAYMENT
   const firstTime = !transactions.some((x) => x.name === `Transfer to ${friend.name}`)
   const [guardNotice, guardOk] = useGuardCheck(n, { payee: friend.name, firstTime })
-  const ok = n > 0 && !over && !tooBig && guardOk && !busy
+  const other = groupShare && method === 'other'
+  const ok = n > 0 && (other || (!over && !tooBig && guardOk)) && !busy
 
-  if (done) return <Success title={t('Money sent')} body={t('{amount} is on its way to {name}.', { amount: money(done), name: friend.name })} />
+  if (done)
+    return groupShare ? (
+      <Success
+        title={t('Marked as paid')}
+        body={
+          t('{name} will confirm it. Until then it shows as waiting.', { name: friend.name.split(' ')[0] }) +
+          (method === 'app' ? ` ${t('The money leaves your balance when they confirm.')}` : '')
+        }
+      />
+    ) : (
+      <Success title={t('Money sent')} body={t('{amount} is on its way to {name}.', { amount: money(done), name: friend.name })} />
+    )
 
   const submit = async (e) => {
     e.preventDefault()
@@ -46,7 +70,8 @@ function PayBody({ payload, onClose }) {
     setBusy(true)
     setError('')
     try {
-      await social.pay(request ? { request: request.id, note } : { to: friend.id, amount: n, note })
+      if (groupShare) await social.claim(request.id, method)
+      else await social.pay(request ? { request: request.id, note } : { to: friend.id, amount: n, note })
       setDone(n)
       window.setTimeout(onClose, 1500)
     } catch (err) {
@@ -94,12 +119,34 @@ function PayBody({ payload, onClose }) {
           </div>
         </>
       )}
-      {request && over ? <small className="err">{t('That is more than your balance of {amount}.', { amount: money(balance) })}</small> : null}
-      <label className="field">
-        <span>{t('Note (optional)')}</span>
-        <input value={note} maxLength={140} onChange={(e) => setNote(e.target.value)} placeholder={t('Dinner, rent, birthday…')} />
-      </label>
-      {guardNotice}
+      {groupShare ? (
+        <div className="pay-how" role="radiogroup" aria-label={t('How did you pay?')}>
+          <label className={method === 'app' ? 'on' : ''}>
+            <input type="radio" name="how" checked={method === 'app'} onChange={() => setMethod('app')} />
+            <span>
+              <b>{t('Pay in the app')}</b>
+              <small>{t('From your balance, when {name} confirms', { name: friend.name.split(' ')[0] })}</small>
+            </span>
+          </label>
+          <label className={method === 'other' ? 'on' : ''}>
+            <input type="radio" name="how" checked={method === 'other'} onChange={() => setMethod('other')} />
+            <span>
+              <b>{t('I paid another way')}</b>
+              <small>{t('Cash, bank transfer…')}</small>
+            </span>
+          </label>
+        </div>
+      ) : null}
+      {request && over && !other ? (
+        <small className="err">{t('That is more than your balance of {amount}.', { amount: money(balance) })}</small>
+      ) : null}
+      {groupShare ? null : (
+        <label className="field">
+          <span>{t('Note (optional)')}</span>
+          <input value={note} maxLength={140} onChange={(e) => setNote(e.target.value)} placeholder={t('Dinner, rent, birthday…')} />
+        </label>
+      )}
+      {other ? null : guardNotice}
       {error ? (
         <p className="auth-error" role="alert">
           {error}
@@ -107,7 +154,13 @@ function PayBody({ payload, onClose }) {
       ) : null}
       <button type="submit" className="btn solid lg block" disabled={!ok}>
         <Icon name="send" size={18} />
-        {busy ? t('Sending…') : n > 0 ? t('Send {amount} to {name}', { amount: money(n), name: friend.name.split(' ')[0] }) : t('Enter an amount')}
+        {busy
+          ? t('Sending…')
+          : groupShare
+            ? t('Mark {amount} as paid', { amount: money(n) })
+            : n > 0
+              ? t('Send {amount} to {name}', { amount: money(n), name: friend.name.split(' ')[0] })
+              : t('Enter an amount')}
       </button>
     </form>
   )
@@ -599,7 +652,11 @@ function GoalsBody({ payload }) {
 
   if (!group) return <p className="tool-sum">{t('That group isn’t available any more.')}</p>
   if (error === 'setup')
-    return <p className="tool-sum">{t('Shared goals need a one-time setup: run the latest supabase/schema.sql in your Supabase project, then try again.')}</p>
+    return (
+      <p className="tool-sum">
+        {t('Shared goals need a one-time setup: run the latest supabase/schema.sql in your Supabase project, then try again.')}
+      </p>
+    )
   const first = (id) => (id === social.me ? t('You') : social.nameOf(id).split(' ')[0])
   const me = group.members.find((m) => m.me)
 
@@ -658,7 +715,11 @@ function GoalsBody({ payload }) {
         </p>
       ) : null}
       {goals === null ? <div className="friends-loading settle-loading" role="status" aria-label={t('Loading…')} /> : null}
-      {goals?.length === 0 && !adding ? <p className="tool-sum">{t('Save towards something together: a trip, a gift, a new sofa for the flat. Everyone sees the progress and who put in what.')}</p> : null}
+      {goals?.length === 0 && !adding ? (
+        <p className="tool-sum">
+          {t('Save towards something together: a trip, a gift, a new sofa for the flat. Everyone sees the progress and who put in what.')}
+        </p>
+      ) : null}
       {goals?.map((g) => {
         const pct = Math.min(100, Math.round((g.saved / g.target) * 100))
         const canRemove = g.createdBy === social.me || me?.role === 'admin'

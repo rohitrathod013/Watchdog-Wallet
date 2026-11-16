@@ -17,6 +17,8 @@ import {
   connectWith,
   groupDebts,
   simplifyGroupDebts,
+  claimRequest,
+  confirmRequest,
   createSplit,
   ensureProfile,
   inviteLink,
@@ -281,6 +283,8 @@ export function useSocial({ enabled, userId, userName, transactions, since, setB
       // settle up: read every open debt in the group, or replace them with the fewest payments
       groupDebts: (group) => groupDebts(group),
       settleGroup: after(simplifyGroupDebts),
+      claim: after(claimRequest),
+      confirm: after(confirmRequest),
       readGroup: async (group) => {
         const g = shaped?.groups.find((x) => x.id === group)
         if (!g?.unread || reading.current.has(group)) return

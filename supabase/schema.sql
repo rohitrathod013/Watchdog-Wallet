@@ -359,6 +359,9 @@ begin
     if not found or r.payer <> me or r.status <> 'pending' then
       raise exception 'That request is no longer open';
     end if;
+    if public.is_group_share(p_request) then
+      raise exception 'Group shares are confirmed by the person who paid: mark yours as paid instead';
+    end if;
     target := r.requester;
     amt := r.amount;
     if memo = '' then memo := r.note; end if;
@@ -415,7 +418,7 @@ begin
      where id = p_id and payer = auth.uid() and status = 'pending';
   elsif p_action = 'cancel' then
     update public.money_requests set status = 'cancelled', settled_at = now()
-     where id = p_id and requester = auth.uid() and status = 'pending';
+     where id = p_id and requester = auth.uid() and status in ('pending', 'claimed');
   else
     raise exception 'Unknown action';
   end if;
@@ -911,3 +914,82 @@ create policy "own push subscriptions" on public.push_subscriptions
 -- while the app is open and on screen, each device says so every 30 seconds (seen_at);
 -- the push function skips anyone seen in the last minute, since the app shows its own alerts
 alter table public.push_subscriptions add column if not exists seen_at timestamptz;
+
+-- ==================================================================
+-- Group shares are confirmed by the person who paid the bill.
+-- In a group split (or a group settle-up), paying your share doesn't settle
+-- it by itself: you claim it ("I paid", in the app or another way), and only
+-- the person you owe can confirm it (then it's paid; for an in-app payment
+-- the money moves at that moment) or say it hasn't arrived (back to pending).
+-- ==================================================================
+alter table public.money_requests add column if not exists claim_method text check (claim_method in ('app', 'other'));
+alter table public.money_requests add column if not exists claimed_at timestamptz;
+alter table public.money_requests drop constraint if exists money_requests_status_check;
+alter table public.money_requests add constraint money_requests_status_check
+  check (status in ('pending', 'claimed', 'paid', 'declined', 'cancelled'));
+
+-- a group share can't be paid straight through send_to_friend any more: it goes through a claim
+create or replace function public.is_group_share(p_request uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.money_requests r join public.splits s on s.id = r.split_id
+     where r.id = p_request and s.group_id is not null
+  )
+$$;
+
+-- the payer: "I've paid my share" (p_method 'app': the money moves when it's confirmed; 'other': cash, bank, ...)
+create or replace function public.claim_request(p_id uuid, p_method text)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := auth.uid();
+  r public.money_requests;
+  gid uuid;
+begin
+  if me is null then raise exception 'Not signed in'; end if;
+  if p_method not in ('app', 'other') then raise exception 'Unknown payment method'; end if;
+  select * into r from public.money_requests where id = p_id for update;
+  if not found or r.payer <> me or r.status <> 'pending' then raise exception 'That request is no longer open'; end if;
+  select s.group_id into gid from public.splits s where s.id = r.split_id;
+  if gid is null then raise exception 'Only group shares are confirmed this way'; end if;
+  update public.money_requests set status = 'claimed', claim_method = p_method, claimed_at = now() where id = p_id;
+  insert into public.messages (sender, group_id, kind, body)
+  values (me, gid, 'system', 'claimed:' || r.amount || '|' || r.requester || '|' || p_method);
+end;
+$$;
+
+-- the person who's owed: confirm it arrived (p_ok true), or say it didn't (back to pending)
+create or replace function public.confirm_request(p_id uuid, p_ok boolean)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := auth.uid();
+  r public.money_requests;
+  gid uuid;
+  tid uuid;
+begin
+  if me is null then raise exception 'Not signed in'; end if;
+  select * into r from public.money_requests where id = p_id for update;
+  if not found or r.requester <> me or r.status <> 'claimed' then raise exception 'That payment isn''t waiting for you'; end if;
+  select s.group_id into gid from public.splits s where s.id = r.split_id;
+  if p_ok then
+    if r.claim_method = 'app' then
+      insert into public.transfers (sender, recipient, amount, note, request_id)
+      values (r.payer, r.requester, r.amount, r.note, r.id) returning id into tid;
+      insert into public.messages (sender, group_id, kind, body, ref) values (r.payer, gid, 'payment', r.note, tid);
+    end if;
+    update public.money_requests set status = 'paid', settled_at = now() where id = p_id;
+    insert into public.messages (sender, group_id, kind, body)
+    values (me, gid, 'system', 'confirmed:' || r.amount || '|' || r.payer || '|' || coalesce(r.claim_method, 'other'));
+  else
+    update public.money_requests set status = 'pending', claim_method = null, claimed_at = null where id = p_id;
+    insert into public.messages (sender, group_id, kind, body)
+    values (me, gid, 'system', 'notreceived:' || r.amount || '|' || r.payer);
+  end if;
+end;
+$$;
+
+revoke all on function public.is_group_share(uuid) from public, anon;
+revoke all on function public.claim_request(uuid, text) from public, anon;
+revoke all on function public.confirm_request(uuid, boolean) from public, anon;
+grant execute on function public.is_group_share(uuid) to authenticated;
+grant execute on function public.claim_request(uuid, text) to authenticated;
+grant execute on function public.confirm_request(uuid, boolean) to authenticated;

@@ -55,6 +55,9 @@ export const simplifyGroupDebts = (group) => rpc('simplify_group_debts', { p_gro
 export const createGroupGoal = ({ group, name, target }) => rpc('create_group_goal', { p_group: group, p_name: name, p_target: target })
 export const addToGroupGoal = (goal, amount) => rpc('add_to_group_goal', { p_goal: goal, p_amount: amount })
 export const deleteGroupGoal = (goal) => rpc('delete_group_goal', { p_goal: goal })
+// group shares: the payer claims ("I paid", in the app or another way); the person owed confirms or says it didn't arrive
+export const claimRequest = (id, method) => rpc('claim_request', { p_id: id, p_method: method })
+export const confirmRequest = (id, ok) => rpc('confirm_request', { p_id: id, p_ok: ok })
 /** A group's goals with every contribution (members only, by the security rules). */
 export async function loadGroupGoals(group) {
   const supabase = await getSupabase()
@@ -185,6 +188,21 @@ export function systemText(m, me, nameOf) {
   if (what === 'removed') return t('{name} removed {other}', { name: who, other })
   if (what === 'left') return t('{name} left', { name: who })
   if (what === 'renamed') return t('{name} renamed the group to “{title}”', { name: who, title: arg })
+  if (what === 'claimed' || what === 'confirmed' || what === 'notreceived') {
+    const [amount, person, method] = arg.split('|')
+    const amt = `$${Number(amount).toFixed(2)}`
+    const them = person === me ? t('you') : nameOf(person).split(' ')[0]
+    if (what === 'claimed')
+      return method === 'other'
+        ? m.sender === me
+          ? t('You marked {amount} to {other} as paid another way. Waiting for {other} to confirm.', { other: them, amount: amt })
+          : t('{name} says they paid {other} {amount} another way. Waiting for {other} to confirm.', { name: who, other: them, amount: amt })
+        : t('{name} sent {other} {amount}. Waiting for {other} to confirm.', { name: who, other: them, amount: amt })
+    if (what === 'confirmed') return t('{name} confirmed {other} paid {amount}', { name: who, other: them, amount: amt })
+    return m.sender === me
+      ? t('You haven’t received {amount} from {other}, so it’s back to unpaid', { other: them, amount: amt })
+      : t('{name} hasn’t received {amount} from {other}, so it’s back to unpaid', { name: who, other: them, amount: amt })
+  }
   if (what === 'goalnew') return t('{name} started a shared goal: “{title}”', { name: who, title: arg })
   if (what === 'goaldel') return t('{name} removed the shared goal “{title}”', { name: who, title: arg })
   if (what === 'goaladd') {

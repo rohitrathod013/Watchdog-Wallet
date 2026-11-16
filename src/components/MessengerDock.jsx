@@ -13,7 +13,7 @@ import { preview } from '../lib/chatPreview'
 
 const lastAt = (x) => x.last?.created_at ?? ''
 
-export default function MessengerDock() {
+export default function MessengerDock({ onOpenChange }) {
   const { social, go } = useApp()
   const [open, setOpen] = useState(false)
   const [picked, setPicked] = useState(null) // 'f:<id>' or 'g:<id>'
@@ -34,6 +34,12 @@ export default function MessengerDock() {
     setOpenChat(peer.id)
     return () => setOpenChat(null)
   }, [open, peer?.id, setOpenChat]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // tell the app, so Grace steps aside while a chat is open
+  useEffect(() => {
+    onOpenChange?.(open)
+    return () => onOpenChange?.(false)
+  }, [open, onOpenChange])
 
   // Escape closes the window
   useEffect(() => {

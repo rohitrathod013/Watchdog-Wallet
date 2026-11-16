@@ -19,7 +19,7 @@ import { preview } from '../lib/chatPreview'
 import { paysText } from '../lib/settle'
 import { allowContacts, canPickContacts, contactsAllowed, inviteHref, pickContacts } from '../lib/contacts'
 
-const STATUS = { pending: 'Pending', paid: 'Paid', declined: 'Declined', cancelled: 'Cancelled' }
+const STATUS = { pending: 'Pending', claimed: 'Waiting for confirmation', paid: 'Paid', declined: 'Declined', cancelled: 'Cancelled' }
 
 function Gate({ icon, title, body, action, onAction }) {
   return (
@@ -441,6 +441,27 @@ function FriendList({ selected, onPick }) {
 const personFor = (social, id) => ({ id, name: social.nameOf(id), hue: [...id].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7), email: '' })
 
 /** A bill split inside a group: everyone sees it; each payer gets Pay on their own share. */
+/* a share someone says they paid: the person owed confirms it, or says it hasn't arrived */
+function ConfirmButtons({ r }) {
+  const { social } = useApp()
+  const [busy, setBusy] = useState(false)
+  const act = async (ok) => {
+    setBusy(true)
+    await social.confirm(r.id, ok).catch(() => null)
+    setBusy(false)
+  }
+  return (
+    <span className="confirm-btns">
+      <button type="button" className="btn sm solid" disabled={busy} onClick={() => act(true)}>
+        {t('Confirm')}
+      </button>
+      <button type="button" className="btn sm" disabled={busy} onClick={() => act(false)}>
+        {t('Not received')}
+      </button>
+    </span>
+  )
+}
+
 /** After "Settle up": the new, fewer payments. Each person sees the ones they pay or get. */
 function SettleCard({ m }) {
   const { social, openModal } = useApp()
@@ -462,9 +483,15 @@ function SettleCard({ m }) {
                 <span>{paysText(t, r.payer, r.requester, social.me, first)}</span>
                 <b>{money(Number(r.amount))}</b>
                 {r.payer === social.me && r.status === 'pending' ? (
-                  <button type="button" className="btn sm solid" onClick={() => openModal('friendPay', { friend: personFor(social, r.requester), request: r })}>
+                  <button
+                    type="button"
+                    className="btn sm solid"
+                    onClick={() => openModal('friendPay', { friend: personFor(social, r.requester), request: r })}
+                  >
                     {t('Pay {amount}', { amount: money(Number(r.amount)) })}
                   </button>
+                ) : r.requester === social.me && r.status === 'claimed' ? (
+                  <ConfirmButtons r={r} />
                 ) : (
                   <em>{t(STATUS[r.status])}</em>
                 )}
@@ -505,7 +532,11 @@ function GroupSplitCard({ m }) {
               <li key={r.id} className={r.status}>
                 <span>{social.nameOf(r.payer).split(' ')[0]}</span>
                 <b>{money(Number(r.amount))}</b>
-                <em>{t(STATUS[r.status])}</em>
+                {r.status === 'claimed' && r.requester === social.me ? (
+                  <ConfirmButtons r={r} />
+                ) : (
+                  <em>{r.status === 'claimed' && r.claim_method === 'other' ? t('Paid another way, to confirm') : t(STATUS[r.status])}</em>
+                )}
               </li>
             ))}
           </ul>
@@ -518,7 +549,14 @@ function GroupSplitCard({ m }) {
           ) : null}
           {mine ? (
             <>
-              <span className={`status ${mine.status}`}>{t('your share is {amount}', { amount: money(Number(mine.amount)) })}</span>
+              <span className={`status ${mine.status}`}>
+                {mine.status === 'claimed'
+                  ? t('your {amount} is waiting for {name} to confirm', {
+                      amount: money(Number(mine.amount)),
+                      name: social.nameOf(mine.requester).split(' ')[0],
+                    })
+                  : t('your share is {amount}', { amount: money(Number(mine.amount)) })}
+              </span>
               {mine.status === 'pending' ? (
                 <>
                   <button

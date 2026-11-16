@@ -64,6 +64,16 @@ const preview = (r: any) =>
 
 async function fromWebhook(table: string, r: any) {
   if (table === 'messages') {
+    // "I paid my share": the person owed is asked to confirm it
+    if (r.kind === 'system' && String(r.body ?? '').startsWith('claimed:')) {
+      const [amount, owed, method] = String(r.body).slice(8).split('|')
+      return notify([owed], {
+        title: 'Confirm a payment',
+        body: `${await nameOf(r.sender)} says they paid you ${money(amount)}${method === 'other' ? ' another way' : ''}. Confirm it in Watchdog Wallet.`,
+        tag: `claim-${r.sender}`,
+        url: `${SITE}#/friends`,
+      })
+    }
     if (r.kind === 'system') return 0
     const who = await nameOf(r.sender)
     if (r.group_id) {

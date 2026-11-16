@@ -76,4 +76,13 @@ describe('settle up', () => {
     expect(systemText({ sender: 'bob', body: 'simplified:6:3' }, 'me', nameOf)).toBe('Bob Brown settled up the group: 6 payments became 3')
     expect(systemText({ sender: 'me', body: 'simplified:2:0' }, 'me', nameOf)).toBe('You settled up the group: everyone’s square')
   })
+  it('says when a share is marked as paid, confirmed or not received', () => {
+    const nameOf = (id) => ({ bob: 'Bob Brown', ana: 'Ana Ruiz' })[id] ?? 'Someone'
+    expect(systemText({ sender: 'bob', body: 'claimed:50.00|ana|other' }, 'me', nameOf)).toBe('Bob Brown says they paid Ana $50.00 another way. Waiting for Ana to confirm.')
+    expect(systemText({ sender: 'bob', body: 'claimed:50.00|me|app' }, 'me', nameOf)).toBe('Bob Brown sent you $50.00. Waiting for you to confirm.')
+    expect(systemText({ sender: 'me', body: 'confirmed:50.00|bob|app' }, 'me', nameOf)).toBe('You confirmed Bob paid $50.00')
+    expect(systemText({ sender: 'ana', body: 'notreceived:50.00|bob' }, 'me', nameOf)).toBe('Ana Ruiz hasn’t received $50.00 from Bob, so it’s back to unpaid')
+    expect(systemText({ sender: 'me', body: 'claimed:100.00|bob|other' }, 'me', nameOf)).toBe('You marked $100.00 to Bob as paid another way. Waiting for Bob to confirm.')
+    expect(systemText({ sender: 'me', body: 'notreceived:50.00|bob' }, 'me', nameOf)).toBe('You haven’t received $50.00 from Bob, so it’s back to unpaid')
+  })
 })
